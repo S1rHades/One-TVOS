@@ -39,7 +39,8 @@ jobs:
           # Pasting can add spaces or line breaks; base64 never contains them
           printf '%s' "$KEYSTORE_BASE64" | tr -d '[:space:]' | base64 -d > "$RUNNER_TEMP/pill.jks" \
             || { echo "::error::SIGNING_KEYSTORE_BASE64 is not valid base64 (copy the whole last line of signing-secrets.txt)"; exit 1; }
-          keytool -list -keystore "$RUNNER_TEMP/pill.jks" -storepass "$SIGNING_PASSWORD" -alias pill > /dev/null \
+          password=$(printf '%s' "$SIGNING_PASSWORD" | tr -d '[:space:]')
+          keytool -list -keystore "$RUNNER_TEMP/pill.jks" -storepass "$password" -alias pill > /dev/null \
             || { echo "::error::The keystore does not open with SIGNING_PASSWORD, or has no 'pill' key"; exit 1; }
           echo "SIGNING_KEYSTORE=$RUNNER_TEMP/pill.jks" >> "$GITHUB_ENV"
           echo "Signing with the permanent key"

@@ -23,9 +23,11 @@ android {
         if (keystore != null) {
             create("ci") {
                 storeFile = keystore
-                storePassword = System.getenv("SIGNING_PASSWORD")
+                // Trimmed: a pasted secret can pick up a trailing newline
+                val password = System.getenv("SIGNING_PASSWORD")?.trim()
+                storePassword = password
                 keyAlias = "pill"
-                keyPassword = System.getenv("SIGNING_PASSWORD")
+                keyPassword = password
             }
         }
     }
