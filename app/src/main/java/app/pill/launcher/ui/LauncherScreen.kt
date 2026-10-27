@@ -160,6 +160,7 @@ fun LauncherScreen(
 
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val pageHeight = maxHeight - Spacing.ScreenV
+            val pageEdge = maxHeight * PAGE_EDGE
             val pageHeightPx = with(LocalDensity.current) { pageHeight.toPx() }
             val grid = rememberLazyGridState()
             // 0 on the first page, 1 once the grid fills the screen; dims the photo behind the apps
@@ -232,7 +233,7 @@ fun LauncherScreen(
 
                             MoreBelow(
                                 count = apps?.size,
-                                modifier = Modifier.fillMaxWidth().height(maxHeight * PAGE_EDGE).alpha(1f - depth),
+                                modifier = Modifier.fillMaxWidth().height(pageEdge).alpha(1f - depth),
                             )
                         }
                     }
