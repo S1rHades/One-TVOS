@@ -50,6 +50,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,6 +58,11 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -69,6 +75,7 @@ import app.pill.launcher.AppEntry
 import app.pill.launcher.LauncherSettings
 import app.pill.launcher.Weather
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private val FavoriteIcon = 108.dp
 private val GridIcon = 84.dp
@@ -82,6 +89,9 @@ private val FavoritesRowHeight = FavoriteIcon + 60.dp
  * back up from the grid lands exactly on the first page.
  */
 private const val PAGE_EDGE = 0.14f
+
+/** Grid index of the "All apps" title: it follows the first page. */
+private const val APPS_TITLE_INDEX = 1
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -103,6 +113,8 @@ fun LauncherScreen(
     var refocus by remember { mutableStateOf<Refocus?>(null) }
 
     val pillFocus = remember { FocusRequester() }
+    val firstAppFocus = remember { FocusRequester() }
+    val scope = rememberCoroutineScope()
     val favoriteFocus = remember { HashMap<String, FocusRequester>() }
     val pinnedApps = apps.orEmpty().let { list -> pins.mapNotNull { pkg -> list.firstOrNull { it.pkg == pkg } } }
 
@@ -172,6 +184,20 @@ fun LauncherScreen(
             }
             Box(Modifier.fillMaxSize().alpha(depth).background(Color(0x8C05070D)))
 
+            // The grid sits below the fold, so it is not composed yet and focus search from the
+            // favourites row (a nested horizontal list) cannot find it. Down on the first page
+            // therefore scrolls the grid in and focuses its first app explicitly.
+            val enterGrid = Modifier.onKeyEvent { event ->
+                val down = event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown
+                if (down && !apps.isNullOrEmpty()) {
+                    scope.launch {
+                        grid.animateScrollToItem(APPS_TITLE_INDEX)
+                        runCatching { firstAppFocus.requestFocus() }
+                    }
+                }
+                down && !apps.isNullOrEmpty()
+            }
+
             val rowScrolling = LocalBringIntoViewSpec.current
             CompositionLocalProvider(LocalBringIntoViewSpec provides PageScrollSpec) {
                 LazyVerticalGrid(
@@ -189,7 +215,14 @@ fun LauncherScreen(
                     // First page: clock, weather and favourites only. The grid starts below the fold.
                     fullWidth("firstPage") {
                         Column(Modifier.fillMaxWidth().height(pageHeight)) {
-                            Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.Tile), verticalAlignment = Alignment.Top) {
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = Spacing.Tile)
+                                    // With no favourites, Down from the pill goes straight to the grid
+                                    .then(if (pinnedApps.isEmpty()) enterGrid else Modifier),
+                                verticalAlignment = Alignment.Top,
+                            ) {
                                 TimeWidget()
                                 if (weather != null) {
                                     Spacer(Modifier.width(36.dp))
@@ -208,7 +241,10 @@ fun LauncherScreen(
                             Spacer(Modifier.weight(1f))
 
                             SectionTitle("Favorites", hint = if (pinnedApps.isNotEmpty()) "Hold OK to unpin" else null)
-                            Box(Modifier.fillMaxWidth().height(FavoritesRowHeight), contentAlignment = Alignment.CenterStart) {
+                            Box(
+                                Modifier.fillMaxWidth().height(FavoritesRowHeight).then(enterGrid),
+                                contentAlignment = Alignment.CenterStart,
+                            ) {
                                 if (pinnedApps.isEmpty()) {
                                     EmptyFavorites(loading = apps == null)
                                 } else {
@@ -245,7 +281,7 @@ fun LauncherScreen(
                             modifier = Modifier.padding(top = 4.dp, bottom = 6.dp),
                         )
                     }
-                    itemsIndexed(apps.orEmpty(), key = { _, app -> app.pkg }) { _, app ->
+                    itemsIndexed(apps.orEmpty(), key = { _, app -> app.pkg }) { index, app ->
                         AppTile(
                             app = app,
                             iconSize = GridIcon,
@@ -253,7 +289,8 @@ fun LauncherScreen(
                             onOpen = { onOpen(app) },
                             onTogglePin = { togglePin(app, fromFavorites = false) },
                             // Fill the cell so the icon is centred in it
-                            modifier = Modifier.animateItem().fillMaxWidth(),
+                            modifier = Modifier.animateItem().fillMaxWidth()
+                                .let { if (index == 0) it.focusRequester(firstAppFocus) else it },
                         )
                     }
                 }
