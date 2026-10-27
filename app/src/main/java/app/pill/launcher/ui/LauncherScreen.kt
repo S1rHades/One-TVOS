@@ -23,7 +23,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -33,13 +32,9 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyGridScope
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.itemsIndexed
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -47,10 +42,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.key
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,11 +53,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onKeyEvent
-import androidx.compose.ui.input.key.type
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -75,7 +65,6 @@ import app.pill.launcher.AppEntry
 import app.pill.launcher.LauncherSettings
 import app.pill.launcher.Weather
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 private val FavoriteIcon = 108.dp
 private val GridIcon = 84.dp
@@ -89,9 +78,6 @@ private val FavoritesRowHeight = FavoriteIcon + 60.dp
  * back up from the grid lands exactly on the first page.
  */
 private const val PAGE_EDGE = 0.14f
-
-/** Grid index of the "All apps" title: it follows the first page. */
-private const val APPS_TITLE_INDEX = 1
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -113,8 +99,6 @@ fun LauncherScreen(
     var refocus by remember { mutableStateOf<Refocus?>(null) }
 
     val pillFocus = remember { FocusRequester() }
-    val firstAppFocus = remember { FocusRequester() }
-    val scope = rememberCoroutineScope()
     val favoriteFocus = remember { HashMap<String, FocusRequester>() }
     val pinnedApps = apps.orEmpty().let { list -> pins.mapNotNull { pkg -> list.firstOrNull { it.pkg == pkg } } }
 
@@ -174,124 +158,94 @@ fun LauncherScreen(
             val pageHeight = maxHeight - Spacing.ScreenV
             val pageEdge = maxHeight * PAGE_EDGE
             val pageHeightPx = with(LocalDensity.current) { pageHeight.toPx() }
-            val grid = rememberLazyGridState()
+            val columns = ((maxWidth - Spacing.ScreenH * 2) / tileWidth(GridIcon)).toInt().coerceAtLeast(1)
+            val scroll = rememberScrollState()
             // 0 on the first page, 1 once the grid fills the screen; dims the photo behind the apps
-            val depth by remember(pageHeightPx) {
-                derivedStateOf {
-                    if (grid.firstVisibleItemIndex > 0) 1f
-                    else (grid.firstVisibleItemScrollOffset / pageHeightPx).coerceIn(0f, 1f)
-                }
-            }
+            val depth by remember(pageHeightPx) { derivedStateOf { (scroll.value / pageHeightPx).coerceIn(0f, 1f) } }
             Box(Modifier.fillMaxSize().alpha(depth).background(Color(0x8C05070D)))
 
-            // The grid sits below the fold, so it is not composed yet and focus search from the
-            // favourites row (a nested horizontal list) cannot find it. Down on the first page
-            // therefore scrolls the grid in and focuses its first app explicitly.
-            val enterGrid = Modifier.onKeyEvent { event ->
-                val down = event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown
-                if (down && !apps.isNullOrEmpty()) {
-                    scope.launch {
-                        grid.animateScrollToItem(APPS_TITLE_INDEX)
-                        runCatching { firstAppFocus.requestFocus() }
-                    }
-                }
-                down && !apps.isNullOrEmpty()
-            }
-
             val rowScrolling = LocalBringIntoViewSpec.current
+            // Every tile is composed (a launcher has at most a few hundred apps), so plain D-pad
+            // focus search reaches the grid from the first page; PageScrollSpec does the scrolling.
             CompositionLocalProvider(LocalBringIntoViewSpec provides PageScrollSpec) {
-                LazyVerticalGrid(
-                    state = grid,
-                    columns = GridCells.Adaptive(minSize = tileWidth(GridIcon)),
-                    contentPadding = PaddingValues(
-                        start = Spacing.ScreenH,
-                        end = Spacing.ScreenH,
-                        top = Spacing.ScreenV,
-                        bottom = 48.dp,
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.fillMaxSize(),
+                Column(
+                    Modifier
+                        .fillMaxSize()
+                        .verticalScroll(scroll)
+                        .padding(start = Spacing.ScreenH, end = Spacing.ScreenH, top = Spacing.ScreenV, bottom = 48.dp),
                 ) {
                     // First page: clock, weather and favourites only. The grid starts below the fold.
-                    fullWidth("firstPage") {
-                        Column(Modifier.fillMaxWidth().height(pageHeight)) {
-                            Row(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = Spacing.Tile)
-                                    // With no favourites, Down from the pill goes straight to the grid
-                                    .then(if (pinnedApps.isEmpty()) enterGrid else Modifier),
-                                verticalAlignment = Alignment.Top,
-                            ) {
-                                TimeWidget()
-                                if (weather != null) {
-                                    Spacer(Modifier.width(36.dp))
-                                    Box(Modifier.padding(top = 18.dp).width(1.dp).height(84.dp).background(Palette.Hairline))
-                                    Spacer(Modifier.width(36.dp))
-                                    WeatherWidget(weather, settings.weather, Modifier.padding(top = 12.dp))
-                                }
-                                Spacer(Modifier.weight(1f))
-                                SettingsPill(
-                                    onClick = { panelOpen = true },
-                                    focusRequester = pillFocus,
-                                    modifier = Modifier.padding(top = 8.dp),
-                                )
+                    Column(Modifier.fillMaxWidth().height(pageHeight)) {
+                        Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.Tile), verticalAlignment = Alignment.Top) {
+                            TimeWidget()
+                            if (weather != null) {
+                                Spacer(Modifier.width(36.dp))
+                                Box(Modifier.padding(top = 18.dp).width(1.dp).height(84.dp).background(Palette.Hairline))
+                                Spacer(Modifier.width(36.dp))
+                                WeatherWidget(weather, settings.weather, Modifier.padding(top = 12.dp))
                             }
-
                             Spacer(Modifier.weight(1f))
+                            SettingsPill(
+                                onClick = { panelOpen = true },
+                                focusRequester = pillFocus,
+                                modifier = Modifier.padding(top = 8.dp),
+                            )
+                        }
 
-                            SectionTitle("Favorites", hint = if (pinnedApps.isNotEmpty()) "Hold OK to unpin" else null)
-                            Box(
-                                Modifier.fillMaxWidth().height(FavoritesRowHeight).then(enterGrid),
-                                contentAlignment = Alignment.CenterStart,
-                            ) {
-                                if (pinnedApps.isEmpty()) {
-                                    EmptyFavorites(loading = apps == null)
-                                } else {
-                                    // The favourites row scrolls sideways the platform's usual way
-                                    CompositionLocalProvider(LocalBringIntoViewSpec provides rowScrolling) {
-                                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            items(pinnedApps, key = { it.pkg }) { app ->
-                                                val requester = favoriteFocus.getOrPut(app.pkg) { FocusRequester() }
-                                                AppTile(
-                                                    app = app,
-                                                    iconSize = FavoriteIcon,
-                                                    showPinBadge = false,
-                                                    onOpen = { onOpen(app) },
-                                                    onTogglePin = { togglePin(app, fromFavorites = true) },
-                                                    modifier = Modifier.animateItem().focusRequester(requester),
-                                                )
-                                            }
+                        Spacer(Modifier.weight(1f))
+
+                        SectionTitle("Favorites", hint = if (pinnedApps.isNotEmpty()) "Hold OK to unpin" else null)
+                        Box(Modifier.fillMaxWidth().height(FavoritesRowHeight), contentAlignment = Alignment.CenterStart) {
+                            if (pinnedApps.isEmpty()) {
+                                EmptyFavorites(loading = apps == null)
+                            } else {
+                                // The favourites row scrolls sideways the platform's usual way
+                                CompositionLocalProvider(LocalBringIntoViewSpec provides rowScrolling) {
+                                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        items(pinnedApps, key = { it.pkg }) { app ->
+                                            val requester = favoriteFocus.getOrPut(app.pkg) { FocusRequester() }
+                                            AppTile(
+                                                app = app,
+                                                iconSize = FavoriteIcon,
+                                                showPinBadge = false,
+                                                onOpen = { onOpen(app) },
+                                                onTogglePin = { togglePin(app, fromFavorites = true) },
+                                                modifier = Modifier.animateItem().focusRequester(requester),
+                                            )
                                         }
                                     }
                                 }
                             }
-
-                            MoreBelow(
-                                count = apps?.size,
-                                modifier = Modifier.fillMaxWidth().height(pageEdge).alpha(1f - depth),
-                            )
                         }
+
+                        MoreBelow(
+                            count = apps?.size,
+                            modifier = Modifier.fillMaxWidth().height(pageEdge).alpha(1f - depth),
+                        )
                     }
 
-                    fullWidth("appsTitle") {
-                        SectionTitle(
-                            "All apps",
-                            hint = apps?.let { if (it.size == 1) "1 app" else "${it.size} apps" },
-                            modifier = Modifier.padding(top = 4.dp, bottom = 6.dp),
-                        )
-                    }
-                    itemsIndexed(apps.orEmpty(), key = { _, app -> app.pkg }) { index, app ->
-                        AppTile(
-                            app = app,
-                            iconSize = GridIcon,
-                            showPinBadge = app.pkg in pins,
-                            onOpen = { onOpen(app) },
-                            onTogglePin = { togglePin(app, fromFavorites = false) },
-                            // Fill the cell so the icon is centred in it
-                            modifier = Modifier.animateItem().fillMaxWidth()
-                                .let { if (index == 0) it.focusRequester(firstAppFocus) else it },
-                        )
+                    SectionTitle(
+                        "All apps",
+                        hint = apps?.let { if (it.size == 1) "1 app" else "${it.size} apps" },
+                        modifier = Modifier.padding(top = 10.dp, bottom = 6.dp),
+                    )
+                    for (row in apps.orEmpty().chunked(columns)) {
+                        Row(Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
+                            for (app in row) {
+                                key(app.pkg) {
+                                    AppTile(
+                                        app = app,
+                                        iconSize = GridIcon,
+                                        showPinBadge = app.pkg in pins,
+                                        onOpen = { onOpen(app) },
+                                        onTogglePin = { togglePin(app, fromFavorites = false) },
+                                        // Equal cells across the row, with the icon centred in each
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                }
+                            }
+                            repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
+                        }
                     }
                 }
             }
@@ -318,7 +272,7 @@ fun LauncherScreen(
 }
 
 /**
- * Page-like D-pad scrolling for the home grid. Nothing moves while the focused item is
+ * Page-like D-pad scrolling for the home screen. Nothing moves while the focused item is
  * fully on screen. Moving down past the bottom brings the new row up to [PAGE_EDGE]
  * from the top, so the grid turns over a page at a time; moving up past the top puts
  * the item [PAGE_EDGE] above the bottom, which for the favourites row is the first page.
@@ -342,11 +296,6 @@ private object PageScrollSpec : BringIntoViewSpec {
 private class Toast(val message: String)
 
 private class Refocus(val pkg: String?)
-
-/** An item that spans the whole grid row (first page, section titles). */
-private fun LazyGridScope.fullWidth(key: String, content: @Composable () -> Unit) {
-    item(key = key, span = { GridItemSpan(maxLineSpan) }) { content() }
-}
 
 /** "All apps" and a gently bobbing chevron at the bottom of the first page. */
 @Composable
