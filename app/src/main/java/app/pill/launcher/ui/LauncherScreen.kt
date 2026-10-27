@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyRow
@@ -167,7 +168,9 @@ fun LauncherScreen(
             val rowScrolling = LocalBringIntoViewSpec.current
             // Every tile is composed (a launcher has at most a few hundred apps), so plain D-pad
             // focus search reaches the grid from the first page; PageScrollSpec does the scrolling.
-            CompositionLocalProvider(LocalBringIntoViewSpec provides PageScrollSpec) {
+            val topPx = with(LocalDensity.current) { Spacing.ScreenV.toPx() }
+            val pageScrolling = remember(scroll, pageHeightPx) { PageScrollSpec(scroll, topPx + pageHeightPx) }
+            CompositionLocalProvider(LocalBringIntoViewSpec provides pageScrolling) {
                 Column(
                     Modifier
                         .fillMaxSize()
@@ -272,23 +275,41 @@ fun LauncherScreen(
 }
 
 /**
- * Page-like D-pad scrolling for the home screen. Nothing moves while the focused item is
- * fully on screen. Moving down past the bottom brings the new row up to [PAGE_EDGE]
- * from the top, so the grid turns over a page at a time; moving up past the top puts
- * the item [PAGE_EDGE] above the bottom, which for the favourites row is the first page.
+ * Page-like D-pad scrolling for the home screen.
+ *
+ * Anything on the first page scrolls back to the top. In the grid nothing moves while the
+ * focused row is inside the current page; moving below it brings the new row up to
+ * [PAGE_EDGE] from the top, so the grid turns over a page at a time, and moving above it
+ * puts the row [PAGE_EDGE] above the bottom.
+ *
+ * The chosen scroll target is remembered: Compose asks again on every animation frame
+ * with the item's new offset, and answering from the target (not from whether the item is
+ * already visible) keeps the animation going all the way to the page.
  */
 @OptIn(ExperimentalFoundationApi::class)
-private object PageScrollSpec : BringIntoViewSpec {
+private class PageScrollSpec(
+    private val scroll: ScrollState,
+    /** Where the first page ends, in px from the top of the content. */
+    private val firstPageEnd: Float,
+) : BringIntoViewSpec {
+    private var target = 0f
+
     override val scrollAnimationSpec: AnimationSpec<Float> = tween(550, easing = FastOutSlowInEasing)
 
     override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float {
+        val current = scroll.value.toFloat()
+        // Follow scrolling done some other way (touch, or a jump) before this request
+        if (!scroll.isScrollInProgress) target = current
+        val top = current + offset
+        val bottom = top + size
         val edge = containerSize * PAGE_EDGE
-        val end = offset + size
-        return when {
-            offset < 0f -> end - (containerSize - edge)
-            end > containerSize -> offset - edge
-            else -> 0f
-        }
+        target = when {
+            top < firstPageEnd -> 0f
+            top >= target && bottom <= target + containerSize -> target
+            top > target -> top - edge
+            else -> bottom - (containerSize - edge)
+        }.coerceIn(0f, scroll.maxValue.toFloat())
+        return target - current
     }
 }
 
