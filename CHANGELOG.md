@@ -3,7 +3,7 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
-## October 2026
+## 1.1 (October 2026)
 
 **A calmer home screen**
 - The home screen now shows only the clock, the weather and your favourites. **All apps** waits one press below, and the grid slides up a page at a time with a smooth animation while the photo dims behind it.
@@ -12,6 +12,8 @@ Pill Launcher is built from `main` on every change; the newest build is always t
 - Favourites slide into place when you pin or unpin one.
 - A sharper, slimmer gear in a round button that turns when focused.
 - Settings is now a floating card with grouped options, an accent switch and the weather unit.
+
+## 1.0 (October 2026)
 
 **README and screenshots**
 - A README with install steps, remote controls and screenshots rendered from the app itself.

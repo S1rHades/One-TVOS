@@ -42,7 +42,16 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          version=$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' app/build.gradle.kts)
+          {
+            echo "Install on the TV with the **Downloader** app: \`https://github.com/${{ github.repository }}/releases/download/latest/launcher.apk\`"
+            echo
+            # The newest section of the changelog
+            awk '/^## /{n++} n==1' CHANGELOG.md
+            echo
+            echo "Built from ${GITHUB_SHA::7}. Full history: [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)"
+          } > notes.md
           gh release delete latest --yes --cleanup-tag || true
           gh release create latest launcher.apk \
-            --title "Latest build" \
-            --notes "Install on the TV with the Downloader app."
+            --title "Pill Launcher $version" \
+            --notes-file notes.md
