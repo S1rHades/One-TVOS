@@ -5,6 +5,14 @@ Pill Launcher is built from `main` on every change; the newest build is always t
 
 ## October 2026
 
+**A calmer home screen**
+- The home screen now shows only the clock, the weather and your favourites. **All apps** waits one press below, and the grid slides up a page at a time with a smooth animation while the photo dims behind it.
+- New weather widget beside the clock: current conditions, today's high and low, and your area. Choose °C, °F or Off in settings.
+- App icons fill their tile with no see-through backing. Focus (or a pointer) adds a crisp white ring with a small gap, a lift shadow and a gentle bounce.
+- Favourites slide into place when you pin or unpin one.
+- A sharper, slimmer gear in a round button that turns when focused.
+- Settings is now a floating card with grouped options, an accent switch and the weather unit.
+
 **README and screenshots**
 - A README with install steps, remote controls and screenshots rendered from the app itself.
 
