@@ -40,6 +40,8 @@ jobs:
           printf '%s' "$KEYSTORE_BASE64" | tr -d '[:space:]' | base64 -d > "$RUNNER_TEMP/pill.jks" \
             || { echo "::error::SIGNING_KEYSTORE_BASE64 is not valid base64 (copy the whole last line of signing-secrets.txt)"; exit 1; }
           password=$(printf '%s' "$SIGNING_PASSWORD" | tr -d '[:space:]')
+          # Fingerprints (hash prefixes, not the values) to check what was pasted
+          echo "keystore $(wc -c < "$RUNNER_TEMP/pill.jks") bytes, sha256 $(sha256sum "$RUNNER_TEMP/pill.jks" | cut -c1-8); password ${#password} chars, sha256 $(printf '%s' "$password" | sha256sum | cut -c1-8)"
           keytool -list -keystore "$RUNNER_TEMP/pill.jks" -storepass "$password" -alias pill > /dev/null \
             || { echo "::error::The keystore does not open with SIGNING_PASSWORD, or has no 'pill' key"; exit 1; }
           echo "SIGNING_KEYSTORE=$RUNNER_TEMP/pill.jks" >> "$GITHUB_ENV"
