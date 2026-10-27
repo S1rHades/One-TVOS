@@ -23,6 +23,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.test.printToString
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.test.core.app.ApplicationProvider
@@ -113,7 +114,8 @@ class Screenshots {
             repeat(6) { pressKey(Key.DirectionRight) }
         }
         settle()
-        compose.onNodeWithContentDescription("Maps").performSemanticsAction(SemanticsActions.OnLongClick)
+        runCatching { compose.onNodeWithContentDescription("Maps").performSemanticsAction(SemanticsActions.OnLongClick) }
+            .onFailure { println(compose.onRoot().printToString(maxDepth = 12)); throw it }
         settle()
         compose.onRoot().captureRoboImage(File(out, "pin.png").path)
     }
