@@ -9,7 +9,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,6 +19,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.items
@@ -47,8 +48,8 @@ import kotlinx.coroutines.delay
 private val FavoriteIcon = 108.dp
 private val GridIcon = 84.dp
 
-/** Height of the favourites row, kept fixed so pinning the first app does not shift the grid. */
-private val FavoritesRowHeight = FavoriteIcon + 64.dp
+/** Height of the favourites row (one tile), kept fixed so pinning the first app does not shift the grid. */
+private val FavoritesRowHeight = FavoriteIcon + 60.dp
 
 @Composable
 fun LauncherScreen(
@@ -126,57 +127,71 @@ fun LauncherScreen(
         )
         BackgroundScrim()
 
-        Column(Modifier.fillMaxSize().padding(horizontal = Spacing.ScreenH, vertical = Spacing.ScreenV)) {
-            Row(
-                Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Top,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                TimeWidget()
-                SettingsPill(onClick = { panelOpen = true }, focusRequester = pillFocus)
+        // One scrolling page: moving down into the app grid scrolls the clock and favourites away
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(minSize = tileWidth(GridIcon)),
+            contentPadding = PaddingValues(
+                start = Spacing.ScreenH,
+                end = Spacing.ScreenH,
+                top = Spacing.ScreenV,
+                bottom = 48.dp,
+            ),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            fullWidth("header") {
+                Row(
+                    Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                    verticalAlignment = Alignment.Top,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    TimeWidget()
+                    SettingsPill(onClick = { panelOpen = true }, focusRequester = pillFocus)
+                }
             }
 
-            Spacer(Modifier.height(20.dp))
-
-            SectionTitle("Favorites", hint = if (pinnedApps.isNotEmpty()) "Hold OK to unpin" else null)
-            Box(Modifier.fillMaxWidth().height(FavoritesRowHeight), contentAlignment = Alignment.CenterStart) {
-                if (pinnedApps.isEmpty()) {
-                    EmptyFavorites(loading = apps == null)
-                } else {
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        items(pinnedApps, key = { it.pkg }) { app ->
-                            val requester = favoriteFocus.getOrPut(app.pkg) { FocusRequester() }
-                            AppTile(
-                                app = app,
-                                iconSize = FavoriteIcon,
-                                showPinBadge = false,
-                                onOpen = { onOpen(app) },
-                                onTogglePin = { togglePin(app, fromFavorites = true) },
-                                modifier = Modifier.focusRequester(requester),
-                            )
+            fullWidth("favoritesTitle") {
+                SectionTitle("Favorites", hint = if (pinnedApps.isNotEmpty()) "Hold OK to unpin" else null)
+            }
+            fullWidth("favorites") {
+                Box(Modifier.fillMaxWidth().height(FavoritesRowHeight), contentAlignment = Alignment.CenterStart) {
+                    if (pinnedApps.isEmpty()) {
+                        EmptyFavorites(loading = apps == null)
+                    } else {
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            items(pinnedApps, key = { it.pkg }) { app ->
+                                val requester = favoriteFocus.getOrPut(app.pkg) { FocusRequester() }
+                                AppTile(
+                                    app = app,
+                                    iconSize = FavoriteIcon,
+                                    showPinBadge = false,
+                                    onOpen = { onOpen(app) },
+                                    onTogglePin = { togglePin(app, fromFavorites = true) },
+                                    modifier = Modifier.focusRequester(requester),
+                                )
+                            }
                         }
                     }
                 }
             }
 
-            SectionTitle("All apps", hint = apps?.let { if (it.size == 1) "1 app" else "${it.size} apps" })
-
-            LazyVerticalGrid(
-                columns = GridCells.FixedSize(tileWidth(GridIcon)),
-                contentPadding = PaddingValues(top = 12.dp, bottom = 48.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-                modifier = Modifier.weight(1f),
-            ) {
-                itemsIndexed(apps.orEmpty(), key = { _, app -> app.pkg }) { index, app ->
-                    AppTile(
-                        app = app,
-                        iconSize = GridIcon,
-                        showPinBadge = app.pkg in pins,
-                        onOpen = { onOpen(app) },
-                        onTogglePin = { togglePin(app, fromFavorites = false) },
-                        modifier = if (index == 0) Modifier.focusRequester(firstAppFocus) else Modifier,
-                    )
-                }
+            fullWidth("appsTitle") {
+                SectionTitle(
+                    "All apps",
+                    hint = apps?.let { if (it.size == 1) "1 app" else "${it.size} apps" },
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+            }
+            itemsIndexed(apps.orEmpty(), key = { _, app -> app.pkg }) { index, app ->
+                AppTile(
+                    app = app,
+                    iconSize = GridIcon,
+                    showPinBadge = app.pkg in pins,
+                    onOpen = { onOpen(app) },
+                    onTogglePin = { togglePin(app, fromFavorites = false) },
+                    // Fill the cell so the icon is centred in it
+                    modifier = Modifier.fillMaxWidth().let { if (index == 0) it.focusRequester(firstAppFocus) else it },
+                )
             }
         }
 
@@ -205,10 +220,15 @@ private class Toast(val message: String)
 
 private class Refocus(val pkg: String?)
 
+/** An item that spans the whole grid row (header, section titles, favourites). */
+private fun LazyGridScope.fullWidth(key: String, content: @Composable () -> Unit) {
+    item(key = key, span = { GridItemSpan(maxLineSpan) }) { content() }
+}
+
 @Composable
-private fun SectionTitle(text: String, hint: String? = null) {
+private fun SectionTitle(text: String, hint: String? = null, modifier: Modifier = Modifier) {
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = Spacing.Tile),
+        modifier.fillMaxWidth().padding(horizontal = Spacing.Tile),
         verticalAlignment = Alignment.Bottom,
     ) {
         Text(

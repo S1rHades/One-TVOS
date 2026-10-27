@@ -34,6 +34,19 @@ android {
     buildFeatures {
         compose = true
     }
+
+    // Screenshot tests (Robolectric + Roborazzi) that render the README images.
+    // Run by .github/workflows/screenshots.yml; see Screenshots.kt.
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+            all {
+                it.systemProperty("roborazzi.test.record", "true")
+                it.systemProperty("screenshots.out", rootProject.file("docs/screenshots").path)
+                it.systemProperty("screenshots.photos", rootProject.file("build/screenshot-photos").path)
+            }
+        }
+    }
 }
 
 dependencies {
@@ -44,4 +57,12 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("androidx.activity:activity-compose:1.9.2")
     implementation("androidx.core:core-ktx:1.13.1")
+
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.robolectric:robolectric:4.13")
+    testImplementation("io.github.takahirom.roborazzi:roborazzi:1.26.0")
+    testImplementation("io.coil-kt:coil-test:2.7.0")
+    testImplementation("androidx.test:core:1.6.1")
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
 }

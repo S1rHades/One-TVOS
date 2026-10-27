@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="176" height="56" viewBox="0 0 176 56" role="img" aria-label="What's new in Pill Launcher">
+  <title>What's new</title>
+  <rect x="1" y="1" width="174" height="54" rx="27" fill="none" stroke="#4C6EF5" stroke-width="2"/>
+  <g fill="none" stroke="#4C6EF5" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" transform="translate(24 16)">
+    <path d="M12 2.5 14.2 9.8 21.5 12 14.2 14.2 12 21.5 9.8 14.2 2.5 12 9.8 9.8Z"/>
+  </g>
+  <text x="58" y="34" fill="#4C6EF5" font-size="16" font-weight="700" textLength="94" lengthAdjust="spacingAndGlyphs" font-family="Inter, 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif">What's new</text>
+</svg>
