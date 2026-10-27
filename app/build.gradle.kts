@@ -16,7 +16,24 @@ android {
         versionName = "1.1"
     }
 
+    // CI signs with one permanent key (from repository secrets, see build.yml) so each new
+    // APK installs over the previous one. Local builds keep the usual debug key.
+    val keystore = System.getenv("SIGNING_KEYSTORE")?.let { file(it) }?.takeIf { it.exists() }
+    signingConfigs {
+        if (keystore != null) {
+            create("ci") {
+                storeFile = keystore
+                storePassword = System.getenv("SIGNING_PASSWORD")
+                keyAlias = "pill"
+                keyPassword = System.getenv("SIGNING_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
+        debug {
+            if (keystore != null) signingConfig = signingConfigs.getByName("ci")
+        }
         release {
             isMinifyEnabled = false
         }
