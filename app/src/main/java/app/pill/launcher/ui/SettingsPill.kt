@@ -1,11 +1,13 @@
 package app.pill.launcher.ui
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -45,8 +47,9 @@ fun SettingsPill(
     modifier: Modifier = Modifier,
 ) {
     var focused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(if (focused) 1.14f else 1f, label = "pillScale")
-    val elevation by animateDpAsState(if (focused) 18.dp else 0.dp, label = "pillElevation")
+    val scale by animateFloatAsState(if (focused) 1.12f else 1f, label = "pillScale")
+    val elevation by animateDpAsState(if (focused) 16.dp else 0.dp, label = "pillElevation")
+    val fill by animateColorAsState(if (focused) Palette.Focus else Color(0x59000000), label = "pillFill")
     val shape = RoundedCornerShape(50)
 
     Box(
@@ -57,16 +60,20 @@ fun SettingsPill(
             }
             .shadow(elevation, shape, ambientColor = Color.White, spotColor = Color.White)
             .clip(shape)
-            .background(if (focused) Color.White else Color(0x59000000))
-            .border(2.dp, if (focused) Color.White else Color(0x80FFFFFF), shape)
+            .background(fill)
+            .border(1.5.dp, if (focused) Palette.Focus else Palette.GlassStrong, shape)
             .semantics { contentDescription = "Settings" }
             .onFocusChanged { focused = it.isFocused }
             .focusRequester(focusRequester)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 44.dp, vertical = 16.dp),
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            )
+            .padding(horizontal = 34.dp, vertical = 14.dp),
         contentAlignment = Alignment.Center,
     ) {
-        GearIcon(tint = if (focused) Color(0xFF0B0F1A) else Color.White, iconSize = 38.dp)
+        GearIcon(tint = if (focused) Palette.Ink else Palette.TextPrimary, iconSize = 32.dp)
     }
 }
 

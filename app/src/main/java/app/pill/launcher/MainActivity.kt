@@ -27,7 +27,8 @@ class MainActivity : ComponentActivity() {
         store = SettingsStore(this)
 
         setContent {
-            val apps by produceState(emptyList<AppEntry>(), refresh) {
+            // null until the first scan finishes; later refreshes keep the old list on screen
+            val apps by produceState<List<AppEntry>?>(null, refresh) {
                 value = withContext(Dispatchers.Default) { loadApps(packageManager, packageName) }
             }
             var pins by remember { mutableStateOf(store.readPins()) }
