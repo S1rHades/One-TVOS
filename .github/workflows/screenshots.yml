@@ -31,7 +31,7 @@ jobs:
       - name: Download background photos
         run: |
           mkdir -p build/screenshot-photos
-          for seed in mountain-lake canyon-river pine-forest aurora-sky; do
+          for seed in mountain-lake canyon-river pine-forest aurora-sky misty-valley; do
             curl -fsSL --retry 3 -o "build/screenshot-photos/$seed.jpg" \
               "https://picsum.photos/seed/$seed/1920/1080" || echo "::warning::could not download $seed"
           done

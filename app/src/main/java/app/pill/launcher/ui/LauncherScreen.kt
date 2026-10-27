@@ -49,7 +49,7 @@ private val FavoriteIcon = 108.dp
 private val GridIcon = 84.dp
 
 /** Height of the favourites row (one tile), kept fixed so pinning the first app does not shift the grid. */
-private val FavoritesRowHeight = FavoriteIcon + 52.dp
+private val FavoritesRowHeight = FavoriteIcon + 60.dp
 
 @Composable
 fun LauncherScreen(

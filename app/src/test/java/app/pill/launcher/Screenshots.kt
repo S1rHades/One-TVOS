@@ -109,6 +109,18 @@ class Screenshots {
     }
 
     @Test
+    fun allApps() {
+        show("misty-valley", pins = favorites)
+        // Down past the first rows: the clock and favourites scroll away
+        compose.onRoot().performKeyInput {
+            repeat(3) { pressKey(Key.DirectionDown) }
+            repeat(2) { pressKey(Key.DirectionRight) }
+        }
+        settle()
+        compose.onRoot().captureRoboImage(File(out, "all-apps.png").path)
+    }
+
+    @Test
     fun firstLaunch() {
         show("pine-forest", pins = emptyList())
         compose.onRoot().captureRoboImage(File(out, "first-launch.png").path)
