@@ -28,6 +28,14 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.platform.app.InstrumentationRegistry
 import app.pill.launcher.ui.LauncherScreen
+import app.pill.launcher.ui.Palette
+import app.pill.launcher.ui.WeatherIcon
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import coil.Coil
 import coil.ImageLoader
 import coil.test.FakeImageLoaderEngine
@@ -75,11 +83,13 @@ class Screenshots {
     private val apps = listOf(
         "Cinema" to 0xFFE5484D, "Live TV" to 0xFF3E63DD, "Music" to 0xFFD6409F,
         "Photos" to 0xFFF76B15, "Podcasts" to 0xFF8E4EC6, "Radio" to 0xFF12A594,
-        "Weather" to 0xFF0090FF, "News" to 0xFFE54666, "Browser" to 0xFF30A46C,
+        "Maps" to 0xFF0090FF, "News" to 0xFFE54666, "Browser" to 0xFF30A46C,
         "Files" to 0xFFFFB224, "Games" to 0xFF6E56CF, "Fitness" to 0xFF46A758,
         "Kids" to 0xFFFF8B3E, "Store" to 0xFF0D74CE, "Recipes" to 0xFFDC3E42,
         "Travel" to 0xFF00A2C7, "Clock" to 0xFF5B5BD6, "Gallery" to 0xFFAB4ABA,
     ).map { (label, color) -> fakeApp(label, color.toInt()) }
+
+    private val weather = Weather(tempC = 22.4, highC = 25.0, lowC = 16.0, code = 2, isDay = true, place = "Lisbon")
 
     private val favorites = listOf("Cinema", "Live TV", "Music", "Photos", "Podcasts").map(::pkg)
 
@@ -97,15 +107,32 @@ class Screenshots {
     @Test
     fun pinFromGrid() {
         show("canyon-river", pins = favorites)
-        // Down into the grid, along to "Weather", then hold OK to pin it
+        // Down into the grid, along to "Maps", then hold OK to pin it
         compose.onRoot().performKeyInput {
             pressKey(Key.DirectionDown)
             repeat(6) { pressKey(Key.DirectionRight) }
         }
         settle()
-        compose.onNodeWithContentDescription("Weather").performSemanticsAction(SemanticsActions.OnLongClick)
+        compose.onNodeWithContentDescription("Maps").performSemanticsAction(SemanticsActions.OnLongClick)
         settle()
         compose.onRoot().captureRoboImage(File(out, "pin.png").path)
+    }
+
+    /** The widget's condition icons side by side, for the README. */
+    @Test
+    fun weatherIcons() {
+        compose.setContent {
+            Row(
+                Modifier.background(Palette.Ink).padding(horizontal = 24.dp, vertical = 20.dp),
+                horizontalArrangement = Arrangement.spacedBy(28.dp),
+            ) {
+                for ((sky, day) in Sky.entries.map { it to true } + (Sky.Clear to false) + (Sky.PartlyCloudy to false)) {
+                    WeatherIcon(sky, day, 72.dp)
+                }
+            }
+        }
+        compose.waitForIdle()
+        compose.onRoot().captureRoboImage(File(out, "weather-icons.png").path)
     }
 
     @Test
@@ -139,9 +166,10 @@ class Screenshots {
         useBackground(photo)
         compose.setContent {
             var pinned by remember { mutableStateOf(pins) }
-            var settings by remember { mutableStateOf(LauncherSettings()) }
+            var settings by remember { mutableStateOf(LauncherSettings(weather = WeatherMode.Celsius)) }
             LauncherScreen(
                 apps = apps,
+                weather = weather,
                 pins = pinned,
                 settings = settings,
                 onSettingsChange = { settings = it },

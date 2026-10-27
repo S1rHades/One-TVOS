@@ -15,7 +15,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import app.pill.launcher.ui.LauncherScreen
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+
+private const val REFRESH_MS = 30 * 60 * 1000L
+private const val RETRY_MS = 2 * 60 * 1000L
 
 class MainActivity : ComponentActivity() {
 
@@ -33,12 +37,21 @@ class MainActivity : ComponentActivity() {
             }
             var pins by remember { mutableStateOf(store.readPins()) }
             var settings by remember { mutableStateOf(store.load()) }
+            // Refreshed every 30 minutes while the widget is on; the last reading stays up if a refresh fails
+            val weatherOn = settings.weather != WeatherMode.Off
+            val weather by produceState<Weather?>(null, weatherOn) {
+                while (weatherOn) {
+                    withContext(Dispatchers.IO) { fetchWeather() }?.let { value = it }
+                    delay(if (value == null) RETRY_MS else REFRESH_MS)
+                }
+            }
 
             // A launcher never exits on Back
             BackHandler(enabled = true) { }
 
             LauncherScreen(
                 apps = apps,
+                weather = weather.takeIf { weatherOn },
                 pins = pins,
                 settings = settings,
                 onSettingsChange = {
