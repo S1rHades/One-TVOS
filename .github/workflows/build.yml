@@ -29,10 +29,21 @@ jobs:
       - name: Restore signing key
         env:
           KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
-        if: env.KEYSTORE_BASE64 != ''
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+        # (A step's own env is not visible to its `if:`, so the check lives in the script.)
         run: |
-          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/pill.jks"
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::warning::No SIGNING_KEYSTORE_BASE64 secret: signing with a throwaway debug key"
+            exit 0
+          fi
+          # Pasting can add spaces or line breaks; base64 never contains them
+          printf '%s' "$KEYSTORE_BASE64" | tr -d '[:space:]' | base64 -d > "$RUNNER_TEMP/pill.jks" \
+            || { echo "::error::SIGNING_KEYSTORE_BASE64 is not valid base64 (copy the whole last line of signing-secrets.txt)"; exit 1; }
+          password=$(printf '%s' "$SIGNING_PASSWORD" | tr -d '[:space:]')
+          keytool -list -keystore "$RUNNER_TEMP/pill.jks" -storepass "$password" -alias pill > /dev/null \
+            || { echo "::error::The keystore does not open with SIGNING_PASSWORD, or has no 'pill' key"; exit 1; }
           echo "SIGNING_KEYSTORE=$RUNNER_TEMP/pill.jks" >> "$GITHUB_ENV"
+          echo "Signing with the permanent key"
 
       - name: Build debug APK
         env:
