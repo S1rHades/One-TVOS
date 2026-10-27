@@ -20,6 +20,7 @@ object Palette {
     val GlassStrong = Color(0x4DFFFFFF)
     val Hairline = Color(0x33FFFFFF)
     val Focus = Color.White
+    val Accent = Color(0xFF4C6EF5)
 }
 
 /** Soft drop shadow so text stays readable over bright photos. */
@@ -29,6 +30,6 @@ val TextShadow = Shadow(Color(0x99000000), Offset(0f, 3f), 12f)
 object Spacing {
     val ScreenH = 48.dp
     val ScreenV = 27.dp
-    /** Inner padding of an app tile; section titles are indented by the same amount so they line up with the icons. */
-    val Tile = 8.dp
+    /** Space from a tile's edge to its icon (room for the focus ring); headers are indented the same so everything lines up. */
+    val Tile = 12.dp
 }

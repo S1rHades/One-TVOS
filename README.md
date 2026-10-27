@@ -6,7 +6,7 @@
 
 <p align="center">
   <b>A calm, photo-first home screen for Android TV.</b><br>
-  Your favourite apps, a big clock and a new landscape every few seconds. No ads, no accounts, no rows of recommendations.
+  Your favourite apps, the time and weather, and a new landscape every few seconds. No ads, no accounts, no rows of recommendations.
 </p>
 
 <p align="center">
@@ -16,13 +16,14 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/home.png" width="100%" alt="The home screen: a large clock and date over a photo of a lake, the settings pill top right, five favourite apps with the first one focused, and the start of the All apps grid">
+  <img src="docs/screenshots/home.png" width="100%" alt="The home screen: the clock and date with the weather beside it over a photo of a lake, a round settings button top right, five favourite apps along the bottom with the first one focused, and an All apps hint below them">
 </p>
 
 ## Highlights
 
-- **Just your apps.** Pin favourites to the top row and find everything else in one alphabetical grid.
-- **Built for the remote.** Every tile lifts and glows when focused, and every action is one or two presses of the D-pad.
+- **Just your apps.** The home screen shows only your favourites; everything else waits one press below, in an alphabetical grid that turns over a page at a time.
+- **Time and weather.** A big clock with the current conditions, today's high and low beside it.
+- **Built for the remote.** Focused apps lift and get a crisp white ring, every move animates smoothly, and every action is one or two presses of the D-pad.
 - **A fresh view.** The background cross-fades between full-screen photos, and the next one is loaded before it appears, so it never flashes.
 - **Light on the TV.** One small app, written in Jetpack Compose, with no background services and no tracking.
 
@@ -30,14 +31,16 @@
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/pin.png" alt="Focus in the All apps grid after holding OK on Weather: Weather now appears in Favorites and a message says Added Weather to Favorites"><br><sub><b>Pin with one press</b>: hold OK on any app and it joins Favorites, with a short confirmation.</sub></td>
-    <td width="50%"><img src="docs/screenshots/settings.png" alt="The settings panel slid in from the right, with a Photo slideshow switch, a Change photo every stepper set to 20 s and a link to Android TV settings"><br><sub><b>Settings</b>: a side panel for the slideshow and a shortcut to the TV's own settings.</sub></td>
+    <td width="50%"><img src="docs/screenshots/all-apps.png" alt="All apps: the grid fills the screen under its title, the photo dimmed behind it, with Games focused"><br><sub><b>All apps</b>: press down and the grid slides up a page at a time over a dimmed photo.</sub></td>
+    <td width="50%"><img src="docs/screenshots/settings.png" alt="The settings card on the right: Photo slideshow switch, Change photo every 20 s, Weather in °C, and Android TV settings"><br><sub><b>Settings</b>: a floating card for the slideshow, the weather and the TV's own settings.</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/screenshots/first-launch.png" alt="First launch with no favourites: a hint reads Hold OK on any app below to pin it here, above the All apps grid"><br><sub><b>First launch</b>: a hint shows how to pin, and focus starts on your first app.</sub></td>
-    <td width="50%"><img src="docs/screenshots/all-apps.png" alt="Scrolled down into the All apps grid: the clock and favourites have scrolled away and rows of app tiles fill the screen"><br><sub><b>All apps</b>: go down and the whole page scrolls, so the grid gets the full screen.</sub></td>
+    <td width="50%"><img src="docs/screenshots/pin.png" alt="Maps focused in the All apps grid after holding OK on it, with a message saying Added Maps to Favorites"><br><sub><b>Pin with one press</b>: hold OK on any app and it joins Favorites, with a short confirmation.</sub></td>
+    <td width="50%"><img src="docs/screenshots/first-launch.png" alt="First launch with no favourites: a hint explains how to pin apps, with the settings button focused"><br><sub><b>First launch</b>: a hint shows how to fill Favorites.</sub></td>
   </tr>
 </table>
+
+<p align="center"><img src="docs/screenshots/weather-icons.png" width="620" alt="The weather widget's icons: clear, partly cloudy, cloudy, fog, rain, snow, thunderstorm, clear night and partly cloudy night"></p>
 
 <sub>Screenshots are rendered at 1920×1080 from the app's own interface code by <code>.github/workflows/screenshots.yml</code>. The app names and icons in them are stand-ins; on your TV you'll see your installed apps. Photos: <a href="https://picsum.photos">Lorem Picsum</a> (Unsplash licence).</sub>
 
@@ -56,12 +59,17 @@ The `latest` release is rebuilt automatically every time `main` changes, so inst
 | To | Press |
 | --- | --- |
 | Open an app | **OK** |
+| See all apps | **Down** from Favorites |
 | Pin or unpin an app | Hold **OK** |
-| Open settings | Go up to the pill (top right), then **OK** |
-| Change how often the photo changes | In settings, **Left** / **Right** on *Change photo every* |
+| Open settings | Go up to the round gear button (top right), then **OK** |
+| Change how often the photo changes, or the weather unit | In settings, **Left** / **Right** on that row |
 | Close settings | **Back** |
 
 Settings and favourites are saved on the TV and survive restarts and updates.
+
+### Weather
+
+The widget finds the TV's approximate location from its internet address with [GeoJS](https://www.geojs.io/) and gets the forecast from [Open-Meteo](https://open-meteo.com/); neither needs an account or key. It refreshes every 30 minutes. Choose °C or °F in settings, or turn it **Off** and the launcher contacts neither service.
 
 ### Your own photos
 
@@ -86,13 +94,15 @@ app/src/main/java/app/pill/launcher/
   MainActivity.kt        launcher activity: loads apps, opens them, keeps pins and settings
   AppModel.kt            lists launchable apps (TV apps first) with their icons
   LauncherSettings.kt    settings and pinned apps in SharedPreferences
+  Weather.kt             location and forecast lookup, condition names and units
   ui/
-    LauncherScreen.kt    the home screen: one scrolling grid with the clock, favourites and all apps
+    LauncherScreen.kt    the home screen: a first page with the clock and favourites, All apps below, page scrolling
     AppTile.kt           a focusable squircle app tile
     BackgroundSlideshow.kt  photo cross-fade and the readability scrim
-    SettingsPanel.kt     the right-hand settings panel (its own dialog window, so focus stays inside)
-    SettingsPill.kt      the gear button
+    SettingsPanel.kt     the floating settings card (its own dialog window, so focus stays inside)
+    SettingsPill.kt      the round gear button and the gear icon
     TimeWidget.kt        clock and date
+    WeatherWidget.kt     weather beside the clock, with drawn condition icons
     Theme.kt             shared colours and spacing
     Squircle.kt          the superellipse tile shape
 app/src/test/.../Screenshots.kt   Robolectric + Roborazzi renders for this README

@@ -12,8 +12,8 @@ android {
         applicationId = "app.pill.launcher"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
     }
 
     buildTypes {
@@ -44,6 +44,10 @@ android {
                 it.systemProperty("roborazzi.test.record", "true")
                 it.systemProperty("screenshots.out", rootProject.file("docs/screenshots").path)
                 it.systemProperty("screenshots.photos", rootProject.file("build/screenshot-photos").path)
+                it.testLogging {
+                    exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+                    showStandardStreams = true
+                }
             }
         }
     }

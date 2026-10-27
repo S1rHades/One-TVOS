@@ -3,15 +3,17 @@ package app.pill.launcher.ui
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -20,13 +22,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.contentDescription
@@ -37,8 +41,8 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /**
- * Rounded pill with a gear icon. On D-pad focus it scales up, gains an
- * elevated white glow and flips to a solid white fill. Center/Enter triggers [onClick].
+ * Round glass button with a gear. On D-pad focus (or pointer hover) it fills white,
+ * lifts, and the gear turns an eighth of a turn. Center/Enter triggers [onClick].
  */
 @Composable
 fun SettingsPill(
@@ -46,56 +50,74 @@ fun SettingsPill(
     focusRequester: FocusRequester,
     modifier: Modifier = Modifier,
 ) {
+    val interaction = remember { MutableInteractionSource() }
+    val hovered by interaction.collectIsHoveredAsState()
     var focused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(if (focused) 1.12f else 1f, label = "pillScale")
-    val elevation by animateDpAsState(if (focused) 16.dp else 0.dp, label = "pillElevation")
-    val fill by animateColorAsState(if (focused) Palette.Focus else Color(0x59000000), label = "pillFill")
-    val shape = RoundedCornerShape(50)
+    val active = focused || hovered
+
+    val scale by animateFloatAsState(if (active) 1.1f else 1f, spring(dampingRatio = 0.7f, stiffness = 500f), label = "pillScale")
+    val elevation by animateDpAsState(if (active) 14.dp else 0.dp, label = "pillElevation")
+    val fill by animateColorAsState(if (active) Palette.Focus else Color(0x47000000), label = "pillFill")
+    val tint by animateColorAsState(if (active) Palette.Ink else Palette.TextPrimary, label = "pillTint")
+    val turn by animateFloatAsState(if (active) 45f else 0f, tween(450), label = "gearTurn")
 
     Box(
         modifier
+            .size(56.dp)
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
             }
-            .shadow(elevation, shape, ambientColor = Color.White, spotColor = Color.White)
-            .clip(shape)
+            .shadow(elevation, CircleShape, ambientColor = Color.White, spotColor = Color.White)
+            .clip(CircleShape)
             .background(fill)
-            .border(1.5.dp, if (focused) Palette.Focus else Palette.GlassStrong, shape)
+            .border(1.dp, if (active) Color.Transparent else Palette.Hairline, CircleShape)
             .semantics { contentDescription = "Settings" }
             .onFocusChanged { focused = it.isFocused }
             .focusRequester(focusRequester)
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick,
-            )
-            .padding(horizontal = 34.dp, vertical = 14.dp),
+            .clickable(interactionSource = interaction, indication = null, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        GearIcon(tint = if (focused) Palette.Ink else Palette.TextPrimary, iconSize = 32.dp)
+        GearIcon(tint = tint, iconSize = 26.dp, modifier = Modifier.rotate(turn))
     }
 }
 
-/** Gear drawn on a canvas: a ring with eight rounded teeth. */
+/** Outlined gear: eight tapered teeth around a ring, drawn as one stroked path. */
 @Composable
 fun GearIcon(tint: Color, iconSize: Dp, modifier: Modifier = Modifier) {
     Canvas(modifier.size(iconSize)) {
-        val c = center
-        val r = this.size.minDimension / 2f
-        val toothWidth = r * 0.3f
-        for (k in 0 until 8) {
-            val angle = Math.toRadians(k * 45.0)
-            val dx = cos(angle).toFloat()
-            val dy = sin(angle).toFloat()
-            drawLine(
-                color = tint,
-                start = Offset(c.x + dx * r * 0.6f, c.y + dy * r * 0.6f),
-                end = Offset(c.x + dx * r * 0.93f, c.y + dy * r * 0.93f),
-                strokeWidth = toothWidth,
-                cap = StrokeCap.Round,
-            )
+        val s = size.minDimension
+        val stroke = Stroke(width = s * 0.085f, join = StrokeJoin.Round)
+        drawPath(gearPath(center, s), tint, style = stroke)
+        drawCircle(tint, radius = s * 0.13f, center = center, style = stroke)
+    }
+}
+
+private fun gearPath(c: Offset, s: Float, teeth: Int = 8): Path {
+    val outer = s * 0.44f
+    val inner = s * 0.34f
+    val tipHalf = 9.0 // degrees either side of a tooth's centre at the tip
+    val baseHalf = 15.0 // ... and at its base
+    fun at(deg: Double, r: Float): Offset {
+        val a = Math.toRadians(deg - 90)
+        return Offset(c.x + cos(a).toFloat() * r, c.y + sin(a).toFloat() * r)
+    }
+    return Path().apply {
+        val step = 360.0 / teeth
+        for (k in 0 until teeth) {
+            val a = k * step
+            val start = at(a - baseHalf, inner)
+            if (k == 0) moveTo(start.x, start.y) else lineTo(start.x, start.y)
+            at(a - tipHalf, outer).let { lineTo(it.x, it.y) }
+            at(a + tipHalf, outer).let { lineTo(it.x, it.y) }
+            at(a + baseHalf, inner).let { lineTo(it.x, it.y) }
+            // follow the body circle to the next tooth
+            var d = a + baseHalf + 3
+            while (d < a + step - baseHalf) {
+                at(d, inner).let { lineTo(it.x, it.y) }
+                d += 3
+            }
         }
-        drawCircle(tint, radius = r * 0.5f, style = Stroke(width = r * 0.26f))
+        close()
     }
 }
