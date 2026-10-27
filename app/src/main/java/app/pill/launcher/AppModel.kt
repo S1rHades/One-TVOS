@@ -14,6 +14,9 @@ data class AppEntry(
     val icon: ImageBitmap,
 )
 
+/** Icon bitmap size: sharp at the largest tile (108dp) on a 1080p TV (xhdpi). */
+private const val ICON_PX = 216
+
 /** Lists launchable apps (TV apps first, then regular launcher apps), one entry per package. */
 fun loadApps(pm: PackageManager, self: String): List<AppEntry> {
     val seen = LinkedHashMap<String, AppEntry>()
@@ -23,7 +26,7 @@ fun loadApps(pm: PackageManager, self: String): List<AppEntry> {
             val pkg = info.activityInfo.packageName
             if (pkg == self || seen.containsKey(pkg)) continue
             val bitmap = try {
-                info.activityInfo.loadIcon(pm).toBitmap(160, 160).asImageBitmap()
+                info.activityInfo.loadIcon(pm).toBitmap(ICON_PX, ICON_PX).asImageBitmap()
             } catch (e: Exception) {
                 continue
             }

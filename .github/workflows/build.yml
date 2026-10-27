@@ -3,6 +3,7 @@ name: Build APK
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -29,7 +30,15 @@ jobs:
       - name: Rename APK
         run: cp app/build/outputs/apk/debug/app-debug.apk launcher.apk
 
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: launcher-apk
+          path: launcher.apk
+
+      # Only builds of main replace the public "latest" release
       - name: Publish to the "latest" release
+        if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |

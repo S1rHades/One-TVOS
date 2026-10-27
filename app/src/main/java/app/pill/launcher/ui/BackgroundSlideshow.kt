@@ -73,7 +73,7 @@ fun BackgroundSlideshow(
         }
     }
 
-    Box(modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF0B0F1A), Color(0xFF1B2540))))) {
+    Box(modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Palette.Ink, Palette.InkLight)))) {
         Crossfade(
             targetState = index,
             animationSpec = tween(CROSSFADE_MS),
@@ -100,8 +100,9 @@ fun BackgroundScrim(modifier: Modifier = Modifier) {
             .background(
                 Brush.verticalGradient(
                     0f to Color(0xCC000000),
-                    0.35f to Color(0x66000000),
-                    1f to Color(0xCC000000),
+                    0.3f to Color(0x4D000000),
+                    0.55f to Color(0x66000000),
+                    1f to Color(0xE6000000),
                 ),
             ),
     )
