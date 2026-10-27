@@ -29,10 +29,15 @@ jobs:
       - name: Restore signing key
         env:
           KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
-        if: env.KEYSTORE_BASE64 != ''
+        # (A step's own env is not visible to its `if:`, so the check lives in the script.)
         run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::warning::No SIGNING_KEYSTORE_BASE64 secret: signing with a throwaway debug key"
+            exit 0
+          fi
           echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/pill.jks"
           echo "SIGNING_KEYSTORE=$RUNNER_TEMP/pill.jks" >> "$GITHUB_ENV"
+          echo "Signing with the permanent key"
 
       - name: Build debug APK
         env:
