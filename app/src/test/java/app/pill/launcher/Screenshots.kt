@@ -37,6 +37,8 @@ import com.github.takahirom.roborazzi.captureScreenRoboImage
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.ExternalResource
+import org.junit.rules.RuleChain
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
@@ -56,8 +58,16 @@ import java.io.File
 @OptIn(ExperimentalTestApi::class, ExperimentalRoborazziApi::class)
 class Screenshots {
 
+    private val compose = createComposeRule()
+
+    // A TV remote is a D-pad, so the window must start outside touch mode for tiles to
+    // take focus. This has to happen before the compose rule launches its activity.
     @get:Rule
-    val compose = createComposeRule()
+    val rules: RuleChain = RuleChain
+        .outerRule(object : ExternalResource() {
+            override fun before() = InstrumentationRegistry.getInstrumentation().setInTouchMode(false)
+        })
+        .around(compose)
 
     private val out = File(System.getProperty("screenshots.out") ?: "build/screenshots")
     private val photos = File(System.getProperty("screenshots.photos") ?: "build/screenshot-photos")
@@ -75,8 +85,6 @@ class Screenshots {
 
     @Before
     fun setUp() {
-        // A TV remote is a D-pad: leave touch mode so tiles take focus and show it
-        InstrumentationRegistry.getInstrumentation().setInTouchMode(false)
         out.mkdirs()
     }
 
