@@ -5,6 +5,7 @@ import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -43,6 +44,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import app.pill.launcher.AppEntry
 import app.pill.launcher.FavoritesLayout
@@ -57,7 +59,7 @@ private val RowAir = 10.dp
 private val RowBleed = 24.dp
 
 /** One curve for every favourites motion, matching the page scroll. */
-private fun <T> motion(animate: Boolean): AnimationSpec<T> =
+private fun <T> motion(animate: Boolean): FiniteAnimationSpec<T> =
     if (animate) tween(300, easing = FastOutSlowInEasing) else snap()
 
 /** How many favourite tiles fit across [width] (Wrap layout). */
@@ -109,7 +111,8 @@ fun FavoritesRow(
         AnimatedContent(
             targetState = layout,
             transitionSpec = {
-                fadeIn(motion(true)) togetherWith fadeOut(motion(true)) using SizeTransform(clip = false) { _, _ -> motion(true) }
+                fadeIn(motion<Float>(true)) togetherWith fadeOut(motion<Float>(true)) using
+                    SizeTransform(clip = false) { _, _ -> motion<IntSize>(true) }
             },
             contentAlignment = Alignment.BottomStart,
             modifier = modifier,
@@ -157,7 +160,7 @@ private fun WrapRows(
     perRow: Int,
     tile: @Composable (AppEntry, Boolean, Boolean, Modifier) -> Unit,
 ) {
-    Column(if (animate) Modifier.animateContentSize(motion(true)) else Modifier) {
+    Column(if (animate) Modifier.animateContentSize(motion<IntSize>(true)) else Modifier) {
         for (row in apps.chunked(perRow)) {
             Row(
                 Modifier.height(favoritesRowHeight(iconSize)),
