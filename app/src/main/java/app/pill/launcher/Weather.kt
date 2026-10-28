@@ -1,6 +1,7 @@
 package app.pill.launcher
 
 import org.json.JSONObject
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.Locale
@@ -59,6 +60,20 @@ fun fetchWeather(): Result<Weather> = runCatching {
     val geo = JSONObject(httpGet("https://get.geojs.io/v1/ip/geo.json"))
     val lat = geo.getString("latitude").toDouble()
     val lon = geo.getString("longitude").toDouble()
+    val place = geo.optString("city")
+    // Some networks cannot reach Open-Meteo at all; MET Norway covers the whole world too
+    runCatching { openMeteo(lat, lon, place) }.getOrElse { first ->
+        runCatching { metNorway(lat, lon, place) }.getOrElse { second ->
+            // Name both failures so the message in Settings says what each service did
+            throw IOException("Open-Meteo: ${shortName(first)}, MET Norway: ${shortName(second)}")
+        }
+    }
+}
+
+/** The root cause's class name, e.g. "SocketTimeoutException". */
+private fun shortName(error: Throwable): String = generateSequence(error) { it.cause }.last()::class.java.simpleName
+
+private fun openMeteo(lat: Double, lon: Double, place: String): Weather {
     val url = String.format(
         Locale.ROOT,
         "https://api.open-meteo.com/v1/forecast?latitude=%.3f&longitude=%.3f" +
@@ -69,20 +84,69 @@ fun fetchWeather(): Result<Weather> = runCatching {
     val json = JSONObject(httpGet(url))
     val current = json.getJSONObject("current")
     val daily = json.getJSONObject("daily")
-    Weather(
+    return Weather(
         tempC = current.getDouble("temperature_2m"),
         highC = daily.getJSONArray("temperature_2m_max").getDouble(0),
         lowC = daily.getJSONArray("temperature_2m_min").getDouble(0),
         code = current.getInt("weather_code"),
         isDay = current.optInt("is_day", 1) == 1,
-        place = geo.optString("city"),
+        place = place,
     )
 }
 
-private fun httpGet(url: String): String {
+/**
+ * MET Norway's free Locationforecast API. It asks for an identifying User-Agent.
+ * The high and low are taken over the next 24 hours.
+ */
+private fun metNorway(lat: Double, lon: Double, place: String): Weather {
+    val url = String.format(
+        Locale.ROOT,
+        "https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=%.3f&lon=%.3f",
+        lat, lon,
+    )
+    val series = JSONObject(httpGet(url, "PillLauncher/1.5 github.com/S1rHades/One-TVOS"))
+        .getJSONObject("properties").getJSONArray("timeseries")
+    val temps = (0 until minOf(24, series.length())).map {
+        series.getJSONObject(it).getJSONObject("data").getJSONObject("instant")
+            .getJSONObject("details").getDouble("air_temperature")
+    }
+    val symbol = series.getJSONObject(0).getJSONObject("data")
+        .optJSONObject("next_1_hours")?.optJSONObject("summary")?.optString("symbol_code")
+        ?: "cloudy"
+    return Weather(
+        tempC = temps.first(),
+        highC = temps.max(),
+        lowC = temps.min(),
+        code = wmoCodeFor(symbol),
+        isDay = !symbol.endsWith("_night"),
+        place = place,
+    )
+}
+
+/** Maps a MET Norway symbol (e.g. "lightrainshowers_day") to the nearest WMO code. */
+private fun wmoCodeFor(symbol: String): Int {
+    val s = symbol.substringBefore('_')
+    return when {
+        "thunder" in s -> 95
+        "snow" in s || "sleet" in s -> if ("heavy" in s) 75 else 71
+        "rain" in s -> when {
+            "heavy" in s -> 65
+            "light" in s -> 51
+            else -> 61
+        }
+        s == "fog" -> 45
+        s == "clearsky" -> 0
+        s == "fair" -> 1
+        s == "partlycloudy" -> 2
+        else -> 3
+    }
+}
+
+private fun httpGet(url: String, userAgent: String? = null): String {
     val connection = URL(url).openConnection() as HttpURLConnection
     connection.connectTimeout = 8000
     connection.readTimeout = 8000
+    userAgent?.let { connection.setRequestProperty("User-Agent", it) }
     return try {
         check(connection.responseCode == 200) { "HTTP ${connection.responseCode}" }
         connection.inputStream.bufferedReader().use { it.readText() }

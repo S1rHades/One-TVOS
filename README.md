@@ -69,11 +69,11 @@ Settings and favourites are saved on the TV and survive restarts and updates.
 
 ### Weather
 
-The widget finds the TV's approximate location from its internet address with [GeoJS](https://www.geojs.io/) and gets the forecast from [Open-Meteo](https://open-meteo.com/); neither needs an account or key. It refreshes every 30 minutes. Choose °C or °F in settings, or turn it **Off** and the launcher contacts neither service.
+The widget finds the TV's approximate location from its internet address with [GeoJS](https://www.geojs.io/) and gets the forecast from [Open-Meteo](https://open-meteo.com/), or from [MET Norway](https://api.met.no/) if Open-Meteo can't be reached. None of them needs an account or key. It refreshes every 30 minutes. Choose °C or °F in settings, or turn it **Off** and the launcher contacts none of them. If the weather can't load, Settings shows why under the Weather row.
 
 ### Your own photos
 
-The backgrounds come from the list in `BackgroundSources` (`app/src/main/java/app/pill/launcher/ui/BackgroundSlideshow.kt`). Replace those URLs with any direct links to 1920×1080 images and rebuild.
+The twelve nature photos are built into the app (`app/src/main/assets/photos`), so they show even without internet. To change them, edit the Lorem Picsum ids in `BackgroundSources` (`app/src/main/java/app/pill/launcher/ui/BackgroundSlideshow.kt`) and in `.github/workflows/photos.yml`, then run the **Bundle photos** workflow. `BackgroundSources` also accepts direct `https://` image links.
 
 ## Development
 

@@ -1,0 +1,39 @@
+name: Bundle photos
+
+# Downloads the slideshow's nature photos (Lorem Picsum ids, Unsplash licence) into
+# app/src/main/assets/photos and commits them, so the app never needs a photo server.
+# Run it from the Actions tab after changing the id list.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/photos.yml
+
+permissions:
+  contents: write
+
+jobs:
+  photos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download photos
+        run: |
+          mkdir -p app/src/main/assets/photos
+          for id in 10 11 13 15 16 17 28 29 46 62 110 128; do
+            curl -fsSL --retry 3 -o "app/src/main/assets/photos/$id.jpg" "https://picsum.photos/id/$id/1920/1080.jpg"
+          done
+          ls -la app/src/main/assets/photos
+
+      - name: Commit photos
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/src/main/assets/photos
+          if git diff --cached --quiet; then
+            echo "Photos unchanged"
+          else
+            git commit -m "Bundle slideshow photos"
+            git push
+          fi

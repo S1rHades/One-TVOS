@@ -25,14 +25,16 @@ import coil.request.SuccessResult
 import kotlinx.coroutines.delay
 
 /**
- * Nature photos from Lorem Picsum (Unsplash photos, free to use), picked by id so the
- * set is always landscapes. Each URL always returns the same picture, so Coil caches it.
+ * Nature photos bundled in the app (assets/photos), so the slideshow works without a
+ * photo server: some networks refuse image hosts outright. They are Lorem Picsum photos
+ * (Unsplash licence, free to use), fetched by .github/workflows/photos.yml.
  *
- * To use your own photos, replace this list with any direct 1920x1080 image URLs.
+ * To change the set, edit the id list here and in photos.yml, then run that workflow.
+ * Any direct image URLs (https://...) work here too.
  */
 object BackgroundSources {
     private val ids = listOf(10, 11, 13, 15, 16, 17, 28, 29, 46, 62, 110, 128)
-    val urls: List<String> = ids.map { "https://picsum.photos/id/$it/1920/1080" }
+    val urls: List<String> = ids.map { "file:///android_asset/photos/$it.jpg" }
 }
 
 private const val CROSSFADE_MS = 1500
