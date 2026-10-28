@@ -30,6 +30,7 @@ import coil.compose.AsyncImage
 import coil.imageLoader
 import coil.request.ErrorResult
 import coil.request.ImageRequest
+import app.pill.launcher.Photo
 import coil.request.SuccessResult
 import android.graphics.drawable.BitmapDrawable
 import androidx.compose.ui.graphics.ImageBitmap
@@ -47,7 +48,7 @@ import kotlinx.coroutines.withContext
  */
 object BackgroundSources {
     private val ids = listOf(10, 11, 13, 15, 16, 17, 28, 29, 46, 62, 110, 128)
-    val urls: List<String> = ids.map { "file:///android_asset/photos/$it.jpg" }
+    val photos: List<Photo> = ids.map { Photo("file:///android_asset/photos/$it.jpg") }
 }
 
 private const val CROSSFADE_MS = 1500
@@ -57,13 +58,14 @@ private val RetryDelaysMs = listOf(3_000L, 10_000L, 30_000L, 60_000L)
 
 /**
  * Full-screen slideshow. Each photo is downloaded and decoded before it is shown, so the
- * cross-fade never flashes an empty frame. Until the first photo loads it keeps retrying,
- * moving through the list; a failed later photo keeps the current one on screen.
- * [onStatus] reports null while photos load fine, or why the last attempt failed.
+ * cross-fade never flashes an empty frame. When one of [photos] can't load, the next one
+ * comes from [fallback] (the built-in set) instead of waiting, so the screen never stays
+ * empty offline. [onStatus] reports null while photos load fine, or why the last attempt
+ * failed; [onShown] tells which photo is on screen, for its credit.
  */
 @Composable
 fun BackgroundSlideshow(
-    urls: List<String>,
+    photos: List<Photo>,
     intervalMs: Long,
     enabled: Boolean,
     modifier: Modifier = Modifier,
@@ -72,46 +74,58 @@ fun BackgroundSlideshow(
     onStatus: (String?) -> Unit = {},
     /** A blurred copy of each photo as it is shown, for glass surfaces ([LocalBackdrop]). */
     onBackdrop: (ImageBitmap) -> Unit = {},
+    fallback: List<Photo> = emptyList(),
+    onShown: (Photo) -> Unit = {},
 ) {
-    if (urls.isEmpty()) return
+    val all = remember(photos, fallback) { photos + fallback }
+    if (all.isEmpty()) return
     val context = LocalContext.current
     val report by rememberUpdatedState(onStatus)
     val publishBackdrop by rememberUpdatedState(onBackdrop)
+    val announce by rememberUpdatedState(onShown)
     // Index of the photo on screen; null until one has loaded
     var shown by remember { mutableStateOf<Int?>(null) }
 
     fun requestFor(i: Int): ImageRequest =
         ImageRequest.Builder(context)
-            .data(urls[i % urls.size])
+            .data(all[i % all.size].url)
             .size(1920, 1080)
             .crossfade(false) // the Crossfade composable below does the animation
             .build()
 
-    LaunchedEffect(enabled, intervalMs, urls) {
+    LaunchedEffect(enabled, intervalMs, all) {
         val loader = context.imageLoader
         var failures = 0
-        var candidate = shown?.let { it + 1 } ?: 0
+        var next = shown?.takeIf { it < photos.size }?.let { it + 1 } ?: 0 // next of [photos]
+        var spare = 0 // next of [fallback]
+        var waitFirst = shown != null
         while (true) {
-            if (shown != null) {
+            if (waitFirst) {
                 if (!enabled) return@LaunchedEffect
                 delay(intervalMs)
             }
+            // After a photo fails to load, show a built-in one rather than wait
+            val useSpare = photos.isEmpty() || (failures > 0 && fallback.isNotEmpty())
+            val candidate = if (useSpare) photos.size + spare++ % fallback.size else next % photos.size
+            if (!useSpare) next = candidate + 1
             when (val result = loader.execute(requestFor(candidate))) {
                 is SuccessResult -> {
                     (result.drawable as? BitmapDrawable)?.bitmap?.let { photo ->
                         publishBackdrop(withContext(Dispatchers.Default) { blurredBackdrop(photo) })
                     }
-                    shown = candidate % urls.size
+                    shown = candidate
+                    announce(all[candidate])
                     failures = 0
+                    waitFirst = true
                     report(null)
                 }
                 is ErrorResult -> {
                     report(describe(result.throwable))
-                    delay(RetryDelaysMs[failures.coerceAtMost(RetryDelaysMs.lastIndex)])
+                    waitFirst = false
+                    if (useSpare || fallback.isEmpty()) delay(RetryDelaysMs[failures.coerceAtMost(RetryDelaysMs.lastIndex)])
                     failures++
                 }
             }
-            candidate = (candidate + 1) % urls.size
         }
     }
 
@@ -138,7 +152,7 @@ fun BackgroundSlideshow(
         ) { i ->
             if (i != null) {
                 // Already decoded into Coil's memory cache by the loop above
-                val request = remember(i, urls) { requestFor(i) }
+                val request = remember(i, all) { requestFor(i) }
                 AsyncImage(
                     model = request,
                     contentDescription = null,

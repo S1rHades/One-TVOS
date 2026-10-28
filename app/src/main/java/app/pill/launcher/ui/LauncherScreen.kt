@@ -75,6 +75,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
@@ -94,6 +95,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.pill.launcher.AppEntry
 import app.pill.launcher.Fixtures
+import app.pill.launcher.Photo
 import app.pill.launcher.FavoritesLayout
 import app.pill.launcher.HomeStatus
 import app.pill.launcher.LauncherSettings
@@ -124,6 +126,8 @@ fun LauncherScreen(
     fixtures: Fixtures? = null,
     /** Why the last fixtures fetch failed; null when it works. */
     fixturesError: String? = null,
+    /** Today's online nature photos; empty until loaded, or when unavailable. */
+    onlinePhotos: List<Photo> = emptyList(),
     pins: List<String>,
     settings: LauncherSettings,
     onSettingsChange: (LauncherSettings) -> Unit,
@@ -151,6 +155,8 @@ fun LauncherScreen(
     var panelOpen by remember { mutableStateOf(false) }
     var searchOpen by remember { mutableStateOf(false) }
     var photoError by remember { mutableStateOf<String?>(null) }
+    // Who took the photo on screen (online photos only), shown on the idle screen and in settings
+    var photoCredit by remember { mutableStateOf<String?>(null) }
     var backdrop by remember { mutableStateOf<ImageBitmap?>(null) }
     // Accent of the focused app; read only by AmbientLight, so focus moves don't recompose the screen
     val ambient = remember { mutableStateOf<Int?>(null) }
@@ -287,7 +293,10 @@ fun LauncherScreen(
                 },
         ) {
             BackgroundSlideshow(
-                urls = BackgroundSources.urls,
+                // Today's online set when there is one, with the built-in photos to fall back on
+                photos = if (settings.onlinePhotos && onlinePhotos.isNotEmpty()) onlinePhotos else BackgroundSources.photos,
+                fallback = if (settings.onlinePhotos && onlinePhotos.isNotEmpty()) BackgroundSources.photos else emptyList(),
+                onShown = { photoCredit = it.credit },
                 intervalMs = settings.intervalSec * 1000L,
                 enabled = settings.slideshow,
                 drift = idle && settings.idleAnimation,
@@ -448,6 +457,21 @@ fun LauncherScreen(
                 }
             }
 
+            // The photographer's credit, while the screen rests
+            photoCredit?.let { credit ->
+                Text(
+                    credit,
+                    color = Palette.TextTertiary,
+                    fontSize = 13.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(start = Spacing.ScreenH, end = Spacing.ScreenH, bottom = 20.dp)
+                        .graphicsLayer { alpha = idleFade },
+                )
+            }
+
             AnimatedVisibility(
                 visible = toastVisible,
                 // Bottom centre: clear of the widgets on the first page
@@ -466,6 +490,7 @@ fun LauncherScreen(
                     photoError = photoError,
                     weatherError = weatherError,
                     fixturesError = fixturesError,
+                    photoCredit = photoCredit,
                     home = home,
                     onMakeDefault = onMakeDefault,
                     onHomeHelper = onHomeHelper,

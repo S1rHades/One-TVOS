@@ -33,11 +33,13 @@ class MainActivity : ComponentActivity() {
     private var homePresses by mutableIntStateOf(0)
     private lateinit var store: SettingsStore
     private lateinit var fixturesSource: FixturesSource
+    private lateinit var photoFeed: PhotoFeed
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         store = SettingsStore(this)
         fixturesSource = FixturesSource(this)
+        photoFeed = PhotoFeed(this)
 
         setContent {
             // null until the first scan finishes; later refreshes keep the old list on screen
@@ -84,6 +86,19 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
+            // Today's online photos: the saved list at once, then the published one, re-checked every 6 hours
+            val photosOn = settings.onlinePhotos
+            val savedPhotos = remember { photoFeed.cached() }
+            val onlinePhotos by produceState(savedPhotos, photosOn) {
+                var failures = 0
+                while (photosOn) {
+                    val result = withContext(Dispatchers.IO) { photoFeed.fetch() }
+                    result.onSuccess { if (it != value) value = it; failures = 0 }
+                    result.onFailure { failures++ }
+                    delay(if (result.isSuccess) 6 * 60 * 60 * 1000L else RetryDelaysMs[(failures - 1).coerceAtMost(RetryDelaysMs.lastIndex)])
+                }
+            }
+
             // Re-checked whenever the launcher comes back (e.g. from the Home app settings)
             val home = remember(refresh) { homeStatus() }
 
@@ -95,6 +110,7 @@ class MainActivity : ComponentActivity() {
                 weather = weather.takeIf { weatherOn },
                 weatherError = weatherError.takeIf { weatherOn },
                 fixtures = fixtures,
+                onlinePhotos = onlinePhotos,
                 fixturesError = fixturesError.takeIf { fennecsOn },
                 pins = pins,
                 settings = settings,

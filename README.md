@@ -117,9 +117,13 @@ The widget finds the TV's approximate location from its internet address with [G
 
 The Algeria widget shows the men's national team's next fixture (competition, crests and kick-off in the TV's time zone) and the latest result, marked W, D or L. During a match it shows **LIVE** and the score. The data comes from [TheSportsDB](https://www.thesportsdb.com/)'s free API, with no account needed. If a TV can't reach TheSportsDB, it reads a copy that the **Fixtures mirror** workflow (`.github/workflows/fixtures.yml`) refreshes every 30 minutes on the `fixtures-data` branch. It refreshes every 30 minutes, and every 3 minutes around a match. The last good copy is saved on the TV, so the widget still has something to show when the TV is offline.
 
+### Online photos
+
+By default the slideshow shows a new set of 24 landscape photos each day from [Wikimedia Commons' Featured Pictures](https://commons.wikimedia.org/wiki/Commons:Featured_pictures) (mountains, lakes, forests, waterfalls and coasts). The **Photo feed** workflow (`.github/workflows/photo-feed.yml`, `.github/scripts/photo_feed.py`) picks them each morning, resizes them to 1920×1080 and publishes them with their credits on the `photos-data` branch. The TV reads them from `raw.githubusercontent.com`. The photos are freely licensed (mostly CC BY-SA): the author and licence of the one on screen show on the idle screen and in Settings. Offline, the TV uses the last set it saw and the built-in photos.
+
 ### Your own photos
 
-The twelve nature photos are built into the app (`app/src/main/assets/photos`), so they show even without internet. To change them, edit the Lorem Picsum ids in `BackgroundSources` (`app/src/main/java/app/pill/launcher/ui/BackgroundSlideshow.kt`) and in `.github/workflows/photos.yml`, then run the **Bundle photos** workflow. `BackgroundSources` also accepts direct `https://` image links.
+The twelve built-in nature photos (used offline, or with **Online nature photos** off) are part of the app (`app/src/main/assets/photos`), so they show even without internet. To change them, edit the Lorem Picsum ids in `BackgroundSources` (`app/src/main/java/app/pill/launcher/ui/BackgroundSlideshow.kt`) and in `.github/workflows/photos.yml`, then run the **Bundle photos** workflow. `BackgroundSources` also accepts direct `https://` image links.
 
 ## Development
 
