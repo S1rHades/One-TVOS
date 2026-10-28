@@ -155,7 +155,8 @@ fun FavoritesRow(
             } else {
                 AppTile(app, iconSize, showPinBadge = false, onOpen = { onOpen(app) }, onMenu = { held -> onMenu(app, held) }, modifier = tileModifier, onFocus = focused)
             }
-            if (isMoving) MoveArrows(Modifier.matchParentSize())
+            // Above the tile, which raises itself while focused
+            if (isMoving) MoveArrows(Modifier.matchParentSize().zIndex(3f))
         }
     }
     val itemWidth = favoritesItemWidth(style, iconSize)
@@ -337,7 +338,7 @@ private fun MoveArrows(modifier: Modifier) {
             Box(
                 Modifier
                     .align(if (left) Alignment.CenterStart else Alignment.CenterEnd)
-                    .graphicsLayer { translationX = (if (left) -1f else 1f) * (10.dp.toPx() + shift * nudge) }
+                    .graphicsLayer { translationX = (if (left) -1f else 1f) * (16.dp.toPx() + shift * nudge) }
                     .size(28.dp)
                     .background(Palette.Focus, CircleShape),
                 contentAlignment = Alignment.Center,
