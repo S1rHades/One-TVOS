@@ -222,9 +222,9 @@ private fun ClockCard(compact: Boolean, modifier: Modifier) {
     val locale = Locale.getDefault()
     val hourMinute = remember(is24h, locale) { DateTimeFormatter.ofPattern(if (is24h) "HH:mm" else "h:mm", locale) }
     val amPm = remember(locale) { DateTimeFormatter.ofPattern(" a", locale) }
-    // Locale-aware order and punctuation, e.g. "Wednesday, 28 October" or "Wed, Oct 28"
+    // Locale-aware order and punctuation, e.g. "Wednesday, 28 Oct" or "Wed, Oct 28"
     val date = remember(locale, compact) {
-        DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, if (compact) "EEEdMMM" else "EEEEdMMMM"), locale)
+        DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, if (compact) "EEEdMMM" else "EEEEdMMM"), locale)
     }
     val now by produceState(LocalDateTime.now()) {
         while (true) {
