@@ -7,6 +7,8 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.graphics.drawable.toBitmap
 import android.graphics.Bitmap
+import android.graphics.drawable.AdaptiveIconDrawable
+import android.graphics.drawable.Drawable
 import android.graphics.Color as AndroidColor
 
 data class AppEntry(
@@ -18,7 +20,15 @@ data class AppEntry(
     val banner: ImageBitmap? = null,
     /** A vivid colour from the app's artwork (ARGB), for its glow and the ambient light. */
     val accent: Int = DefaultAccent,
+    /**
+     * The two layers of an adaptive icon, so the foreground can lift against the background
+     * on focus. Drawables, not bitmaps, so this costs no extra memory; null for older icons.
+     */
+    val iconLayers: IconLayers? = null,
 )
+
+/** Background and foreground of an adaptive icon. Drawn on the main thread only. */
+class IconLayers(val background: Drawable, val foreground: Drawable)
 
 const val DefaultAccent = 0xFF5B7CFA.toInt()
 
@@ -60,10 +70,16 @@ fun loadApps(pm: PackageManager, self: String): List<AppEntry> {
         for (info in pm.queryIntentActivities(query, 0)) {
             val pkg = info.activityInfo.packageName
             if (pkg == self || seen.containsKey(pkg)) continue
-            val icon = try {
-                info.activityInfo.loadIcon(pm).toBitmap(ICON_PX, ICON_PX)
+            val drawable = try {
+                info.activityInfo.loadIcon(pm)
             } catch (e: Exception) {
                 continue
+            }
+            val icon = runCatching { drawable.toBitmap(ICON_PX, ICON_PX) }.getOrNull() ?: continue
+            val layers = (drawable as? AdaptiveIconDrawable)?.let { adaptive ->
+                val bg = adaptive.background
+                val fg = adaptive.foreground
+                if (bg != null && fg != null) IconLayers(bg, fg) else null
             }
             // TV apps ship a 16:9 banner; null for phone-style apps
             val banner = runCatching { info.activityInfo.loadBanner(pm)?.toBitmap(BANNER_W, BANNER_H) }.getOrNull()
@@ -74,6 +90,7 @@ fun loadApps(pm: PackageManager, self: String): List<AppEntry> {
                 icon = icon.asImageBitmap(),
                 banner = banner?.asImageBitmap(),
                 accent = runCatching { accentOf(banner ?: icon) }.getOrDefault(DefaultAccent),
+                iconLayers = layers,
             )
         }
     }

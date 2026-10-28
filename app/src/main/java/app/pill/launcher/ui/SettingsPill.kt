@@ -23,6 +23,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.foundation.layout.offset
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,12 +60,18 @@ fun SettingsPill(
     onClick: () -> Unit,
     focusRequester: FocusRequester,
     modifier: Modifier = Modifier,
+    onActive: (Boolean) -> Unit = {},
 ) {
-    RoundButton("Settings", onClick, modifier, focusRequester) { tint, active ->
+    RoundButton("Settings", onClick, modifier, focusRequester, onActive) { tint, active ->
         val turn by animateFloatAsState(if (active) 45f else 0f, tween(450), label = "gearTurn")
         GearIcon(tint = tint, iconSize = 26.dp, modifier = Modifier.rotate(turn))
     }
 }
+
+private val ButtonSize = 44.dp
+
+/** Divider plus its padding, between the two buttons. */
+private val DividerSpan = 9.dp
 
 /**
  * Search and Settings in one frosted capsule, as on Google TV. Left and Right move between
@@ -73,23 +84,42 @@ fun QuickActions(
     settingsFocus: FocusRequester,
     modifier: Modifier = Modifier,
 ) {
-    Row(
+    // Which button is focused (0 search, 1 settings, -1 neither); one highlight slides between them
+    var focused by remember { mutableIntStateOf(-1) }
+    var last by remember { mutableIntStateOf(0) }
+    if (focused >= 0) last = focused
+    val x by animateDpAsState(if (last == 1) ButtonSize + DividerSpan else 0.dp, spring(dampingRatio = 0.7f, stiffness = 500f), label = "highlightX")
+    val shown by animateFloatAsState(if (focused >= 0) 1f else 0f, tween(160), label = "highlightAlpha")
+    Box(
         modifier
             .shadow(18.dp, RoundedCornerShape(50))
             .glass(RoundedCornerShape(50))
             .padding(5.dp),
-        verticalAlignment = Alignment.CenterVertically,
     ) {
-        SearchPill(onClick = onSearch)
-        Box(Modifier.padding(horizontal = 4.dp).width(1.dp).height(22.dp).background(Color(0x38FFFFFF)))
-        SettingsPill(onClick = onSettings, focusRequester = settingsFocus)
+        Box(
+            Modifier
+                .offset { IntOffset(x.roundToPx(), 0) }
+                .size(ButtonSize)
+                .graphicsLayer { alpha = shown }
+                .shadow(12.dp, CircleShape, ambientColor = Color.White, spotColor = Color.White)
+                .background(Palette.Focus, CircleShape),
+        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            SearchPill(onClick = onSearch, onActive = { if (it) focused = 0 else if (focused == 0) focused = -1 })
+            Box(Modifier.padding(horizontal = 4.dp).width(1.dp).height(22.dp).background(Color(0x38FFFFFF)))
+            SettingsPill(
+                onClick = onSettings,
+                focusRequester = settingsFocus,
+                onActive = { if (it) focused = 1 else if (focused == 1) focused = -1 },
+            )
+        }
     }
 }
 
 /** Round glass button with a magnifier, opening search. */
 @Composable
-fun SearchPill(onClick: () -> Unit, modifier: Modifier = Modifier) {
-    RoundButton("Search", onClick, modifier, focusRequester = null) { tint, active ->
+fun SearchPill(onClick: () -> Unit, modifier: Modifier = Modifier, onActive: (Boolean) -> Unit = {}) {
+    RoundButton("Search", onClick, modifier, focusRequester = null, onActive = onActive) { tint, active ->
         val tilt by animateFloatAsState(if (active) -12f else 0f, tween(450), label = "searchTilt")
         SearchIcon(tint = tint, iconSize = 24.dp, modifier = Modifier.rotate(tilt))
     }
@@ -102,6 +132,7 @@ private fun RoundButton(
     onClick: () -> Unit,
     modifier: Modifier,
     focusRequester: FocusRequester?,
+    onActive: (Boolean) -> Unit,
     icon: @Composable (tint: Color, active: Boolean) -> Unit,
 ) {
     val interaction = remember { MutableInteractionSource() }
@@ -110,21 +141,19 @@ private fun RoundButton(
     val active = focused || hovered
 
     val scale by animateFloatAsState(if (active) 1.1f else 1f, spring(dampingRatio = 0.7f, stiffness = 500f), label = "pillScale")
-    val elevation by animateDpAsState(if (active) 14.dp else 0.dp, label = "pillElevation")
-    // Transparent at rest: the quick-actions capsule around the buttons provides the glass
-    val fill by animateColorAsState(if (active) Palette.Focus else Color.Transparent, label = "pillFill")
+    // The white highlight behind the focused button is drawn by QuickActions, so it can slide
+    val reportActive by rememberUpdatedState(onActive)
+    LaunchedEffect(active) { reportActive(active) }
     val tint by animateColorAsState(if (active) Palette.Ink else Palette.TextPrimary, label = "pillTint")
 
     Box(
         modifier
-            .size(44.dp)
+            .size(ButtonSize)
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
             }
-            .shadow(elevation, CircleShape, ambientColor = Color.White, spotColor = Color.White)
             .clip(CircleShape)
-            .background(fill)
             .semantics { contentDescription = description }
             .onFocusChanged { focused = it.isFocused }
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
