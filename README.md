@@ -6,7 +6,7 @@
 
 <p align="center">
   <b>A calm, photo-first home screen for Android TV.</b><br>
-  Your favourite apps, the time and weather, and a new landscape every few seconds. No ads, no accounts, no rows of recommendations.
+  Your favourite apps, the time and weather, and a new nature photo every few seconds. No ads, no accounts, no rows of recommendations.
 </p>
 
 <p align="center">
