@@ -20,7 +20,10 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.keyDown
+import androidx.compose.ui.test.keyUp
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.printToString
@@ -114,7 +117,12 @@ class Screenshots {
             repeat(6) { pressKey(Key.DirectionRight) }
         }
         settle()
-        runCatching { compose.onNodeWithContentDescription("Maps").performSemanticsAction(SemanticsActions.OnLongClick) }
+        // Hold OK the way a remote does: one key-down, a pause, one key-up (no repeats)
+        compose.onRoot().performKeyInput { keyDown(Key.DirectionCenter) }
+        compose.mainClock.advanceTimeBy(800)
+        compose.onRoot().performKeyInput { keyUp(Key.DirectionCenter) }
+        settle()
+        runCatching { compose.onNodeWithText("Added Maps to Favorites").assertExists() }
             .onFailure { println(compose.onRoot().printToString(maxDepth = 12)); throw it }
         settle()
         compose.onRoot().captureRoboImage(File(out, "pin.png").path)
