@@ -70,7 +70,7 @@ fun SearchPanel(
     apps: List<AppEntry>,
     pins: List<String>,
     onOpen: (AppEntry) -> Unit,
-    onTogglePin: (AppEntry) -> Unit,
+    onMenu: (AppEntry, okHeld: Boolean) -> Unit,
     onSystemSearch: (() -> Unit)?,
     onDismiss: () -> Unit,
 ) {
@@ -122,7 +122,7 @@ fun SearchPanel(
                                     iconSize = 84.dp,
                                     showPinBadge = app.pkg in pins,
                                     onOpen = { onOpen(app) },
-                                    onTogglePin = { onTogglePin(app) },
+                                    onMenu = { held -> onMenu(app, held) },
                                     modifier = Modifier.animateItem(),
                                 )
                             }

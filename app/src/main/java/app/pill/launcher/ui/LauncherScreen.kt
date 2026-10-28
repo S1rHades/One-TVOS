@@ -129,6 +129,10 @@ fun LauncherScreen(
     onOpen: (AppEntry) -> Unit,
     onTogglePin: (AppEntry) -> Unit,
     onOpenSystemSettings: () -> Unit,
+    /** Move a favourite [by] places along the row. */
+    onMovePin: (AppEntry, by: Int) -> Unit = { _, _ -> },
+    onUninstall: (AppEntry) -> Unit = {},
+    onAppInfo: (AppEntry) -> Unit = {},
     /** The TV's Wi-Fi / network settings, from the status bar's connection button. */
     onOpenNetworkSettings: () -> Unit = {},
     /** Bumped each time Home is pressed while the launcher is already showing. */
@@ -155,6 +159,9 @@ fun LauncherScreen(
     // After an unpin from the favourites row, the package that should take focus (null = the pill)
     var refocus by remember { mutableStateOf<Refocus?>(null) }
     var idle by remember { mutableStateOf(false) }
+    // The app whose menu is open (and whether OK is still held), and the favourite being moved
+    var menu by remember { mutableStateOf<MenuRequest?>(null) }
+    var moving by remember { mutableStateOf<String?>(null) }
     var lastInput by remember { mutableLongStateOf(SystemClock.uptimeMillis()) }
 
     val pillFocus = remember { FocusRequester() }
@@ -171,6 +178,16 @@ fun LauncherScreen(
         onTogglePin(app)
         toast = Toast(if (wasPinned) "Removed ${app.label} from Favorites" else "Added ${app.label} to Favorites")
     }
+
+    LaunchedEffect(moving, pins) {
+        val pkg = moving ?: return@LaunchedEffect
+        repeat(10) {
+            withFrameNanos { }
+            if (runCatching { favoriteFocus[pkg]?.requestFocus() }.isSuccess) return@LaunchedEffect
+        }
+    }
+    // A moved favourite that's unpinned or uninstalled ends the move
+    if (moving != null && moving !in pins) moving = null
 
     val scroll = rememberScrollState()
     val scope = rememberCoroutineScope()
@@ -367,7 +384,13 @@ fun LauncherScreen(
                                         width = contentWidth,
                                         focusFor = { app -> favoriteFocus.getOrPut(app.pkg) { FocusRequester() } },
                                         onOpen = onOpen,
-                                        onTogglePin = { togglePin(it, fromFavorites = true) },
+                                        onMenu = { app, held -> menu = MenuRequest(app, held, fromFavorites = true) },
+                                        moving = moving,
+                                        onMove = onMovePin,
+                                        onMoveDone = {
+                                            moving = null
+                                            toast = Toast("Done")
+                                        },
                                     )
                                 }
                             }
@@ -389,7 +412,7 @@ fun LauncherScreen(
                                             iconSize = GridIcon,
                                             showPinBadge = app.pkg in pins,
                                             onOpen = { onOpen(app) },
-                                            onTogglePin = { togglePin(app, fromFavorites = false) },
+                                            onMenu = { held -> menu = MenuRequest(app, held, fromFavorites = false) },
                                             onFocus = { if (it) ambient.value = app.accent },
                                             // Equal cells across the row, with the icon centred in each
                                             modifier = Modifier.weight(1f),
@@ -429,12 +452,34 @@ fun LauncherScreen(
                 )
             }
 
+            menu?.let { request ->
+                val app = request.app
+                AppMenu(
+                    app = app,
+                    pinned = app.pkg in pins,
+                    okHeld = request.okHeld,
+                    onAction = { action ->
+                        when (action) {
+                            MenuAction.TogglePin -> togglePin(app, fromFavorites = request.fromFavorites)
+                            MenuAction.Move -> {
+                                searchOpen = false
+                                moving = app.pkg
+                                toast = Toast("Left / Right to move ${app.label} · OK when done")
+                            }
+                            MenuAction.AppInfo -> onAppInfo(app)
+                            MenuAction.Uninstall -> onUninstall(app)
+                        }
+                    },
+                    onDismiss = { menu = null },
+                )
+            }
+
             if (searchOpen) {
                 SearchPanel(
                     apps = apps.orEmpty(),
                     pins = pins,
                     onOpen = onOpen,
-                    onTogglePin = { togglePin(it, fromFavorites = false) },
+                    onMenu = { app, held -> menu = MenuRequest(app, held, fromFavorites = false) },
                     onSystemSearch = onSystemSearch,
                     onDismiss = { searchOpen = false },
                 )
@@ -608,3 +653,6 @@ private fun AmbientLight(accent: State<Int?>, fade: () -> Float) {
         drawRect(Brush.radialGradient(listOf(c.copy(alpha = c.alpha * 0.3f), Color.Transparent), origin, size.width * 0.3f))
     }
 }
+
+/** An open app menu: for [app], whether OK is still held, and whether it came from the favourites row. */
+private class MenuRequest(val app: AppEntry, val okHeld: Boolean, val fromFavorites: Boolean)

@@ -7,6 +7,8 @@ Pill Launcher is built from `main` on every change; the newest build is always t
 
 - **Status bar**: the capsule at the top right now starts with the connection: Wi-Fi with its signal strength, Ethernet, or crossed out (in red) when offline. Press OK on it to open the TV's Wi-Fi settings. A green key appears beside it while a VPN is on. The white highlight slides across all the buttons.
 - The System info widget shows the same connection and says when a VPN is on.
+- **App menu**: holding OK on an app (or pressing Menu) now opens a menu instead of pinning straight away: Add to / Remove from Favorites, Move, App info and Uninstall (Uninstall only for apps you installed). The release of the held OK never picks anything by itself.
+- **Reorder favourites**: choose Move, then press Left / Right to slide the app along the favourites row, and OK or Back when it's in place.
 
 - **Algeria widget loads on more TVs**: when a TV can't reach TheSportsDB directly, the widget now reads a copy of the fixtures that GitHub refreshes every 30 minutes. If neither works, Settings → Widgets shows why under the Algeria row, and the card says it can't reach the data rather than suggesting the TV is offline.
 - The widget cards and the search/settings capsule no longer cast a shadow; their glass edge sets them apart.

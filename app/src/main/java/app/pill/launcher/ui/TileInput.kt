@@ -22,7 +22,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-/** How long OK must be held to pin or unpin. */
+/** How long OK must be held to open the app's menu. */
 private const val HOLD_MS = 550L
 
 /** Keys that act as OK on remotes, keyboards and game controllers. */
@@ -32,18 +32,19 @@ private val OkKeys = setOf(Key.DirectionCenter, Key.Enter, Key.NumPadEnter, Key.
 class TileInput(val active: Boolean, val modifier: Modifier)
 
 /**
- * Input shared by every app tile: OK opens, holding OK (timed here, since many remotes,
- * HDMI-CEC especially, never send key repeats) or the Menu key pins or unpins, and touch
- * or a pointer click and long-press work too. [onFocus] reports focus changes.
+ * Input shared by every app tile: OK opens; holding OK (timed here, since many remotes,
+ * HDMI-CEC especially, never send key repeats), the Menu key or a long-press opens the
+ * app's menu. [onMenu] is told whether OK is still held, so the menu can ignore its
+ * release. [onFocus] reports focus changes.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun rememberTileInput(onOpen: () -> Unit, onTogglePin: () -> Unit, onFocus: (Boolean) -> Unit = {}): TileInput {
+fun rememberTileInput(onOpen: () -> Unit, onMenu: (okHeld: Boolean) -> Unit, onFocus: (Boolean) -> Unit = {}): TileInput {
     val interaction = remember { MutableInteractionSource() }
     val hovered by interaction.collectIsHoveredAsState()
     var focused by remember { mutableStateOf(false) }
     val open by rememberUpdatedState(onOpen)
-    val togglePin by rememberUpdatedState(onTogglePin)
+    val menu by rememberUpdatedState(onMenu)
     val focusChanged by rememberUpdatedState(onFocus)
     val scope = rememberCoroutineScope()
     var holdJob by remember { mutableStateOf<Job?>(null) }
@@ -62,7 +63,7 @@ fun rememberTileInput(onOpen: () -> Unit, onTogglePin: () -> Unit, onFocus: (Boo
             val key = event.key
             when {
                 key == Key.Menu -> {
-                    if (event.type == KeyEventType.KeyUp) togglePin()
+                    if (event.type == KeyEventType.KeyUp) menu(false)
                     true
                 }
                 key !in OkKeys -> false
@@ -71,7 +72,7 @@ fun rememberTileInput(onOpen: () -> Unit, onTogglePin: () -> Unit, onFocus: (Boo
                         okDown = true
                         holdJob = scope.launch {
                             delay(HOLD_MS)
-                            togglePin()
+                            menu(true)
                         }
                     }
                     true
@@ -93,7 +94,7 @@ fun rememberTileInput(onOpen: () -> Unit, onTogglePin: () -> Unit, onFocus: (Boo
             interactionSource = interaction,
             indication = null, // scale, glow and outline replace the default ripple
             onClick = { open() },
-            onLongClick = { togglePin() },
+            onLongClick = { menu(false) },
         )
     return TileInput(focused || hovered, modifier)
 }

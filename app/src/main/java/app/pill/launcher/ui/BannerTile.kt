@@ -53,11 +53,11 @@ val BannerTileWidth = BannerWidth + 12.dp
 fun BannerTile(
     app: AppEntry,
     onOpen: () -> Unit,
-    onTogglePin: () -> Unit,
+    onMenu: (okHeld: Boolean) -> Unit,
     modifier: Modifier = Modifier,
     onFocus: (Boolean) -> Unit = {},
 ) {
-    val input = rememberTileInput(onOpen, onTogglePin, onFocus)
+    val input = rememberTileInput(onOpen, onMenu, onFocus)
     val active = input.active
     val accent = Color(app.accent)
     val scale by animateFloatAsState(if (active) 1.1f else 1f, FocusSpring, label = "bannerScale")

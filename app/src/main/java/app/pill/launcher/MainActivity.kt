@@ -2,6 +2,7 @@ package app.pill.launcher
 
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import java.time.Duration
 import java.time.Instant
@@ -113,6 +114,23 @@ class MainActivity : ComponentActivity() {
                 onAllowAutostart = { requestOverlayPermission() },
                 onSystemSearch = remember { systemSearchIntent() }?.let { search ->
                     { tryStartActivity(search); Unit }
+                },
+                onMovePin = { app, by ->
+                    val from = pins.indexOf(app.pkg)
+                    val to = (from + by).coerceIn(0, pins.lastIndex)
+                    if (from >= 0 && to != from) {
+                        pins = pins.toMutableList().apply { add(to, removeAt(from)) }
+                        store.savePins(pins)
+                    }
+                },
+                onUninstall = { app ->
+                    // The system asks to confirm; the app list refreshes when the launcher resumes
+                    tryStartActivity(Intent(Intent.ACTION_DELETE, Uri.parse("package:${app.pkg}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                },
+                onAppInfo = { app ->
+                    tryStartActivity(
+                        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${app.pkg}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                    )
                 },
                 onOpenNetworkSettings = {
                     // TVs differ in which of these screens they have

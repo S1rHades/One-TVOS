@@ -35,8 +35,15 @@
     <td width="50%"><img src="docs/screenshots/settings.png" alt="The settings card on the right: Photo slideshow switch, Change photo every 20 s, Weather in °C, and Android TV settings"><br><sub><b>Settings</b>: a floating card for the slideshow, the weather and the TV's own settings.</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/screenshots/pin.png" alt="Maps focused in the All apps grid after holding OK on it, with a message saying Added Maps to Favorites"><br><sub><b>Pin with one press</b>: hold OK on any app and it joins Favorites, with a short confirmation.</sub></td>
+    <td width="50%"><img src="docs/screenshots/menu.png" alt="The app menu for Maps over the dimmed home screen: Add to Favorites, App info and Uninstall"><br><sub><b>App menu</b>: hold OK on any app to pin it, move it, see its info or uninstall it.</sub></td>
     <td width="50%"><img src="docs/screenshots/first-launch.png" alt="First launch with no favourites: a hint explains how to pin apps, with the settings button focused"><br><sub><b>First launch</b>: a hint shows how to fill Favorites.</sub></td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/move.png" alt="Cinema being moved along the favourites row, with white arrows either side of it"><br><sub><b>Reorder favourites</b>: Move, then Left / Right, then OK.</sub></td>
+    <td width="50%"><img src="docs/screenshots/pin.png" alt="Maps focused in the All apps grid with a message saying Added Maps to Favorites"><br><sub><b>Pinned</b>: a short confirmation, and the app joins Favorites.</sub></td>
   </tr>
 </table>
 
@@ -82,7 +89,8 @@ The `latest` release is rebuilt automatically every time `main` changes, so inst
 | Change how favourites are laid out | **Settings → Favorites row → Layout**: Scroll or Wrap |
 | Banners or icons for favourites | **Settings → Favorites row → Tile style** |
 | Wake the idle screen | Any key |
-| Pin or unpin an app | Hold **OK** for half a second, or press **Menu** (☰) |
+| App menu: pin / unpin, move, app info, uninstall | Hold **OK** for half a second, or press **Menu** (☰) |
+| Reorder favourites | App menu → **Move**, then **Left** / **Right**, and **OK** when done |
 | Open settings | Go up to the round gear button (top right), then **OK** |
 | Change how often the photo changes, or the weather unit | In settings, **Left** / **Right** on that row |
 | Turn widgets on or off | **Settings → Widgets**, **OK** on a widget (up to four at once) |

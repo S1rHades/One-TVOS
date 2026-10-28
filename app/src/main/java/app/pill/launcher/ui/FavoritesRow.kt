@@ -36,6 +36,25 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.material3.Text
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.background
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
@@ -95,29 +114,55 @@ fun FavoritesRow(
     width: Dp,
     focusFor: (AppEntry) -> FocusRequester,
     onOpen: (AppEntry) -> Unit,
-    onTogglePin: (AppEntry) -> Unit,
+    onMenu: (AppEntry, okHeld: Boolean) -> Unit,
     modifier: Modifier = Modifier,
     onFocus: (AppEntry) -> Unit = {},
+    /** The favourite being moved, if any: Left / Right move it, OK or Back finish. */
+    moving: String? = null,
+    onMove: (AppEntry, by: Int) -> Unit = { _, _ -> },
+    onMoveDone: () -> Unit = {},
 ) {
     val tile: @Composable (AppEntry, Boolean, Boolean, Modifier) -> Unit = { app, first, last, extra ->
-        val tileModifier = extra
+        val tileModifier = Modifier
             .focusRequester(focusFor(app))
             .focusProperties {
                 if (first) left = FocusRequester.Cancel
                 if (last) right = FocusRequester.Cancel
             }
         val focused = { gained: Boolean -> if (gained) onFocus(app) }
-        if (style == FavoritesStyle.Banners) {
-            BannerTile(app, { onOpen(app) }, { onTogglePin(app) }, tileModifier, focused)
-        } else {
-            AppTile(app, iconSize, showPinBadge = false, onOpen = { onOpen(app) }, onTogglePin = { onTogglePin(app) }, modifier = tileModifier, onFocus = focused)
+        val isMoving = app.pkg == moving
+        // The focused tile grows over its neighbours, so it draws above them
+        var holdsFocus by remember { mutableStateOf(false) }
+        val base = extra.zIndex(if (isMoving) 2f else if (holdsFocus) 1f else 0f).onFocusChanged { holdsFocus = it.hasFocus }
+        Box(
+            if (!isMoving) base else base.onPreviewKeyEvent { event ->
+                // While moving, the arrows move the tile and nothing else; OK or Back puts it down
+                val down = event.type == KeyEventType.KeyDown
+                when (event.key) {
+                    Key.DirectionLeft -> { if (down) onMove(app, -1); true }
+                    Key.DirectionRight -> { if (down) onMove(app, 1); true }
+                    Key.DirectionUp, Key.DirectionDown -> true
+                    Key.DirectionCenter, Key.Enter, Key.NumPadEnter, Key.Back, Key.Escape, Key.ButtonA, Key.ButtonB -> {
+                        if (!down) onMoveDone()
+                        true
+                    }
+                    else -> false
+                }
+            },
+        ) {
+            if (style == FavoritesStyle.Banners) {
+                BannerTile(app, { onOpen(app) }, { held -> onMenu(app, held) }, tileModifier, focused)
+            } else {
+                AppTile(app, iconSize, showPinBadge = false, onOpen = { onOpen(app) }, onMenu = { held -> onMenu(app, held) }, modifier = tileModifier, onFocus = focused)
+            }
+            if (isMoving) MoveArrows(Modifier.matchParentSize())
         }
     }
     val itemWidth = favoritesItemWidth(style, iconSize)
     val rowHeight = favoritesRowHeight(style, iconSize)
     val body: @Composable (FavoritesLayout) -> Unit = { mode ->
         when (mode) {
-            FavoritesLayout.Scroll -> ScrollRow(apps, animate, itemWidth, rowHeight, tile)
+            FavoritesLayout.Scroll -> ScrollRow(apps, animate, itemWidth, rowHeight, moving, tile)
             FavoritesLayout.Wrap -> WrapRows(apps, animate, rowHeight, favoritesPerRow(width, style, iconSize), tile)
         }
     }
@@ -144,9 +189,21 @@ private fun ScrollRow(
     animate: Boolean,
     itemWidth: Dp,
     rowHeight: Dp,
+    moving: String?,
     tile: @Composable (AppEntry, Boolean, Boolean, Modifier) -> Unit,
 ) {
     val state = rememberLazyListState()
+    // Keep a favourite being moved in view (focus doesn't change, so nothing else scrolls)
+    LaunchedEffect(moving, apps) {
+        val i = apps.indexOfFirst { it.pkg == moving }
+        if (i < 0) return@LaunchedEffect
+        val info = state.layoutInfo
+        val item = info.visibleItemsInfo.firstOrNull { it.index == i }
+        val margin = info.viewportEndOffset / 8
+        if (item == null || item.offset < margin || item.offset + item.size > info.viewportEndOffset - margin) {
+            if (animate) state.animateScrollToItem((i - 1).coerceAtLeast(0)) else state.scrollToItem((i - 1).coerceAtLeast(0))
+        }
+    }
     // Scrolling keeps the focused tile out of the fade zone; the next tile peeks into it
     val fadeZone = with(LocalDensity.current) { (itemWidth * 0.75f).toPx() }
     val peek = fadeZone
@@ -266,4 +323,27 @@ internal fun Modifier.bleed(x: Dp) = layout { measurable, constraints ->
         constraints.copy(minWidth = constraints.minWidth + extra, maxWidth = constraints.maxWidth + extra),
     )
     layout(constraints.maxWidth, placeable.height) { placeable.place(-x.roundToPx(), 0) }
+}
+
+/** Chevrons either side of the favourite being moved, gently nudging outwards. */
+@Composable
+private fun MoveArrows(modifier: Modifier) {
+    val nudge by rememberInfiniteTransition(label = "move").animateFloat(
+        0f, 1f, infiniteRepeatable(tween(700, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "moveNudge",
+    )
+    val shift = with(LocalDensity.current) { 4.dp.toPx() }
+    Box(modifier) {
+        for (left in listOf(true, false)) {
+            Box(
+                Modifier
+                    .align(if (left) Alignment.CenterStart else Alignment.CenterEnd)
+                    .graphicsLayer { translationX = (if (left) -1f else 1f) * (10.dp.toPx() + shift * nudge) }
+                    .size(28.dp)
+                    .background(Palette.Focus, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(if (left) "‹" else "›", color = Palette.Ink, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
 }
