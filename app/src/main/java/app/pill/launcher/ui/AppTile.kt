@@ -41,7 +41,22 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import app.pill.launcher.AppEntry
+
+/** How long OK must be held to pin or unpin. */
+private const val HOLD_MS = 550L
+
+/** Keys that act as OK on remotes, keyboards and game controllers. */
+private val OkKeys = setOf(Key.DirectionCenter, Key.Enter, Key.NumPadEnter, Key.ButtonA)
 
 /** Gap between the icon and its focus ring. */
 private val RingGap = 5.dp
@@ -70,6 +85,45 @@ fun AppTile(
     var focused by remember { mutableStateOf(false) }
     val active = focused || hovered
 
+    // Remote OK handling. combinedClickable's long press relies on key repeats, which many
+    // remotes (HDMI-CEC especially) never send, so holding OK is timed here instead:
+    // released before HOLD_MS opens the app, held past it pins or unpins.
+    val scope = rememberCoroutineScope()
+    var holdJob by remember { mutableStateOf<Job?>(null) }
+    var okDown by remember { mutableStateOf(false) }
+    val remoteKeys = Modifier.onPreviewKeyEvent { event ->
+        val key = event.key
+        when {
+            key == Key.Menu -> {
+                // The remote's menu button pins or unpins at once
+                if (event.type == KeyEventType.KeyUp) onTogglePin()
+                true
+            }
+            key !in OkKeys -> false
+            event.type == KeyEventType.KeyDown -> {
+                if (!okDown) {
+                    okDown = true
+                    holdJob = scope.launch {
+                        delay(HOLD_MS)
+                        onTogglePin()
+                    }
+                }
+                true
+            }
+            event.type == KeyEventType.KeyUp -> {
+                // A key-up without our key-down (focus moved here mid-press) is just swallowed
+                if (okDown && holdJob?.isActive == true) {
+                    holdJob?.cancel()
+                    onOpen()
+                }
+                okDown = false
+                holdJob = null
+                true
+            }
+            else -> false
+        }
+    }
+
     val scale by animateFloatAsState(
         if (active) 1.1f else 1f,
         spring(dampingRatio = 0.65f, stiffness = 450f),
@@ -87,7 +141,14 @@ fun AppTile(
                 scaleX = scale
                 scaleY = scale
             }
-            .onFocusChanged { focused = it.isFocused }
+            .onFocusChanged {
+                focused = it.isFocused
+                if (!it.isFocused) {
+                    okDown = false
+                    holdJob?.cancel()
+                }
+            }
+            .then(remoteKeys)
             .combinedClickable(
                 interactionSource = interaction,
                 indication = null, // the ring and lift replace the default ripple

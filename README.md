@@ -60,7 +60,7 @@ The `latest` release is rebuilt automatically every time `main` changes, so inst
 | --- | --- |
 | Open an app | **OK** |
 | See all apps | **Down** from Favorites |
-| Pin or unpin an app | Hold **OK** |
+| Pin or unpin an app | Hold **OK** for half a second, or press **Menu** (☰) |
 | Open settings | Go up to the round gear button (top right), then **OK** |
 | Change how often the photo changes, or the weather unit | In settings, **Left** / **Right** on that row |
 | Close settings | **Back** |
