@@ -3,6 +3,12 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 1.9 (October 2026)
+
+- **Animated weather**: the sun's rays turn, clouds drift, rain and snow fall and lightning flashes, in short bursts when the weather updates and every 40 seconds, so the screen can rest in between. The icons stay still on the idle screen and when the TV's "remove animations" setting is on.
+- **Easier to read on bright photos**: the top of the screen is a little darker behind the clock and weather, the faintest text is a little brighter, and frosted panels are slightly deeper. All text now meets the WCAG AA contrast standard on every built-in photo, checked automatically on every build.
+- Focus can no longer get lost or end up off screen, however fast you press the remote's arrows.
+
 ## 1.8 (October 2026)
 
 **A new look**

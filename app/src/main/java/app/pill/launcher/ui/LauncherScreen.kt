@@ -326,7 +326,7 @@ fun LauncherScreen(
                                             Spacer(Modifier.width(36.dp))
                                             Box(Modifier.padding(top = 18.dp).width(1.dp).height(84.dp).background(Palette.Hairline))
                                             Spacer(Modifier.width(36.dp))
-                                            WeatherWidget(w, settings.weather, Modifier.padding(top = 12.dp))
+                                            WeatherWidget(w, settings.weather, Modifier.padding(top = 12.dp), animate = !idle)
                                         }
                                     }
                                 }

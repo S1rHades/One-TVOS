@@ -20,7 +20,7 @@ object Palette {
 
     val TextPrimary = Color.White
     val TextSecondary = Color(0xCCFFFFFF)
-    val TextTertiary = Color(0xA6FFFFFF)
+    val TextTertiary = Color(0xB8FFFFFF)
 
     val Glass = Color(0x33FFFFFF)
     val GlassStrong = Color(0x4DFFFFFF)
@@ -28,6 +28,16 @@ object Palette {
     val Focus = Color.White
     val Accent = Color(0xFF4C6EF5)
 }
+
+/**
+ * The dark gradient over the photo, as (height fraction, black alpha) stops: strongest at
+ * the top behind the clock and weather, lightest across the middle, strong again behind
+ * the apps. Tuned so all text meets WCAG AA on every bundled photo (ContrastTest).
+ */
+val ScrimStops = listOf(0f to 0.86f, 0.24f to 0.62f, 0.4f to 0.25f, 0.58f to 0.35f, 1f to 0.9f)
+
+/** Tint of frosted glass over the blurred photo (ContrastTest checks text on it). */
+val GlassTint = Color(0xBD121826)
 
 /** Soft drop shadow so text stays readable over bright photos. */
 val TextShadow = Shadow(Color(0x99000000), Offset(0f, 3f), 12f)
