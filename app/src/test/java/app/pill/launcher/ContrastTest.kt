@@ -59,15 +59,18 @@ class ContrastTest {
     private fun check(surface: String, background: (Bitmap) -> FloatArray) {
         assertTrue("no photos found in src/main/assets/photos", photos.isNotEmpty())
         val failures = mutableListOf<String>()
+        val worst = mutableMapOf<String, Double>()
         for (file in photos) {
             val bg = background(BitmapFactory.decodeFile(file.path))
             for (role in roles) {
                 val ratio = contrast(over(role.color, bg), bg)
+                worst[role.name] = minOf(worst[role.name] ?: Double.MAX_VALUE, ratio)
                 if (ratio < role.minimum) {
                     failures += "%s text on %s, photo %s: %.2f : 1 (needs %.1f)".format(role.name, surface, file.name, ratio, role.minimum)
                 }
             }
         }
+        println("Contrast on $surface, worst over ${photos.size} photos: " + worst.entries.joinToString { "%s %.2f".format(it.key, it.value) })
         assertTrue("Contrast below WCAG AA:\n" + failures.joinToString("\n"), failures.isEmpty())
     }
 
