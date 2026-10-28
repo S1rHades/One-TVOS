@@ -134,11 +134,15 @@ fun LauncherScreen(
     // Focus the first favourite, else the settings pill. Page scrolling then brings the first
     // page into view. Retries for a few frames until the target is attached.
     suspend fun focusFirstPage() {
-        val target = currentPinned.firstOrNull()?.let { favoriteFocus[it.pkg] } ?: pillFocus
-        repeat(20) {
+        repeat(30) {
             withFrameNanos { }
-            if (runCatching { target.requestFocus() }.isSuccess) return
+            // The favourites row registers its tiles a frame or two after it first composes,
+            // so look the target up on every try and only use the pill when there are no favourites
+            val first = currentPinned.firstOrNull()
+            val target = if (first == null) pillFocus else favoriteFocus[first.pkg]
+            if (target != null && runCatching { target.requestFocus() }.isSuccess) return
         }
+        runCatching { pillFocus.requestFocus() }
     }
 
     LaunchedEffect(apps != null) {
