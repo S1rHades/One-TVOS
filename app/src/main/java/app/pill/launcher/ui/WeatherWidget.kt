@@ -62,6 +62,7 @@ fun WeatherWidget(weather: Weather, mode: WeatherMode, modifier: Modifier = Modi
                 Text(
                     formatTemp(w.tempC, mode),
                     style = TextStyle(
+                        fontFamily = Flex,
                         color = Palette.TextPrimary,
                         fontSize = 46.sp,
                         fontWeight = FontWeight.Light,
@@ -70,13 +71,13 @@ fun WeatherWidget(weather: Weather, mode: WeatherMode, modifier: Modifier = Modi
                 )
                 Text(
                     listOf(describe(w.code), w.place).filter { it.isNotBlank() }.joinToString("  ·  "),
-                    style = TextStyle(color = Palette.TextSecondary, fontSize = 18.sp, fontWeight = FontWeight.Medium, shadow = TextShadow),
+                    style = TextStyle(fontFamily = Flex, color = Palette.TextSecondary, fontSize = 18.sp, fontWeight = FontWeight.Medium, shadow = TextShadow),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     "H ${formatTemp(w.highC, mode)}   L ${formatTemp(w.lowC, mode)}",
-                    style = TextStyle(color = Palette.TextTertiary, fontSize = 16.sp, shadow = TextShadow),
+                    style = TextStyle(fontFamily = Flex, color = Palette.TextTertiary, fontSize = 16.sp, shadow = TextShadow),
                 )
             }
         }

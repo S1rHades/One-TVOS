@@ -3,6 +3,16 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 1.8 (October 2026)
+
+**A new look**
+- **App artwork**: favourites now show each app's wide TV banner; apps without one get a card made from their icon and colours. Prefer square icons? **Settings → Favorites row → Tile style**.
+- **Focus that glows**: the selected app springs up, glows in its own colour, keeps a crisp white outline and shows its name in bold.
+- **Ambient light**: the photo picks up a soft wash of the selected app's colour (**Settings → Home screen → Ambient light** to turn it off).
+- **Frosted glass** for search, settings, messages and the new combined search-and-settings button.
+- **New typeface**: Roboto Flex throughout, with a light, elegant clock.
+- All apps sits on a blurred version of the photo, with a cleaner section header; pinned apps carry a small star.
+
 ## 1.7.1 (October 2026)
 
 - The favourites row now fades softly into the screen edges: apps beyond the edge recede (fainter and slightly smaller) instead of being cut off, and a slim bar under the row shows where you are in it. This replaces the round arrow markers.

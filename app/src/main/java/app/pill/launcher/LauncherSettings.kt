@@ -6,6 +6,9 @@ import java.util.Locale
 /** How the favourites row handles more apps than fit across the screen. */
 enum class FavoritesLayout { Scroll, Wrap }
 
+/** How favourites look: wide app artwork (TV banners) or square icons. */
+enum class FavoritesStyle { Banners, Icons }
+
 /** What the weather widget shows: nothing, or the temperature in one unit. */
 enum class WeatherMode { Off, Celsius, Fahrenheit }
 
@@ -22,6 +25,9 @@ data class LauncherSettings(
     val favoritesLayout: FavoritesLayout = FavoritesLayout.Scroll,
     /** Sliding and reordering animations in the favourites row. */
     val favoritesAnimation: Boolean = true,
+    val favoritesStyle: FavoritesStyle = FavoritesStyle.Banners,
+    /** Tint the photo with the focused app's colour. */
+    val ambientLight: Boolean = true,
 ) {
     companion object {
         val IntervalOptions = listOf(10, 20, 30, 60)
@@ -50,6 +56,10 @@ class SettingsStore(context: Context) {
             ?.let { name -> FavoritesLayout.entries.firstOrNull { it.name == name } }
             ?: FavoritesLayout.Scroll,
         favoritesAnimation = prefs.getBoolean("favoritesAnimation", true),
+        favoritesStyle = prefs.getString("favoritesStyle", null)
+            ?.let { name -> FavoritesStyle.entries.firstOrNull { it.name == name } }
+            ?: FavoritesStyle.Banners,
+        ambientLight = prefs.getBoolean("ambientLight", true),
     )
 
     fun save(settings: LauncherSettings) {
@@ -62,6 +72,8 @@ class SettingsStore(context: Context) {
             .putBoolean("idleAnimation", settings.idleAnimation)
             .putString("favoritesLayout", settings.favoritesLayout.name)
             .putBoolean("favoritesAnimation", settings.favoritesAnimation)
+            .putString("favoritesStyle", settings.favoritesStyle.name)
+            .putBoolean("ambientLight", settings.ambientLight)
             .apply()
     }
 

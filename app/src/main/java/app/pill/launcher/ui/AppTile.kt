@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -31,6 +32,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
@@ -52,25 +54,21 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import app.pill.launcher.AppEntry
 
-/** How long OK must be held to pin or unpin. */
-private const val HOLD_MS = 550L
+/** Gap between the icon and its focus outline. */
+private val RingGap = 4.dp
+private val RingWidth = 2.5.dp
 
-/** Keys that act as OK on remotes, keyboards and game controllers. */
-private val OkKeys = setOf(Key.DirectionCenter, Key.Enter, Key.NumPadEnter, Key.ButtonA)
-
-/** Gap between the icon and its focus ring. */
-private val RingGap = 5.dp
-private val RingWidth = 3.dp
-
-/** Width of a tile for a given icon size: the icon, the ring around it and a little air. */
+/** Width of a tile for a given icon size: the icon, the outline around it and a little air. */
 fun tileWidth(iconSize: Dp): Dp = iconSize + Spacing.Tile * 2
 
+/** Spring shared by every focusable tile: a small, physical overshoot. */
+val FocusSpring = spring<Float>(dampingRatio = 0.6f, stiffness = 400f)
+
 /**
- * App icon, shown edge to edge in a squircle. OK opens the app, long-press OK pins or
- * unpins it. On focus (or pointer hover) the tile lifts, the label brightens and a crisp
- * white ring appears a few dp outside the icon, and the tile draws above its neighbours.
+ * App icon, shown edge to edge in a squircle. OK opens the app; holding OK (or Menu) pins
+ * or unpins it. On focus (or pointer hover) the tile springs to 1.12x, glows in the app's
+ * own colour, gains a crisp white outline and a bold label, and draws above its neighbours.
  */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AppTile(
     app: AppEntry,
@@ -79,59 +77,15 @@ fun AppTile(
     onOpen: () -> Unit,
     onTogglePin: () -> Unit,
     modifier: Modifier = Modifier,
+    onFocus: (Boolean) -> Unit = {},
 ) {
-    val interaction = remember { MutableInteractionSource() }
-    val hovered by interaction.collectIsHoveredAsState()
-    var focused by remember { mutableStateOf(false) }
-    val active = focused || hovered
-
-    // Remote OK handling. combinedClickable's long press relies on key repeats, which many
-    // remotes (HDMI-CEC especially) never send, so holding OK is timed here instead:
-    // released before HOLD_MS opens the app, held past it pins or unpins.
-    val scope = rememberCoroutineScope()
-    var holdJob by remember { mutableStateOf<Job?>(null) }
-    var okDown by remember { mutableStateOf(false) }
-    val remoteKeys = Modifier.onPreviewKeyEvent { event ->
-        val key = event.key
-        when {
-            key == Key.Menu -> {
-                // The remote's menu button pins or unpins at once
-                if (event.type == KeyEventType.KeyUp) onTogglePin()
-                true
-            }
-            key !in OkKeys -> false
-            event.type == KeyEventType.KeyDown -> {
-                if (!okDown) {
-                    okDown = true
-                    holdJob = scope.launch {
-                        delay(HOLD_MS)
-                        onTogglePin()
-                    }
-                }
-                true
-            }
-            event.type == KeyEventType.KeyUp -> {
-                // A key-up without our key-down (focus moved here mid-press) is just swallowed
-                if (okDown && holdJob?.isActive == true) {
-                    holdJob?.cancel()
-                    onOpen()
-                }
-                okDown = false
-                holdJob = null
-                true
-            }
-            else -> false
-        }
-    }
-
-    val scale by animateFloatAsState(
-        if (active) 1.1f else 1f,
-        spring(dampingRatio = 0.65f, stiffness = 450f),
-        label = "tileScale",
-    )
+    val input = rememberTileInput(onOpen, onTogglePin, onFocus)
+    val active = input.active
+    val accent = Color(app.accent)
+    val scale by animateFloatAsState(if (active) 1.12f else 1f, FocusSpring, label = "tileScale")
     val ring by animateFloatAsState(if (active) 1f else 0f, tween(180), label = "tileRing")
     // No shadow at rest: drawing one under every icon is costly on TV hardware
-    val lift by animateDpAsState(if (active) 18.dp else 0.dp, label = "tileLift")
+    val lift by animateDpAsState(if (active) 20.dp else 0.dp, label = "tileLift")
 
     Column(
         modifier
@@ -141,20 +95,7 @@ fun AppTile(
                 scaleX = scale
                 scaleY = scale
             }
-            .onFocusChanged {
-                focused = it.isFocused
-                if (!it.isFocused) {
-                    okDown = false
-                    holdJob?.cancel()
-                }
-            }
-            .then(remoteKeys)
-            .combinedClickable(
-                interactionSource = interaction,
-                indication = null, // the ring and lift replace the default ripple
-                onClick = onOpen,
-                onLongClick = onTogglePin,
-            )
+            .then(input.modifier)
             .padding(vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -171,29 +112,19 @@ fun AppTile(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .size(iconSize)
-                    .shadow(lift, Squircle, ambientColor = Color.Black, spotColor = Color.Black)
+                    .shadow(lift, Squircle, ambientColor = accent, spotColor = accent)
                     .clip(Squircle),
             )
-            if (showPinBadge) {
-                Box(
-                    Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(2.dp)
-                        .size(12.dp)
-                        .shadow(2.dp, CircleShape)
-                        .background(Palette.Focus, CircleShape)
-                        .padding(3.dp)
-                        .background(Palette.Accent, CircleShape),
-                )
-            }
+            if (showPinBadge) PinBadge(Modifier.align(Alignment.TopEnd))
         }
         Spacer(Modifier.height(8.dp))
         Text(
             app.label,
             style = TextStyle(
+                fontFamily = Flex,
                 color = if (active) Palette.TextPrimary else Palette.TextSecondary,
                 fontSize = 15.sp,
-                fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
+                fontWeight = if (active) FontWeight(700) else FontWeight(500),
                 textAlign = TextAlign.Center,
                 shadow = TextShadow,
             ),
@@ -201,5 +132,31 @@ fun AppTile(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(horizontal = 4.dp),
         )
+    }
+}
+
+/** Pinned marker: a crisp vector star on a white disc, the same size on every tile. */
+@Composable
+fun PinBadge(modifier: Modifier = Modifier) {
+    Canvas(
+        modifier
+            .size(20.dp)
+            .shadow(3.dp, CircleShape)
+            .background(Palette.Focus, CircleShape),
+    ) {
+        val c = center
+        val outer = size.minDimension * 0.34f
+        val inner = outer * 0.45f
+        val star = Path().apply {
+            for (k in 0 until 10) {
+                val r = if (k % 2 == 0) outer else inner
+                val a = Math.toRadians(-90.0 + k * 36.0)
+                val x = c.x + (r * kotlin.math.cos(a)).toFloat()
+                val y = c.y + (r * kotlin.math.sin(a)).toFloat() + outer * 0.06f
+                if (k == 0) moveTo(x, y) else lineTo(x, y)
+            }
+            close()
+        }
+        drawPath(star, Palette.Accent)
     }
 }

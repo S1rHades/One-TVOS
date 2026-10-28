@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import app.pill.launcher.AppEntry
 import app.pill.launcher.FavoritesLayout
+import app.pill.launcher.FavoritesStyle
 
 /** Space between favourite tiles. */
 private val Gap = 8.dp
@@ -66,12 +67,17 @@ private val RowBleed = 24.dp
 private fun <T> motion(animate: Boolean): FiniteAnimationSpec<T> =
     if (animate) tween(300, easing = FastOutSlowInEasing) else snap()
 
+/** Width of one favourite tile in [style] ([iconSize] applies to icons). */
+fun favoritesItemWidth(style: FavoritesStyle, iconSize: Dp): Dp =
+    if (style == FavoritesStyle.Banners) BannerTileWidth else tileWidth(iconSize)
+
 /** How many favourite tiles fit across [width] (Wrap layout). */
-fun favoritesPerRow(width: Dp, iconSize: Dp): Int =
-    ((width + Gap) / (tileWidth(iconSize) + Gap)).toInt().coerceAtLeast(1)
+fun favoritesPerRow(width: Dp, style: FavoritesStyle, iconSize: Dp): Int =
+    ((width + Gap) / (favoritesItemWidth(style, iconSize) + Gap)).toInt().coerceAtLeast(1)
 
 /** Height of one row of favourite tiles, including the air around it. */
-fun favoritesRowHeight(iconSize: Dp): Dp = iconSize + 60.dp + RowAir * 2
+fun favoritesRowHeight(style: FavoritesStyle, iconSize: Dp): Dp =
+    (if (style == FavoritesStyle.Banners) BannerHeight + 42.dp else iconSize + 60.dp) + RowAir * 2
 
 /**
  * The favourites, as one sliding row ([FavoritesLayout.Scroll]) or as rows that wrap
@@ -83,6 +89,7 @@ fun favoritesRowHeight(iconSize: Dp): Dp = iconSize + 60.dp + RowAir * 2
 fun FavoritesRow(
     apps: List<AppEntry>,
     layout: FavoritesLayout,
+    style: FavoritesStyle,
     animate: Boolean,
     iconSize: Dp,
     width: Dp,
@@ -90,26 +97,28 @@ fun FavoritesRow(
     onOpen: (AppEntry) -> Unit,
     onTogglePin: (AppEntry) -> Unit,
     modifier: Modifier = Modifier,
+    onFocus: (AppEntry) -> Unit = {},
 ) {
     val tile: @Composable (AppEntry, Boolean, Boolean, Modifier) -> Unit = { app, first, last, extra ->
-        AppTile(
-            app = app,
-            iconSize = iconSize,
-            showPinBadge = false,
-            onOpen = { onOpen(app) },
-            onTogglePin = { onTogglePin(app) },
-            modifier = extra
-                .focusRequester(focusFor(app))
-                .focusProperties {
-                    if (first) left = FocusRequester.Cancel
-                    if (last) right = FocusRequester.Cancel
-                },
-        )
+        val tileModifier = extra
+            .focusRequester(focusFor(app))
+            .focusProperties {
+                if (first) left = FocusRequester.Cancel
+                if (last) right = FocusRequester.Cancel
+            }
+        val focused = { gained: Boolean -> if (gained) onFocus(app) }
+        if (style == FavoritesStyle.Banners) {
+            BannerTile(app, { onOpen(app) }, { onTogglePin(app) }, tileModifier, focused)
+        } else {
+            AppTile(app, iconSize, showPinBadge = false, onOpen = { onOpen(app) }, onTogglePin = { onTogglePin(app) }, modifier = tileModifier, onFocus = focused)
+        }
     }
+    val itemWidth = favoritesItemWidth(style, iconSize)
+    val rowHeight = favoritesRowHeight(style, iconSize)
     val body: @Composable (FavoritesLayout) -> Unit = { mode ->
         when (mode) {
-            FavoritesLayout.Scroll -> ScrollRow(apps, animate, iconSize, tile)
-            FavoritesLayout.Wrap -> WrapRows(apps, animate, iconSize, favoritesPerRow(width, iconSize), tile)
+            FavoritesLayout.Scroll -> ScrollRow(apps, animate, itemWidth, rowHeight, tile)
+            FavoritesLayout.Wrap -> WrapRows(apps, animate, rowHeight, favoritesPerRow(width, style, iconSize), tile)
         }
     }
     if (animate) {
@@ -133,15 +142,16 @@ fun FavoritesRow(
 private fun ScrollRow(
     apps: List<AppEntry>,
     animate: Boolean,
-    iconSize: Dp,
+    itemWidth: Dp,
+    rowHeight: Dp,
     tile: @Composable (AppEntry, Boolean, Boolean, Modifier) -> Unit,
 ) {
     val state = rememberLazyListState()
     // Scrolling keeps the focused tile out of the fade zone; the next tile peeks into it
-    val fadeZone = with(LocalDensity.current) { (tileWidth(iconSize) * 0.75f).toPx() }
+    val fadeZone = with(LocalDensity.current) { (itemWidth * 0.75f).toPx() }
     val peek = fadeZone
     val scrolling = remember(peek, animate) { RowScrollSpec(peek, animate) }
-    Box(Modifier.height(favoritesRowHeight(iconSize)).bleed(RowBleed)) {
+    Box(Modifier.height(rowHeight).bleed(RowBleed)) {
         CompositionLocalProvider(LocalBringIntoViewSpec provides scrolling) {
             LazyRow(
                 state = state,
@@ -163,14 +173,14 @@ private fun ScrollRow(
 private fun WrapRows(
     apps: List<AppEntry>,
     animate: Boolean,
-    iconSize: Dp,
+    rowHeight: Dp,
     perRow: Int,
     tile: @Composable (AppEntry, Boolean, Boolean, Modifier) -> Unit,
 ) {
     Column(if (animate) Modifier.animateContentSize(motion<IntSize>(true)) else Modifier) {
         for (row in apps.chunked(perRow)) {
             Row(
-                Modifier.height(favoritesRowHeight(iconSize)),
+                Modifier.height(rowHeight),
                 horizontalArrangement = Arrangement.spacedBy(Gap),
                 verticalAlignment = Alignment.CenterVertically,
             ) {

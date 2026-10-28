@@ -45,7 +45,7 @@ fun TimeWidget(modifier: Modifier = Modifier) {
         }
     }
 
-    val small = SpanStyle(fontSize = 30.sp, color = Palette.TextSecondary, fontWeight = FontWeight.Normal)
+    val small = SpanStyle(fontFamily = Flex, fontSize = 22.sp, color = Palette.TextSecondary, fontWeight = FontWeight(560), letterSpacing = 0.5.sp)
     val clock = buildAnnotatedString {
         append(now.format(hourMinute))
         withStyle(small) {
@@ -57,16 +57,18 @@ fun TimeWidget(modifier: Modifier = Modifier) {
         Text(
             text = clock,
             style = TextStyle(
+                fontFamily = FlexDisplay,
                 color = Color.White,
-                fontSize = 68.sp,
-                fontWeight = FontWeight.Light,
-                letterSpacing = (-1).sp,
+                fontSize = 72.sp,
+                fontWeight = FontWeight(250),
+                letterSpacing = (-1.5).sp,
                 shadow = TextShadow,
             ),
         )
         Text(
             text = now.format(date),
             style = TextStyle(
+                fontFamily = Flex,
                 color = Palette.TextSecondary,
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Medium,
