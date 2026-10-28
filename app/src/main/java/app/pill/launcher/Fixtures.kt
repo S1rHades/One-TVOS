@@ -114,6 +114,21 @@ private fun kickoff(e: JSONObject): Instant? {
     return runCatching { LocalDateTime.parse(stamp.take(19).removeSuffix("Z")).toInstant(ZoneOffset.UTC) }.getOrNull()
 }
 
+/** Competition names as fans say them, short enough for the card. */
+fun shortCompetition(name: String): String {
+    val n = name.lowercase()
+    return when {
+        "friendl" in n -> "Friendly"
+        ("african cup of nations" in n || "africa cup of nations" in n) && "qualif" in n -> "AFCON qualifier"
+        "african cup of nations" in n || "africa cup of nations" in n -> "AFCON"
+        "world cup" in n && "qualif" in n -> "World Cup qualifier"
+        "world cup" in n -> "World Cup"
+        "arab cup" in n -> "Arab Cup"
+        "african nations championship" in n -> "CHAN"
+        else -> name
+    }
+}
+
 /** Short names for the crest fallback and narrow cards. */
 fun shortCode(team: String): String = when (team.lowercase()) {
     "algeria" -> "ALG"

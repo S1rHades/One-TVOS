@@ -82,6 +82,7 @@ import app.pill.launcher.Weather
 import app.pill.launcher.WeatherMode
 import app.pill.launcher.WidgetKind
 import app.pill.launcher.shortCode
+import app.pill.launcher.shortCompetition
 import app.pill.launcher.skyFor
 import app.pill.launcher.sunTimes
 import coil.compose.AsyncImage
@@ -107,11 +108,11 @@ private val Gap = 14.dp
 
 /** Widths each card is designed for, roomy and compact. The row scales them to fit. */
 private fun naturalWidth(kind: WidgetKind, compact: Boolean): Dp = when (kind) {
-    WidgetKind.Clock -> if (compact) 172.dp else 236.dp
-    WidgetKind.Weather -> if (compact) 172.dp else 236.dp
-    WidgetKind.Fennecs -> if (compact) 196.dp else 268.dp
-    WidgetKind.Daylight -> if (compact) 164.dp else 200.dp
-    WidgetKind.System -> if (compact) 160.dp else 196.dp
+    WidgetKind.Clock -> if (compact) 146.dp else 220.dp
+    WidgetKind.Weather -> if (compact) 156.dp else 215.dp
+    WidgetKind.Fennecs -> if (compact) 204.dp else 270.dp
+    WidgetKind.Daylight -> if (compact) 146.dp else 200.dp
+    WidgetKind.System -> if (compact) 156.dp else 190.dp
 }
 
 private val AlgeriaGreen = Color(0xFF006633)
@@ -135,7 +136,8 @@ fun WidgetRow(
     BoxWithConstraints(modifier) {
         val gaps = Gap * (widgets.size - 1).coerceAtLeast(0)
         val full = widgets.fold(0.dp) { sum, kind -> sum + naturalWidth(kind, compact = false) }
-        val compact = full + gaps > maxWidth
+        // Four cards, or full-size ones that would have to shrink a lot, use the compact layouts
+        val compact = widgets.size >= 4 || full + gaps > maxWidth * 1.08f
         val needed = widgets.fold(0.dp) { sum, kind -> sum + naturalWidth(kind, compact) }
         val scale = if (needed == 0.dp) 1f else ((maxWidth - gaps) / needed).coerceAtMost(1f)
         LazyRow(
@@ -298,13 +300,13 @@ private fun FennecsCard(fixtures: Fixtures?, compact: Boolean, modifier: Modifie
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         LiveDot()
                         Spacer(Modifier.width(6.dp))
-                        CardLabel("Live · " + live.competition, color = Color(0xFFFF8A9B))
+                        CardLabel(if (compact) "Live" else "Live · " + shortCompetition(live.competition), color = Color(0xFFFF8A9B))
                     }
                     Teams(live, compact, showScore = true)
                     Text("Les Fennecs are playing now", style = lineStyle(14.sp, Palette.TextTertiary), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 upcoming != null -> {
-                    CardLabel(if (compact) "Next" else "Next · ${upcoming.competition}")
+                    CardLabel(if (compact) "Next" else "Next · ${shortCompetition(upcoming.competition)}")
                     Teams(upcoming, compact, showScore = false)
                     Text(kickoffText(upcoming.kickoff, compact), style = lineStyle(15.sp, Palette.TextPrimary, 560), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
@@ -334,22 +336,23 @@ private fun FennecsCard(fixtures: Fixtures?, compact: Boolean, modifier: Modifie
 private fun Teams(match: Match, compact: Boolean, showScore: Boolean) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Crest(match.home, 24.dp)
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(if (compact) 6.dp else 8.dp))
         val home = if (compact) shortCode(match.home.name) else match.home.name
         val away = if (compact) shortCode(match.away.name) else match.away.name
-        val middle = if (showScore && match.homeScore != null && match.awayScore != null) "  ${match.homeScore}–${match.awayScore}  " else "  v  "
+        val pad = if (compact) " " else "  "
+        val middle = if (showScore && match.homeScore != null && match.awayScore != null) "$pad${match.homeScore}–${match.awayScore}$pad" else "${pad}v$pad"
         Text(
             buildAnnotatedString {
                 append(home)
                 withStyle(SpanStyle(color = Palette.TextTertiary, fontWeight = FontWeight(if (showScore) 700 else 500))) { append(middle) }
                 append(away)
             },
-            style = lineStyle(if (compact) 18.sp else 19.sp, Palette.TextPrimary, 640),
+            style = lineStyle(if (compact) 17.sp else 19.sp, Palette.TextPrimary, 640),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f, fill = false),
         )
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(if (compact) 6.dp else 8.dp))
         Crest(match.away, 24.dp)
     }
 }
@@ -481,21 +484,24 @@ private fun DaylightCard(weather: Weather?, compact: Boolean, modifier: Modifier
     }
     val format = DateTimeFormatter.ofPattern(if (DateFormat.is24HourFormat(context)) "HH:mm" else "h:mm a", Locale.getDefault())
     WidgetCard(Color(0xFFFFA94D), modifier) {
-        Row(Modifier.align(Alignment.CenterStart), verticalAlignment = Alignment.CenterVertically) {
-            val fraction = times?.let {
-                val day = Duration.between(it.sunrise, it.sunset).seconds.toFloat()
-                (Duration.between(it.sunrise, now).seconds / day)
-            }
-            SunArc(fraction, Modifier.size(width = 52.dp, height = 40.dp))
-            Spacer(Modifier.width(14.dp))
-            Column {
-                CardLabel(if (compact) "Daylight" else "Sunrise & sunset")
-                Spacer(Modifier.height(4.dp))
-                if (times == null) {
-                    Text(if (weather == null) "Finding your area…" else "No sunrise today", style = lineStyle(15.sp), maxLines = 2)
-                } else {
-                    Text("↑ " + times.sunrise.format(format), style = lineStyle(18.sp, Palette.TextPrimary, 600), maxLines = 1)
-                    Text("↓ " + times.sunset.format(format), style = lineStyle(18.sp, Palette.TextSecondary, 600), maxLines = 1)
+        Column(Modifier.align(Alignment.CenterStart)) {
+            CardLabel(if (compact) "Daylight" else "Sunrise & sunset")
+            Spacer(Modifier.height(6.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                val fraction = times?.let {
+                    val day = Duration.between(it.sunrise, it.sunset).seconds.toFloat()
+                    (Duration.between(it.sunrise, now).seconds / day)
+                }
+                SunArc(fraction, Modifier.size(width = if (compact) 38.dp else 50.dp, height = if (compact) 28.dp else 34.dp))
+                Spacer(Modifier.width(if (compact) 10.dp else 14.dp))
+                Column {
+                    if (times == null) {
+                        Text(if (weather == null) "Finding your area…" else "No sunrise today", style = lineStyle(15.sp), maxLines = 2)
+                    } else {
+                        val size = if (compact) 16.sp else 18.sp
+                        Text("↑ " + times.sunrise.format(format), style = lineStyle(size, Palette.TextPrimary, 600), maxLines = 1)
+                        Text("↓ " + times.sunset.format(format), style = lineStyle(size, Palette.TextSecondary, 600), maxLines = 1)
+                    }
                 }
             }
         }
@@ -549,12 +555,12 @@ private fun SystemCard(compact: Boolean, modifier: Modifier) {
     val online = info.connection != null
     WidgetCard(if (online) Color(0xFF38D9A9) else Color(0xFFFF8787), modifier) {
         Row(Modifier.align(Alignment.CenterStart), verticalAlignment = Alignment.CenterVertically) {
-            SignalIcon(online, Modifier.size(34.dp))
-            Spacer(Modifier.width(14.dp))
+            SignalIcon(online, Modifier.size(if (compact) 26.dp else 32.dp))
+            Spacer(Modifier.width(if (compact) 10.dp else 14.dp))
             Column {
                 CardLabel("System")
                 Spacer(Modifier.height(4.dp))
-                Text(info.connection ?: "Offline", style = lineStyle(18.sp, Palette.TextPrimary, 600), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(info.connection ?: "Offline", style = lineStyle(if (compact) 16.sp else 18.sp, Palette.TextPrimary, 600), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (info.freeBytes >= 0) {
                     Text(formatBytes(info.freeBytes) + if (compact) " free" else " storage free", style = lineStyle(15.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }

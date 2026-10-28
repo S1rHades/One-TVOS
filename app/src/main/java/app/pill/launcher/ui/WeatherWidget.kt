@@ -106,12 +106,15 @@ fun WeatherWidget(weather: Weather, mode: WeatherMode, compact: Boolean, modifie
                         fontWeight = FontWeight.Light,
                     ),
                 )
-                Text(
-                    listOf(describe(w.code), w.place.takeUnless { compact }.orEmpty()).filter { it.isNotBlank() }.joinToString("  ·  "),
-                    style = TextStyle(fontFamily = Flex, color = Palette.TextSecondary, fontSize = if (compact) 14.sp else 16.sp, fontWeight = FontWeight.Medium),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                // Compact cards drop the condition; the icon shows it
+                if (!compact) {
+                    Text(
+                        describe(w.code),
+                        style = TextStyle(fontFamily = Flex, color = Palette.TextSecondary, fontSize = if (compact) 14.sp else 16.sp, fontWeight = FontWeight.Medium),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
                 Text(
                     "H ${formatTemp(w.highC, mode)}   L ${formatTemp(w.lowC, mode)}",
                     style = TextStyle(fontFamily = Flex, color = Palette.TextTertiary, fontSize = if (compact) 13.sp else 15.sp),
