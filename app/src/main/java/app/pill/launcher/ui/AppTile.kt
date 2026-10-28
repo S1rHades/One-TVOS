@@ -76,7 +76,8 @@ fun AppTile(
         label = "tileScale",
     )
     val ring by animateFloatAsState(if (active) 1f else 0f, tween(180), label = "tileRing")
-    val lift by animateDpAsState(if (active) 18.dp else 4.dp, label = "tileLift")
+    // No shadow at rest: drawing one under every icon is costly on TV hardware
+    val lift by animateDpAsState(if (active) 18.dp else 0.dp, label = "tileLift")
 
     Column(
         modifier

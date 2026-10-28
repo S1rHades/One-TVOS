@@ -21,7 +21,7 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-/** Large clock and date for the top-left corner. Ticks once per second, aligned to the second boundary. */
+/** Large clock (hours and minutes) and date for the top-left corner. Ticks on each minute boundary. */
 @Composable
 fun TimeWidget(modifier: Modifier = Modifier) {
     val context = LocalContext.current
@@ -31,7 +31,6 @@ fun TimeWidget(modifier: Modifier = Modifier) {
     val hourMinute = remember(is24h, locale) {
         DateTimeFormatter.ofPattern(if (is24h) "HH:mm" else "h:mm", locale)
     }
-    val seconds = remember(locale) { DateTimeFormatter.ofPattern(":ss", locale) }
     val amPm = remember(locale) { DateTimeFormatter.ofPattern(" a", locale) }
     // Locale-aware order and punctuation, e.g. "Tuesday, 27 October" or "Tuesday, October 27"
     val date = remember(locale) {
@@ -41,7 +40,8 @@ fun TimeWidget(modifier: Modifier = Modifier) {
     val now by produceState(LocalDateTime.now()) {
         while (true) {
             value = LocalDateTime.now()
-            delay(1000L - System.currentTimeMillis() % 1000L)
+            // Wake on the next minute boundary (no seconds shown)
+            delay(60_000L - System.currentTimeMillis() % 60_000L)
         }
     }
 
@@ -49,7 +49,6 @@ fun TimeWidget(modifier: Modifier = Modifier) {
     val clock = buildAnnotatedString {
         append(now.format(hourMinute))
         withStyle(small) {
-            append(now.format(seconds))
             if (!is24h) append(now.format(amPm))
         }
     }

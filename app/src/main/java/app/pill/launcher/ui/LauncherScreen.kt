@@ -68,6 +68,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -96,6 +97,8 @@ private const val PAGE_EDGE = 0.14f
 fun LauncherScreen(
     apps: List<AppEntry>?,
     weather: Weather?,
+    /** Why the last weather fetch failed, shown in settings; null when it works. */
+    weatherError: String? = null,
     pins: List<String>,
     settings: LauncherSettings,
     onSettingsChange: (LauncherSettings) -> Unit,
@@ -106,6 +109,7 @@ fun LauncherScreen(
     homePresses: Int = 0,
 ) {
     var panelOpen by remember { mutableStateOf(false) }
+    var photoError by remember { mutableStateOf<String?>(null) }
     var initialFocusDone by remember { mutableStateOf(false) }
     var toast by remember { mutableStateOf<Toast?>(null) }
     var toastVisible by remember { mutableStateOf(false) }
@@ -191,6 +195,7 @@ fun LauncherScreen(
             urls = BackgroundSources.urls,
             intervalMs = settings.intervalSec * 1000L,
             enabled = settings.slideshow,
+            onStatus = { photoError = it },
         )
         BackgroundScrim()
 
@@ -201,7 +206,8 @@ fun LauncherScreen(
             val columns = ((maxWidth - Spacing.ScreenH * 2) / tileWidth(GridIcon)).toInt().coerceAtLeast(1)
             // 0 on the first page, 1 once the grid fills the screen; dims the photo behind the apps
             val depth by remember(pageHeightPx) { derivedStateOf { (scroll.value / pageHeightPx).coerceIn(0f, 1f) } }
-            Box(Modifier.fillMaxSize().alpha(depth).background(Color(0x8C05070D)))
+            // Alpha is read in the draw phase, so scrolling does not recompose the screen
+            Box(Modifier.fillMaxSize().graphicsLayer { alpha = depth }.background(Color(0x8C05070D)))
 
             val rowScrolling = LocalBringIntoViewSpec.current
             // Every tile is composed (a launcher has at most a few hundred apps), so plain D-pad
@@ -276,7 +282,7 @@ fun LauncherScreen(
 
                         MoreBelow(
                             count = apps?.size,
-                            modifier = Modifier.fillMaxWidth().height(pageEdge).alpha(1f - depth),
+                            modifier = Modifier.fillMaxWidth().height(pageEdge).graphicsLayer { alpha = 1f - depth },
                         )
                     }
 
@@ -322,6 +328,8 @@ fun LauncherScreen(
                 settings = settings,
                 onChange = onSettingsChange,
                 onOpenSystemSettings = onOpenSystemSettings,
+                photoError = photoError,
+                weatherError = weatherError,
                 onDismiss = { panelOpen = false },
             )
         }
@@ -348,7 +356,7 @@ private class PageScrollSpec(
 ) : BringIntoViewSpec {
     private var target = 0f
 
-    override val scrollAnimationSpec: AnimationSpec<Float> = tween(550, easing = FastOutSlowInEasing)
+    override val scrollAnimationSpec: AnimationSpec<Float> = tween(300, easing = FastOutSlowInEasing)
 
     override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float {
         val current = scroll.value.toFloat()

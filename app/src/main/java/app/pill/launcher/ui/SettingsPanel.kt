@@ -58,6 +58,7 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -81,6 +82,9 @@ fun SettingsPanel(
     onChange: (LauncherSettings) -> Unit,
     onOpenSystemSettings: () -> Unit,
     onDismiss: () -> Unit,
+    /** Why photos or weather last failed to load, shown under their rows; null when fine. */
+    photoError: String? = null,
+    weatherError: String? = null,
 ) {
     val firstRow = remember { FocusRequester() }
     val visible = remember { MutableTransitionState(false).apply { targetState = true } }
@@ -133,7 +137,11 @@ fun SettingsPanel(
                         Group("Home screen") {
                             SettingRow(
                                 title = "Photo slideshow",
-                                subtitle = if (settings.slideshow) "A new photo every ${formatInterval(settings.intervalSec)}" else "Keeps the current photo",
+                                subtitle = when {
+                                    photoError != null -> "Can't load photos: $photoError"
+                                    settings.slideshow -> "A new photo every ${formatInterval(settings.intervalSec)}"
+                                    else -> "Keeps the current photo"
+                                },
                                 onClick = { onChange(settings.copy(slideshow = !settings.slideshow)) },
                                 modifier = Modifier.focusRequester(firstRow),
                             ) { focused -> Switch(checked = settings.slideshow, focused = focused) }
@@ -159,7 +167,7 @@ fun SettingsPanel(
                                 title = "Weather",
                                 subtitle = when (settings.weather) {
                                     WeatherMode.Off -> "Hidden"
-                                    else -> "Beside the clock, for your approximate area"
+                                    else -> weatherError?.let { "Can't get the weather: $it" } ?: "Beside the clock, for your approximate area"
                                 },
                                 onClick = { onChange(settings.copy(weather = modes[(mode + 1) % modes.size])) },
                                 onStep = { by ->
@@ -269,7 +277,7 @@ private fun SettingRow(
         Column(Modifier.weight(1f)) {
             Text(title, color = textColor, fontSize = 19.sp, fontWeight = FontWeight.Medium)
             if (subtitle != null) {
-                Text(subtitle, color = textColor.copy(alpha = 0.6f), fontSize = 14.sp)
+                Text(subtitle, color = textColor.copy(alpha = 0.6f), fontSize = 14.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
         }
         trailing(active)
