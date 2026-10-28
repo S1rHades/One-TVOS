@@ -3,6 +3,9 @@ package app.pill.launcher
 import android.content.Context
 import java.util.Locale
 
+/** How the favourites row handles more apps than fit across the screen. */
+enum class FavoritesLayout { Scroll, Wrap }
+
 /** What the weather widget shows: nothing, or the temperature in one unit. */
 enum class WeatherMode { Off, Celsius, Fahrenheit }
 
@@ -16,6 +19,9 @@ data class LauncherSettings(
     val idleMinutes: Int = 2,
     /** Slow photo zoom and drifting clock while idle (also guards against screen burn-in). */
     val idleAnimation: Boolean = true,
+    val favoritesLayout: FavoritesLayout = FavoritesLayout.Scroll,
+    /** Sliding and reordering animations in the favourites row. */
+    val favoritesAnimation: Boolean = true,
 ) {
     companion object {
         val IntervalOptions = listOf(10, 20, 30, 60)
@@ -40,6 +46,10 @@ class SettingsStore(context: Context) {
         autostart = prefs.getBoolean("autostart", false),
         idleMinutes = prefs.getInt("idleMinutes", 2),
         idleAnimation = prefs.getBoolean("idleAnimation", true),
+        favoritesLayout = prefs.getString("favoritesLayout", null)
+            ?.let { name -> FavoritesLayout.entries.firstOrNull { it.name == name } }
+            ?: FavoritesLayout.Scroll,
+        favoritesAnimation = prefs.getBoolean("favoritesAnimation", true),
     )
 
     fun save(settings: LauncherSettings) {
@@ -50,6 +60,8 @@ class SettingsStore(context: Context) {
             .putBoolean("autostart", settings.autostart)
             .putInt("idleMinutes", settings.idleMinutes)
             .putBoolean("idleAnimation", settings.idleAnimation)
+            .putString("favoritesLayout", settings.favoritesLayout.name)
+            .putBoolean("favoritesAnimation", settings.favoritesAnimation)
             .apply()
     }
 

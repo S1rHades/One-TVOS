@@ -177,6 +177,24 @@ class Screenshots {
     }
 
     @Test
+    fun favoritesWrap() {
+        // More favourites than fit across, wrapped onto a second row
+        val many = apps.take(12).map { it.pkg }
+        show("canyon-river", pins = many, settings = LauncherSettings(weather = WeatherMode.Celsius, favoritesLayout = FavoritesLayout.Wrap))
+        compose.onRoot().captureRoboImage(File(out, "favorites-wrap.png").path)
+    }
+
+    @Test
+    fun favoritesScroll() {
+        // More favourites than fit: the row slides as focus moves right, edges fade
+        val many = apps.take(12).map { it.pkg }
+        show("canyon-river", pins = many)
+        compose.onRoot().performKeyInput { repeat(8) { pressKey(Key.DirectionRight) } }
+        settle()
+        compose.onRoot().captureRoboImage(File(out, "favorites-scroll.png").path)
+    }
+
+    @Test
     fun firstLaunch() {
         show("pine-forest", pins = emptyList())
         compose.onRoot().captureRoboImage(File(out, "first-launch.png").path)
@@ -191,17 +209,21 @@ class Screenshots {
     }
 
     /** Shows the home screen over [photo] and lets focus, images and animations settle. */
-    private fun show(photo: String, pins: List<String>) {
+    private fun show(
+        photo: String,
+        pins: List<String>,
+        settings: LauncherSettings = LauncherSettings(weather = WeatherMode.Celsius),
+    ) {
         useBackground(photo)
         compose.setContent {
             var pinned by remember { mutableStateOf(pins) }
-            var settings by remember { mutableStateOf(LauncherSettings(weather = WeatherMode.Celsius)) }
+            var current by remember { mutableStateOf(settings) }
             LauncherScreen(
                 apps = apps,
                 weather = weather,
                 pins = pinned,
-                settings = settings,
-                onSettingsChange = { settings = it },
+                settings = current,
+                onSettingsChange = { current = it },
                 onOpen = {},
                 onTogglePin = { app -> pinned = if (app.pkg in pinned) pinned - app.pkg else pinned + app.pkg },
                 onOpenSystemSettings = {},

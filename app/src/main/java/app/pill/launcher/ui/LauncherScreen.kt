@@ -40,6 +40,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -81,6 +82,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.pill.launcher.AppEntry
+import app.pill.launcher.FavoritesLayout
 import app.pill.launcher.HomeStatus
 import app.pill.launcher.LauncherSettings
 import app.pill.launcher.Weather
@@ -89,8 +91,8 @@ import kotlinx.coroutines.delay
 private val FavoriteIcon = 96.dp
 private val GridIcon = 84.dp
 
-/** Height of the favourites row (one tile), kept fixed so pinning the first app does not shift the page. */
-private val FavoritesRowHeight = FavoriteIcon + 60.dp
+/** Room the clock, weather and buttons take at the top of the first page. */
+private val HeaderHeight = 150.dp
 
 /**
  * Space between the favourites row and the bottom of the first page. Also the margin
@@ -251,7 +253,17 @@ fun LauncherScreen(
         BackgroundScrim()
 
         BoxWithConstraints(Modifier.fillMaxSize()) {
-            val pageHeight = maxHeight - Spacing.ScreenV
+            val contentWidth = maxWidth - Spacing.ScreenH * 2
+            // Wrapped favourites can need more than one row; the first page grows to fit them
+            val favoriteRows = if (settings.favoritesLayout == FavoritesLayout.Wrap) {
+                ((pinnedApps.size + favoritesPerRow(contentWidth, FavoriteIcon) - 1) / favoritesPerRow(contentWidth, FavoriteIcon)).coerceAtLeast(1)
+            } else {
+                1
+            }
+            val pageHeight = maxOf(
+                maxHeight - Spacing.ScreenV,
+                HeaderHeight + favoritesRowHeight(FavoriteIcon) * favoriteRows + maxHeight * PAGE_EDGE,
+            )
             val pageEdge = maxHeight * PAGE_EDGE
             val pageHeightPx = with(LocalDensity.current) { pageHeight.toPx() }
             val columns = ((maxWidth - Spacing.ScreenH * 2) / tileWidth(GridIcon)).toInt().coerceAtLeast(1)
@@ -260,7 +272,6 @@ fun LauncherScreen(
             // Alpha is read in the draw phase, so scrolling does not recompose the screen
             Box(Modifier.fillMaxSize().graphicsLayer { alpha = depth }.background(Color(0x8C05070D)))
 
-            val rowScrolling = LocalBringIntoViewSpec.current
             // Every tile is composed (a launcher has at most a few hundred apps), so plain D-pad
             // focus search reaches the grid from the first page; PageScrollSpec does the scrolling.
             val topPx = with(LocalDensity.current) { Spacing.ScreenV.toPx() }
@@ -310,33 +321,25 @@ fun LauncherScreen(
                         Spacer(Modifier.weight(1f))
 
                         Box(
-                            Modifier.fillMaxWidth().height(FavoritesRowHeight).graphicsLayer { alpha = 1f - idleFade },
+                            Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = favoritesRowHeight(FavoriteIcon))
+                                .graphicsLayer { alpha = 1f - idleFade },
                             contentAlignment = Alignment.CenterStart,
                         ) {
                             if (pinnedApps.isEmpty()) {
                                 EmptyFavorites(loading = apps == null)
                             } else {
-                                // The favourites row scrolls sideways the platform's usual way
-                                CompositionLocalProvider(LocalBringIntoViewSpec provides rowScrolling) {
-                                    // Widened into the side margins so a focused tile's ring is not clipped
-                                    LazyRow(
-                                        modifier = Modifier.bleed(RowBleed),
-                                        contentPadding = PaddingValues(horizontal = RowBleed),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    ) {
-                                        items(pinnedApps, key = { it.pkg }) { app ->
-                                            val requester = favoriteFocus.getOrPut(app.pkg) { FocusRequester() }
-                                            AppTile(
-                                                app = app,
-                                                iconSize = FavoriteIcon,
-                                                showPinBadge = false,
-                                                onOpen = { onOpen(app) },
-                                                onTogglePin = { togglePin(app, fromFavorites = true) },
-                                                modifier = Modifier.animateItem().focusRequester(requester),
-                                            )
-                                        }
-                                    }
-                                }
+                                FavoritesRow(
+                                    apps = pinnedApps,
+                                    layout = settings.favoritesLayout,
+                                    animate = settings.favoritesAnimation,
+                                    iconSize = FavoriteIcon,
+                                    width = contentWidth,
+                                    focusFor = { app -> favoriteFocus.getOrPut(app.pkg) { FocusRequester() } },
+                                    onOpen = onOpen,
+                                    onTogglePin = { togglePin(it, fromFavorites = true) },
+                                )
                             }
                         }
 
@@ -445,17 +448,6 @@ private class PageScrollSpec(
         }.coerceIn(0f, scroll.maxValue.toFloat())
         return target - current
     }
-}
-
-private val RowBleed = 16.dp
-
-/** Lets a horizontally clipped child extend [x] past its parent on both sides. */
-private fun Modifier.bleed(x: Dp) = layout { measurable, constraints ->
-    val extra = (x * 2).roundToPx()
-    val placeable = measurable.measure(
-        constraints.copy(minWidth = constraints.minWidth + extra, maxWidth = constraints.maxWidth + extra),
-    )
-    layout(constraints.maxWidth, placeable.height) { placeable.place(-x.roundToPx(), 0) }
 }
 
 /** A short confirmation message. A new instance restarts the hide timer even for the same text. */

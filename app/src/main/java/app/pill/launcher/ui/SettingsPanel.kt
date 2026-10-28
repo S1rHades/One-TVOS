@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import app.pill.launcher.FavoritesLayout
 import app.pill.launcher.HomeStatus
 import app.pill.launcher.LauncherSettings
 import app.pill.launcher.WeatherMode
@@ -186,6 +187,35 @@ fun SettingsPanel(
                             ) { focused ->
                                 Stepper(weatherLabel(settings.weather), mode > 0, mode < modes.lastIndex, focused)
                             }
+                        }
+
+                        Group("Favorites row") {
+                            val layouts = FavoritesLayout.entries
+                            val layoutIndex = layouts.indexOf(settings.favoritesLayout)
+                            SettingRow(
+                                title = "Layout",
+                                subtitle = when (settings.favoritesLayout) {
+                                    FavoritesLayout.Scroll -> "One row that slides when you go past the edge"
+                                    FavoritesLayout.Wrap -> "As many as fit across; the rest on rows below"
+                                },
+                                onClick = { onChange(settings.copy(favoritesLayout = layouts[(layoutIndex + 1) % layouts.size])) },
+                                onStep = { by ->
+                                    val next = (layoutIndex + by).coerceIn(0, layouts.lastIndex)
+                                    if (next != layoutIndex) onChange(settings.copy(favoritesLayout = layouts[next]))
+                                },
+                            ) { focused ->
+                                Stepper(
+                                    if (settings.favoritesLayout == FavoritesLayout.Scroll) "Scroll" else "Wrap",
+                                    layoutIndex > 0,
+                                    layoutIndex < layouts.lastIndex,
+                                    focused,
+                                )
+                            }
+                            SettingRow(
+                                title = "Animations",
+                                subtitle = if (settings.favoritesAnimation) "Smooth sliding and rearranging" else "Instant, no motion",
+                                onClick = { onChange(settings.copy(favoritesAnimation = !settings.favoritesAnimation)) },
+                            ) { focused -> Switch(checked = settings.favoritesAnimation, focused = focused) }
                         }
 
                         Group("Idle screen") {
