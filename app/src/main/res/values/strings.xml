@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Pill Launcher</string>
+    <string name="home_redirect_label">Pill Launcher Home button</string>
+    <string name="home_redirect_description">Brings Pill Launcher back whenever the TV\'s own home screen opens, for example after pressing Home or closing an app. It only checks which app has come to the front; it never reads what is on screen.</string>
 </resources>

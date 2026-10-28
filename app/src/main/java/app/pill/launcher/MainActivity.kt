@@ -53,6 +53,9 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
+            // Re-checked whenever the launcher comes back (e.g. from the Home app settings)
+            val home = remember(refresh) { homeStatus() }
+
             // A launcher never exits on Back
             BackHandler(enabled = true) { }
 
@@ -72,6 +75,9 @@ class MainActivity : ComponentActivity() {
                     store.savePins(pins)
                 },
                 homePresses = homePresses,
+                home = home,
+                onMakeDefault = { requestDefaultHome() },
+                onHomeHelper = { openAccessibilitySettings() },
                 onOpenSystemSettings = {
                     try {
                         startActivity(

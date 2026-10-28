@@ -3,6 +3,11 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 1.6 (October 2026)
+
+- **Settings → Default home screen** makes Pill Launcher the TV's home screen, so Home and closing or killing an app always bring you back here.
+- **Settings → Home button helper**, for TVs that don't allow another home screen (most Google TV devices): once turned on in Accessibility settings, it brings Pill Launcher back whenever the TV's own home screen opens. It only checks which app came to the front, never what's on screen.
+
 ## 1.5 (October 2026)
 
 - **Background photos are built into the app**, so they always appear, even on networks that block photo sites. Twelve nature photos: mountains, lakes, coasts, forests and a waterfall.
