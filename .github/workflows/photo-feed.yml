@@ -1,0 +1,40 @@
+name: Photo feed
+
+# A fresh set of landscape photos every day, from Wikimedia Commons' Featured Pictures
+# (freely licensed; each one's author and licence are kept and shown on the TV). Resized
+# to 1920x1080 and published on the photos-data branch, which the launcher reads from
+# raw.githubusercontent.com, a host older TVs reach without trouble.
+on:
+  schedule:
+    - cron: "23 3 * * *"
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/photo-feed.yml
+      - .github/scripts/photo_feed.py
+
+permissions:
+  contents: write
+
+concurrency:
+  group: photo-feed
+  cancel-in-progress: false
+
+jobs:
+  feed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install --quiet pillow
+      - name: Build
+        run: python3 .github/scripts/photo_feed.py
+      - name: Publish
+        working-directory: out
+        run: |
+          git init -q -b photos-data
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -qm "Photos $(date -u +%F)"
+          # One commit only: the branch holds today's set, not a history
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" photos-data
