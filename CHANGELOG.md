@@ -3,6 +3,12 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 2.0 (October 2026)
+
+- **Icons with depth**: when you focus an app whose icon has layers, the artwork lifts a little off its background, like on Apple TV.
+- **Softer All apps edge**: rows of apps fade gently into the bottom of the screen until you reach them, so it's clear there's more below.
+- **Sliding highlight**: in the search and settings capsule, one white highlight glides between the two buttons instead of each lighting up on its own.
+
 ## 1.9 (October 2026)
 
 - **Animated weather**: the sun's rays turn, clouds drift, rain and snow fall and lightning flashes, in short bursts when the weather updates and every 40 seconds, so the screen can rest in between. The icons stay still on the idle screen and when the TV's "remove animations" setting is on.

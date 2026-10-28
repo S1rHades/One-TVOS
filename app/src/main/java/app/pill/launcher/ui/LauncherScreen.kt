@@ -64,6 +64,11 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.layout.findRootCoordinates
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.runtime.State
@@ -377,7 +382,7 @@ fun LauncherScreen(
                             modifier = Modifier.padding(top = 10.dp, bottom = 6.dp),
                         )
                         for (row in apps.orEmpty().chunked(columns)) {
-                            Row(Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
+                            Row(Modifier.fillMaxWidth().padding(bottom = 6.dp).bottomEdgeFade(scroll, pageEdge)) {
                                 for (app in row) {
                                     key(app.pkg) {
                                         AppTile(
@@ -475,6 +480,30 @@ private class PageScrollSpec(
         }.coerceIn(0f, scroll.maxValue.toFloat())
         return target - current
     }
+}
+
+/**
+ * Fades a grid row as it reaches the bottom of the screen while more rows continue below,
+ * so the grid dissolves into the edge like the favourites row. Never the focused row.
+ * Position is read in layout and applied in the draw phase, so scrolling only redraws.
+ */
+@Composable
+private fun Modifier.bottomEdgeFade(scroll: ScrollState, zone: Dp): Modifier {
+    val zonePx = with(LocalDensity.current) { zone.toPx() }
+    var bottom by remember { mutableFloatStateOf(0f) }
+    var screen by remember { mutableFloatStateOf(0f) }
+    var holdsFocus by remember { mutableStateOf(false) }
+    return this
+        .onGloballyPositioned {
+            bottom = it.positionInRoot().y + it.size.height
+            screen = it.findRootCoordinates().size.height.toFloat()
+        }
+        .onFocusChanged { holdsFocus = it.hasFocus }
+        .graphicsLayer {
+            val t = if (holdsFocus || !scroll.canScrollForward || screen == 0f) 0f
+            else ((bottom - (screen - zonePx)) / zonePx).coerceIn(0f, 1f)
+            alpha = 1f - 0.75f * t * t * (3 - 2 * t)
+        }
 }
 
 /** A short confirmation message. A new instance restarts the hide timer even for the same text. */

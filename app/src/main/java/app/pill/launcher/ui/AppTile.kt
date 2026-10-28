@@ -33,6 +33,10 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
@@ -86,6 +90,7 @@ fun AppTile(
     val ring by animateFloatAsState(if (active) 1f else 0f, tween(180), label = "tileRing")
     // No shadow at rest: drawing one under every icon is costly on TV hardware
     val lift by animateDpAsState(if (active) 20.dp else 0.dp, label = "tileLift")
+    val depth = animateFloatAsState(if (active) 1f else 0f, FocusSpring, label = "tileDepth")
 
     Column(
         modifier
@@ -106,10 +111,9 @@ fun AppTile(
                     .graphicsLayer { alpha = ring }
                     .border(RingWidth, Palette.Focus, Squircle),
             )
-            Image(
-                bitmap = app.icon,
-                contentDescription = app.label,
-                contentScale = ContentScale.Crop,
+            AppIcon(
+                app,
+                depth = { depth.value },
                 modifier = Modifier
                     .size(iconSize)
                     .shadow(lift, Squircle, ambientColor = accent, spotColor = accent)
@@ -132,6 +136,38 @@ fun AppTile(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(horizontal = 4.dp),
         )
+    }
+}
+
+/**
+ * The app's icon. Adaptive icons are drawn from their two layers so that, as [depth] goes
+ * to 1 on focus, the foreground lifts (slightly larger and higher) against the background,
+ * the way Apple TV icons do. Older icons are shown as they are.
+ */
+@Composable
+fun AppIcon(app: AppEntry, depth: () -> Float, modifier: Modifier = Modifier) {
+    val layers = app.iconLayers
+    if (layers == null) {
+        Image(app.icon, contentDescription = app.label, contentScale = ContentScale.Crop, modifier = modifier)
+        return
+    }
+    Canvas(modifier.semantics { contentDescription = app.label }) {
+        val s = size.minDimension
+        // Adaptive layers extend 25% past the visible icon on every side
+        val extra = (s / 4f).toInt()
+        val bounds = android.graphics.Rect(-extra, -extra, s.toInt() + extra, s.toInt() + extra)
+        val d = depth()
+        drawIntoCanvas { canvas ->
+            val native = canvas.nativeCanvas
+            layers.background.bounds = bounds
+            layers.background.draw(native)
+            native.save()
+            native.translate(0f, -s * 0.035f * d)
+            native.scale(1f + 0.06f * d, 1f + 0.06f * d, s / 2f, s / 2f)
+            layers.foreground.bounds = bounds
+            layers.foreground.draw(native)
+            native.restore()
+        }
     }
 }
 
