@@ -6,9 +6,13 @@ import app.pill.launcher.ui.Palette
 import app.pill.launcher.ui.ScrimStops
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.awt.image.BufferedImage
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
 import java.io.File
-import javax.imageio.ImageIO
 import kotlin.math.pow
 
 /**
@@ -18,6 +22,9 @@ import kotlin.math.pow
  * doesn't decide it. Text shadows are ignored; they help, but WCAG doesn't count them.
  * Runs with every build (build.yml) and fails it if any pair drops below the minimum.
  */
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+@Config(sdk = [34])
 class ContrastTest {
 
     private val photos = File("src/main/assets/photos").listFiles { f -> f.extension == "jpg" }.orEmpty().sortedBy { it.name }
@@ -49,11 +56,11 @@ class ContrastTest {
         check("glass") { photo -> brightest(photo, 0f, 0f, 1f, 1f, grid = 24) { GlassTint.alpha to GlassTint.copy(alpha = 1f) } }
     }
 
-    private fun check(surface: String, background: (BufferedImage) -> FloatArray) {
+    private fun check(surface: String, background: (Bitmap) -> FloatArray) {
         assertTrue("no photos found in src/main/assets/photos", photos.isNotEmpty())
         val failures = mutableListOf<String>()
         for (file in photos) {
-            val bg = background(ImageIO.read(file))
+            val bg = background(BitmapFactory.decodeFile(file.path))
             for (role in roles) {
                 val ratio = contrast(over(role.color, bg), bg)
                 if (ratio < role.minimum) {
@@ -79,7 +86,7 @@ class ContrastTest {
      * averaged down to a coarse [grid] first, as the eye (and the blur) would.
      */
     private fun brightest(
-        photo: BufferedImage,
+        photo: Bitmap,
         x0: Float, y0: Float, x1: Float, y1: Float,
         grid: Int = 192,
         overlay: (Float) -> Pair<Float, Color>,
@@ -102,7 +109,7 @@ class ContrastTest {
     }
 
     /** Mean sRGB colour (0..1) of one cell of a cols x rows grid over the photo. */
-    private fun average(photo: BufferedImage, c: Int, r: Int, cols: Int, rows: Int): FloatArray {
+    private fun average(photo: Bitmap, c: Int, r: Int, cols: Int, rows: Int): FloatArray {
         val xa = c * photo.width / cols; val xb = ((c + 1) * photo.width / cols).coerceAtLeast(xa + 1)
         val ya = r * photo.height / rows; val yb = ((r + 1) * photo.height / rows).coerceAtLeast(ya + 1)
         var red = 0.0; var green = 0.0; var blue = 0.0; var n = 0
@@ -110,7 +117,7 @@ class ContrastTest {
         while (y < yb) {
             var x = xa
             while (x < xb) {
-                val rgb = photo.getRGB(x, y)
+                val rgb = photo.getPixel(x, y)
                 val r8 = (rgb shr 16) and 0xFF
                 val g8 = (rgb shr 8) and 0xFF
                 val b8 = rgb and 0xFF
