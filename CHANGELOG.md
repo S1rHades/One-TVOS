@@ -3,6 +3,10 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 2.3 (October 2026)
+
+- **Online nature photos**: the slideshow now shows a new set of 24 landscape photos every day: mountains, waterfalls, coasts and forests from Wikimedia Commons' Featured Pictures. A daily workflow resizes them for TV and publishes them on GitHub, which TVs that refused other photo sites can reach. Offline, the last set (kept on the TV) and the 12 built-in photos fill in. The photographer and licence show on the idle screen and in Settings. Turn it off under **Settings → Online nature photos** to use only the built-in set.
+
 ## 2.2.1 (October 2026)
 
 - **Home screen reminder**: until Pill Launcher is the TV's home screen (or the Home button helper is on), closing an app goes to the TV's own launcher. A reminder on the home screen now says so, and **Set up** makes Pill Launcher the home screen where the TV allows it, or opens the helper's switch where it doesn't. The README covers an ADB route for TVs that allow neither.

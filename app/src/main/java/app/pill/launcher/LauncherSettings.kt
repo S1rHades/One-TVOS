@@ -32,6 +32,8 @@ data class LauncherSettings(
     val widgets: List<WidgetKind> = DefaultWidgets,
     /** "Not now" on the home-screen prompt to make Pill Launcher the home screen. */
     val homePromptDismissed: Boolean = false,
+    /** A daily set of nature photos from the internet, rather than only the built-in ones. */
+    val onlinePhotos: Boolean = true,
 ) {
     companion object {
         val IntervalOptions = listOf(10, 20, 30, 60)
@@ -68,6 +70,7 @@ class SettingsStore(context: Context) {
         widgets = parseWidgets(prefs.getString("widgets", null))
             ?: if (prefs.getString("weather", null) == WeatherMode.Off.name) DefaultWidgets - WidgetKind.Weather else DefaultWidgets,
         homePromptDismissed = prefs.getBoolean("homePromptDismissed", false),
+        onlinePhotos = prefs.getBoolean("onlinePhotos", true),
     ).let { if (it.weather == WeatherMode.Off) it.copy(weather = defaultWeatherMode()) else it }
 
     fun save(settings: LauncherSettings) {
@@ -84,6 +87,7 @@ class SettingsStore(context: Context) {
             .putBoolean("ambientLight", settings.ambientLight)
             .putString("widgets", settings.widgets.toStored())
             .putBoolean("homePromptDismissed", settings.homePromptDismissed)
+            .putBoolean("onlinePhotos", settings.onlinePhotos)
             .apply()
     }
 

@@ -97,6 +97,8 @@ fun SettingsPanel(
     photoError: String? = null,
     weatherError: String? = null,
     fixturesError: String? = null,
+    /** Credit for the online photo on screen. */
+    photoCredit: String? = null,
     home: HomeStatus = HomeStatus(isDefault = true, redirectOn = false),
     onMakeDefault: () -> String? = { null },
     onHomeHelper: () -> String? = { null },
@@ -173,6 +175,16 @@ fun SettingsPanel(
                                 onClick = { onChange(settings.copy(slideshow = !settings.slideshow)) },
                                 modifier = Modifier.focusRequester(firstRow),
                             ) { focused -> Switch(checked = settings.slideshow, focused = focused) }
+
+                            SettingRow(
+                                title = "Online nature photos",
+                                subtitle = if (settings.onlinePhotos) {
+                                    photoCredit?.let { "Now: $it" } ?: "A new set every day from Wikimedia Commons"
+                                } else {
+                                    "Uses the 12 built-in photos"
+                                },
+                                onClick = { onChange(settings.copy(onlinePhotos = !settings.onlinePhotos)) },
+                            ) { focused -> Switch(checked = settings.onlinePhotos, focused = focused) }
 
                             val options = LauncherSettings.IntervalOptions
                             val current = options.indexOf(settings.intervalSec).coerceAtLeast(0)
