@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Older Android TV boxes ship outdated root certificates, so HTTPS to the photo and
+    weather services can fail with "Trust anchor for certification path not found".
+    Trust the system store plus current roots bundled in res/raw/extra_roots.pem
+    (Let's Encrypt, Google Trust Services, GlobalSign, DigiCert, Sectigo, SSL.com,
+    Certainly, Amazon, Starfield).
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="@raw/extra_roots" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

@@ -14,12 +14,14 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import app.pill.launcher.ui.LauncherScreen
+import app.pill.launcher.ui.describe
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 private const val REFRESH_MS = 30 * 60 * 1000L
-private const val RETRY_MS = 2 * 60 * 1000L
+/** Waits between attempts while the weather cannot be fetched (no network yet at boot, say). */
+private val RetryDelaysMs = listOf(10_000L, 30_000L, 60_000L, 2 * 60_000L, 5 * 60_000L)
 
 class MainActivity : ComponentActivity() {
 
@@ -40,10 +42,14 @@ class MainActivity : ComponentActivity() {
             var settings by remember { mutableStateOf(store.load()) }
             // Refreshed every 30 minutes while the widget is on; the last reading stays up if a refresh fails
             val weatherOn = settings.weather != WeatherMode.Off
+            var weatherError by remember { mutableStateOf<String?>(null) }
             val weather by produceState<Weather?>(null, weatherOn) {
+                var failures = 0
                 while (weatherOn) {
-                    withContext(Dispatchers.IO) { fetchWeather() }?.let { value = it }
-                    delay(if (value == null) RETRY_MS else REFRESH_MS)
+                    val result = withContext(Dispatchers.IO) { fetchWeather() }
+                    result.onSuccess { value = it; weatherError = null; failures = 0 }
+                    result.onFailure { weatherError = describe(it); failures++ }
+                    delay(if (result.isSuccess) REFRESH_MS else RetryDelaysMs[(failures - 1).coerceAtMost(RetryDelaysMs.lastIndex)])
                 }
             }
 
@@ -53,6 +59,7 @@ class MainActivity : ComponentActivity() {
             LauncherScreen(
                 apps = apps,
                 weather = weather.takeIf { weatherOn },
+                weatherError = weatherError.takeIf { weatherOn },
                 pins = pins,
                 settings = settings,
                 onSettingsChange = {

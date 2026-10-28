@@ -52,10 +52,10 @@ fun formatTemp(celsius: Double, mode: WeatherMode): String {
 
 /**
  * Fetches the weather for the TV's approximate location, found from its IP address.
- * No API keys: GeoJS for the location and Open-Meteo for the forecast. Returns null
- * on any network or parsing failure. Call off the main thread.
+ * No API keys: GeoJS for the location and Open-Meteo for the forecast. Fails with the
+ * network or parsing error. Call off the main thread.
  */
-fun fetchWeather(): Weather? = runCatching {
+fun fetchWeather(): Result<Weather> = runCatching {
     val geo = JSONObject(httpGet("https://get.geojs.io/v1/ip/geo.json"))
     val lat = geo.getString("latitude").toDouble()
     val lon = geo.getString("longitude").toDouble()
@@ -77,7 +77,7 @@ fun fetchWeather(): Weather? = runCatching {
         isDay = current.optInt("is_day", 1) == 1,
         place = geo.optString("city"),
     )
-}.getOrNull()
+}
 
 private fun httpGet(url: String): String {
     val connection = URL(url).openConnection() as HttpURLConnection

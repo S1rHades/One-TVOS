@@ -28,13 +28,15 @@ jobs:
         with:
           gradle-version: 8.9
 
-      # The same seeded photos the launcher shows (picsum.photos, Unsplash licence)
+      # Photos from the launcher's own set (picsum.photos ids, Unsplash licence), saved
+      # under the names Screenshots.kt asks for
       - name: Download background photos
         run: |
           mkdir -p build/screenshot-photos
-          for seed in mountain-lake canyon-river pine-forest aurora-sky misty-valley; do
-            curl -fsSL --retry 3 -o "build/screenshot-photos/$seed.jpg" \
-              "https://picsum.photos/seed/$seed/1920/1080" || echo "::warning::could not download $seed"
+          for pair in mountain-lake=128 canyon-river=28 pine-forest=10 aurora-sky=29 misty-valley=11; do
+            name=${pair%=*}; id=${pair#*=}
+            curl -fsSL --retry 3 -o "build/screenshot-photos/$name.jpg" \
+              "https://picsum.photos/id/$id/1920/1080" || echo "::warning::could not download $name"
           done
 
       - name: Render screenshots

@@ -3,6 +3,18 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 1.3 (October 2026)
+
+**Photos and weather on more TVs**
+- Background photos and the weather now keep retrying until the internet is ready, instead of giving up when the TV starts before Wi-Fi connects.
+- Works on older Android TV boxes whose built-in security certificates are out of date.
+- If photos or the weather still can't load, **Settings** says why under their rows.
+- New hand-picked nature photos: mountains, lakes, coasts, forests and waterfalls.
+
+**Calmer and quicker**
+- The clock shows hours and minutes only.
+- Scrolling to All apps is quick and smooth instead of a slow crawl.
+
 ## 1.2 (October 2026)
 
 **Smoother everyday use**
