@@ -1,0 +1,18 @@
+name: Sports check (temporary)
+on:
+  push:
+    paths: [.github/workflows/sports-check.yml]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          for h in www.thesportsdb.com r2.thesportsdb.com site.api.espn.com a.espncdn.com; do
+            echo "== $h"; echo | openssl s_client -connect $h:443 -servername $h -showcerts 2>/dev/null | grep -E "^ *[0-9] s:|i:" | head -6
+          done
+          u=https://www.thesportsdb.com/api/v1/json/123/eventsnext.php?id=134516
+          for ua in "Dalvik/2.1.0 (Linux; U; Android 9; Panasonic TV Build/PI)" "" "PillLauncher/2.1 github.com/S1rHades/One-TVOS"; do
+            echo "== UA [$ua]"; curl -s -o /tmp/b -w "%{http_code} %{content_type}\n" -A "$ua" "$u"; head -c 200 /tmp/b; echo
+          done
+          echo "== espn past"; curl -s "https://site.api.espn.com/apis/site/v2/sports/soccer/all/teams/624/schedule" | jq -c '.events | sort_by(.date) | .[-1] | {date, name, league: .league.name, season: .seasonType.name, comp: (.competitions[0] | {status: .status.type, teams: [.competitors[] | {homeAway, score, name: .team.displayName, abbr: .team.abbreviation, logo: (.team.logos[0].href // .team.logo)}]})}'
+          echo "== espn fixtures"; curl -s "https://site.api.espn.com/apis/site/v2/sports/soccer/all/teams/624/schedule?fixture=true" | jq -c '{n: (.events|length), e: (.events[0] | {date, name, league: .league.name, comp: (.competitions[0] | {status: .status.type.name, teams: [.competitors[] | {homeAway, score, name: .team.displayName, abbr: .team.abbreviation, logo: (.team.logos[0].href // .team.logo)}]})})}'
