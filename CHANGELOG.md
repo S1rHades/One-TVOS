@@ -3,6 +3,18 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 1.2 (October 2026)
+
+**Smoother everyday use**
+- **Back** in All apps and **Home** while already home take you back to the first page (Home also closes settings).
+- The pin/unpin message now appears at the bottom, so it no longer covers the weather.
+- The focus ring on the first favourite is no longer cut off at the left edge.
+- The weather fades in when it arrives instead of popping in.
+- Focus reliably starts on your first favourite.
+- The "All apps" arrow bobs a few times and then rests, so the TV is not redrawing the screen constantly.
+- All apps shows "Hold OK to pin", and small grey text is easier to read over bright photos.
+- Updates now install over the previous version: builds are signed with one permanent key. (Uninstall once more before installing this version.)
+
 ## 1.1 (October 2026)
 
 **A calmer home screen**
