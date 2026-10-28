@@ -3,6 +3,11 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 2.2.1 (October 2026)
+
+- **Home screen reminder**: until Pill Launcher is the TV's home screen (or the Home button helper is on), closing an app goes to the TV's own launcher. A reminder on the home screen now says so, and **Set up** makes Pill Launcher the home screen where the TV allows it, or opens the helper's switch where it doesn't. The README covers an ADB route for TVs that allow neither.
+- The weather card's text no longer wraps: cards share out spare room, allow for a larger TV text size, and the compact card shows the high and low as "11° / 4°".
+
 ## 2.2 (October 2026)
 
 - **Status bar**: the capsule at the top right now starts with the connection: Wi-Fi with its signal strength, Ethernet, or crossed out (in red) when offline. Press OK on it to open the TV's Wi-Fi settings. A green key appears beside it while a VPN is on. The white highlight slides across all the buttons.

@@ -75,6 +75,16 @@ To make it your home screen, open **Settings** (the gear) → **Default home scr
 
 Many TVs, most Google TV devices among them, don't let any app replace the home screen. On those, use **Settings → Home button helper**: it opens Accessibility settings, where you turn on **Pill Launcher Home button**. Whenever the TV's own home screen opens (Home pressed, an app closed or killed), the helper brings Pill Launcher straight back. It only checks which app came to the front, never what is on screen. On Android 13 and later, a sideloaded app's accessibility switch may be greyed out at first: open **Settings → Apps → Pill Launcher**, choose **⋮ → Allow restricted settings**, then turn it on.
 
+Until one of these is set up, the home screen shows a reminder with a **Set up** button, which tries the first way and then the second. **Not now** hides it.
+
+If a TV allows neither, a computer with [ADB](https://developer.android.com/tools/adb) connected to the TV can make Pill Launcher the home screen:
+
+```
+adb shell cmd package set-home-activity app.pill.launcher/.MainActivity
+```
+
+On TVs that ignore that command, turning off the stock launcher works too (turn it back on with `pm enable`). On Google TV, run `adb shell pm disable-user --user 0 com.google.android.apps.tv.launcherx`; on Android TV, run `adb shell pm disable-user --user 0 com.google.android.tvlauncher`.
+
 The `latest` release is rebuilt automatically every time `main` changes, so installing it again always gets you the newest version.
 
 ## Using it

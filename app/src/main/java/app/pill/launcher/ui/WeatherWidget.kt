@@ -105,6 +105,8 @@ fun WeatherWidget(weather: Weather, mode: WeatherMode, compact: Boolean, modifie
                         fontSize = if (compact) 34.sp else 40.sp,
                         fontWeight = FontWeight.Light,
                     ),
+                    maxLines = 1,
+                    softWrap = false,
                 )
                 // Compact cards drop the condition; the icon shows it
                 if (!compact) {
@@ -116,8 +118,10 @@ fun WeatherWidget(weather: Weather, mode: WeatherMode, compact: Boolean, modifie
                     )
                 }
                 Text(
-                    "H ${formatTemp(w.highC, mode)}   L ${formatTemp(w.lowC, mode)}",
+                    if (compact) "${formatTemp(w.highC, mode)} / ${formatTemp(w.lowC, mode)}" else "H ${formatTemp(w.highC, mode)}   L ${formatTemp(w.lowC, mode)}",
                     style = TextStyle(fontFamily = Flex, color = Palette.TextTertiary, fontSize = if (compact) 13.sp else 15.sp),
+                    maxLines = 1,
+                    softWrap = false,
                 )
             }
         }

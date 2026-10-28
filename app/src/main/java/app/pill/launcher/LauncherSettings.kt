@@ -30,6 +30,8 @@ data class LauncherSettings(
     val ambientLight: Boolean = true,
     /** Header cards, in display order; at most [MaxWidgets]. */
     val widgets: List<WidgetKind> = DefaultWidgets,
+    /** "Not now" on the home-screen prompt to make Pill Launcher the home screen. */
+    val homePromptDismissed: Boolean = false,
 ) {
     companion object {
         val IntervalOptions = listOf(10, 20, 30, 60)
@@ -65,6 +67,7 @@ class SettingsStore(context: Context) {
         // Before widgets, the weather setting had an Off choice; it maps to the widget being off
         widgets = parseWidgets(prefs.getString("widgets", null))
             ?: if (prefs.getString("weather", null) == WeatherMode.Off.name) DefaultWidgets - WidgetKind.Weather else DefaultWidgets,
+        homePromptDismissed = prefs.getBoolean("homePromptDismissed", false),
     ).let { if (it.weather == WeatherMode.Off) it.copy(weather = defaultWeatherMode()) else it }
 
     fun save(settings: LauncherSettings) {
@@ -80,6 +83,7 @@ class SettingsStore(context: Context) {
             .putString("favoritesStyle", settings.favoritesStyle.name)
             .putBoolean("ambientLight", settings.ambientLight)
             .putString("widgets", settings.widgets.toStored())
+            .putBoolean("homePromptDismissed", settings.homePromptDismissed)
             .apply()
     }
 

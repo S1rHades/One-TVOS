@@ -25,6 +25,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
@@ -363,6 +364,27 @@ fun LauncherScreen(
                             }
 
                             Spacer(Modifier.weight(1f))
+
+                            // Until the launcher is the home screen (or helped), closing apps leads elsewhere
+                            AnimatedVisibility(
+                                visible = !home.isDefault && !home.redirectOn && !settings.homePromptDismissed,
+                                enter = fadeIn(),
+                                exit = fadeOut() + shrinkVertically(),
+                            ) {
+                                HomePrompt(
+                                    onSetUp = {
+                                        val cannot = onMakeDefault()
+                                        if (cannot != null) {
+                                            // The TV keeps its own home screen: the Home button helper is the way
+                                            toast = Toast(onHomeHelper() ?: "Turn on Pill Launcher here to bring Home back to it")
+                                        }
+                                    },
+                                    onDismiss = { onSettingsChange(settings.copy(homePromptDismissed = true)) },
+                                    modifier = Modifier
+                                        .padding(horizontal = Spacing.Tile, vertical = 8.dp)
+                                        .graphicsLayer { alpha = 1f - idleFade },
+                                )
+                            }
 
                             Box(
                                 Modifier

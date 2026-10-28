@@ -132,11 +132,17 @@ fun WidgetRow(
 ) {
     BoxWithConstraints(modifier) {
         val gaps = Gap * (widgets.size - 1).coerceAtLeast(0)
-        val full = widgets.fold(0.dp) { sum, kind -> sum + naturalWidth(kind, compact = false) }
-        // Four cards, or full-size ones that would have to shrink a lot, use the compact layouts
-        val compact = widgets.size >= 4 || full + gaps > maxWidth * 1.08f
-        val needed = widgets.fold(0.dp) { sum, kind -> sum + naturalWidth(kind, compact) }
-        val scale = if (needed == 0.dp) 1f else ((maxWidth - gaps) / needed).coerceAtMost(1f)
+        // The widths are designed at the default text size; a larger TV text size needs more
+        val textScale = LocalDensity.current.fontScale.coerceAtLeast(1f)
+        fun natural(kind: WidgetKind, compact: Boolean) = naturalWidth(kind, compact) * textScale
+        val full = widgets.fold(0.dp) { sum, kind -> sum + natural(kind, compact = false) }
+        // Four cards, or full-size ones that don't fit, use the compact layouts
+        val compact = widgets.size >= 4 || full + gaps > maxWidth
+        val needed = widgets.fold(0.dp) { sum, kind -> sum + natural(kind, compact) }
+        // Share out the room: compact cards grow into spare space (up to full size), and all shrink evenly if short
+        val scale = if (needed == 0.dp) 1f else (maxWidth - gaps) / needed
+        fun cap(kind: WidgetKind) =
+            if (compact) minOf(natural(kind, false), natural(kind, true) * scale) else natural(kind, false) * scale.coerceAtMost(1f)
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(Gap),
             userScrollEnabled = false,
@@ -149,7 +155,7 @@ fun WidgetRow(
                         placementSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow, visibilityThreshold = IntOffset(1, 1)),
                         fadeOutSpec = tween(220),
                     )
-                    .widthIn(max = naturalWidth(kind, compact) * scale)
+                    .widthIn(max = cap(kind))
                 when (kind) {
                     WidgetKind.Clock -> ClockCard(compact, item)
                     WidgetKind.Weather -> WeatherCard(weather, weatherError, mode, compact, animate, item)
