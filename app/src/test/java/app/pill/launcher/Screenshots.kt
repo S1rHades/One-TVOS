@@ -22,6 +22,8 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.printToString
@@ -153,6 +155,25 @@ class Screenshots {
         }
         settle()
         compose.onRoot().captureRoboImage(File(out, "all-apps.png").path)
+    }
+
+    @Test
+    fun idle() {
+        show("aurora-sky", pins = favorites)
+        // Default idle time is 2 minutes without a key press
+        compose.mainClock.advanceTimeBy(125_000)
+        settle()
+        compose.onRoot().captureRoboImage(File(out, "idle.png").path)
+    }
+
+    @Test
+    fun search() {
+        show("pine-forest", pins = favorites)
+        compose.onNodeWithContentDescription("Search").performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNode(hasSetTextAction()).performTextInput("m")
+        settle()
+        captureScreenRoboImage(File(out, "search.png").path)
     }
 
     @Test

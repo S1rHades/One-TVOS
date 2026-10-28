@@ -1,7 +1,16 @@
 package app.pill.launcher.ui
 
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.runtime.State
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -54,6 +63,8 @@ fun BackgroundSlideshow(
     intervalMs: Long,
     enabled: Boolean,
     modifier: Modifier = Modifier,
+    /** Slow zoom and pan (the idle animation). Eases in and out rather than snapping. */
+    drift: Boolean = false,
     onStatus: (String?) -> Unit = {},
 ) {
     if (urls.isEmpty()) return
@@ -95,10 +106,22 @@ fun BackgroundSlideshow(
     }
 
     Box(modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Palette.Ink, Palette.InkLight)))) {
+        val amount by animateFloatAsState(if (drift) 1f else 0f, tween(2000, easing = FastOutSlowInEasing), label = "driftAmount")
+        // Only composed (and so only animating) while drifting, or easing back out of it
+        val motion = if (drift || amount > 0f) slowMotion() else null
         Crossfade(
             targetState = shown,
             animationSpec = tween(CROSSFADE_MS),
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    if (motion != null) {
+                        val zoom = 1f + 0.09f * amount * motion.zoom.value
+                        scaleX = zoom
+                        scaleY = zoom
+                        translationX = amount * motion.pan.value * size.width * 0.03f
+                    }
+                },
             label = "backgroundCrossfade",
         ) { i ->
             if (i != null) {
@@ -113,6 +136,17 @@ fun BackgroundSlideshow(
             }
         }
     }
+}
+
+private class SlowMotion(val zoom: State<Float>, val pan: State<Float>)
+
+/** A very slow zoom (0..1) and sideways pan (-1..1) on different periods, so it never looks looped. */
+@Composable
+private fun slowMotion(): SlowMotion {
+    val t = rememberInfiniteTransition(label = "kenBurns")
+    val zoom = t.animateFloat(0f, 1f, infiniteRepeatable(tween(28_000, easing = LinearEasing), RepeatMode.Reverse), label = "zoom")
+    val pan = t.animateFloat(-1f, 1f, infiniteRepeatable(tween(41_000, easing = LinearEasing), RepeatMode.Reverse), label = "pan")
+    return remember(zoom, pan) { SlowMotion(zoom, pan) }
 }
 
 /** A short, readable reason for a failed download, e.g. "SSLHandshakeException: …". */

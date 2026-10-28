@@ -78,6 +78,10 @@ class MainActivity : ComponentActivity() {
                 home = home,
                 onMakeDefault = { requestDefaultHome() },
                 onHomeHelper = { openAccessibilitySettings() },
+                onAllowAutostart = { requestOverlayPermission() },
+                onSystemSearch = remember { systemSearchIntent() }?.let { search ->
+                    { tryStartActivity(search) }
+                },
                 onOpenSystemSettings = {
                     try {
                         startActivity(
@@ -100,6 +104,22 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         refresh++
+    }
+
+    /** The TV's own search screen (Google TV / Android TV search, or the assistant), if any. */
+    private fun systemSearchIntent(): Intent? =
+        listOf(Intent("android.search.action.GLOBAL_SEARCH"), Intent(Intent.ACTION_ASSIST))
+            .map { it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+            .firstOrNull { it.resolveActivity(packageManager) != null }
+
+    private fun tryStartActivity(intent: Intent) {
+        try {
+            startActivity(intent)
+        } catch (e: ActivityNotFoundException) {
+            // removed since the check
+        } catch (e: SecurityException) {
+            // not exported to us
+        }
     }
 
     private fun openApp(app: AppEntry) {

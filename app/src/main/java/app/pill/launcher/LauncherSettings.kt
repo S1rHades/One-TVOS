@@ -10,9 +10,16 @@ data class LauncherSettings(
     val slideshow: Boolean = true,
     val intervalSec: Int = 20,
     val weather: WeatherMode = defaultWeatherMode(),
+    /** Open the launcher when the TV finishes starting up. */
+    val autostart: Boolean = false,
+    /** Minutes without a key press before the idle screen; 0 = never. */
+    val idleMinutes: Int = 2,
+    /** Slow photo zoom and drifting clock while idle (also guards against screen burn-in). */
+    val idleAnimation: Boolean = true,
 ) {
     companion object {
         val IntervalOptions = listOf(10, 20, 30, 60)
+        val IdleOptions = listOf(0, 1, 2, 5, 10)
     }
 }
 
@@ -30,6 +37,9 @@ class SettingsStore(context: Context) {
         weather = prefs.getString("weather", null)
             ?.let { name -> WeatherMode.entries.firstOrNull { it.name == name } }
             ?: defaultWeatherMode(),
+        autostart = prefs.getBoolean("autostart", false),
+        idleMinutes = prefs.getInt("idleMinutes", 2),
+        idleAnimation = prefs.getBoolean("idleAnimation", true),
     )
 
     fun save(settings: LauncherSettings) {
@@ -37,6 +47,9 @@ class SettingsStore(context: Context) {
             .putBoolean("slideshow", settings.slideshow)
             .putInt("interval", settings.intervalSec)
             .putString("weather", settings.weather.name)
+            .putBoolean("autostart", settings.autostart)
+            .putInt("idleMinutes", settings.idleMinutes)
+            .putBoolean("idleAnimation", settings.idleAnimation)
             .apply()
     }
 
