@@ -17,15 +17,11 @@ import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -43,7 +39,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
@@ -138,8 +137,9 @@ private fun ScrollRow(
     tile: @Composable (AppEntry, Boolean, Boolean, Modifier) -> Unit,
 ) {
     val state = rememberLazyListState()
-    // Keep half of the next tile in view, so it is clear more apps follow
-    val peek = with(LocalDensity.current) { (tileWidth(iconSize) / 2).toPx() }
+    // Scrolling keeps the focused tile out of the fade zone; the next tile peeks into it
+    val fadeZone = with(LocalDensity.current) { (tileWidth(iconSize) * 0.75f).toPx() }
+    val peek = fadeZone
     val scrolling = remember(peek, animate) { RowScrollSpec(peek, animate) }
     Box(Modifier.height(favoritesRowHeight(iconSize)).bleed(RowBleed)) {
         CompositionLocalProvider(LocalBringIntoViewSpec provides scrolling) {
@@ -149,13 +149,13 @@ private fun ScrollRow(
                 horizontalArrangement = Arrangement.spacedBy(Gap),
             ) {
                 itemsIndexed(apps, key = { _, app -> app.pkg }) { i, app ->
-                    tile(app, i == 0, i == apps.lastIndex, if (animate) Modifier.animateItem() else Modifier)
+                    val motionMod = if (animate) Modifier.animateItem() else Modifier
+                    tile(app, i == 0, i == apps.lastIndex, motionMod.edgeFade(state, i, fadeZone))
                 }
             }
         }
-        // Small arrows in the margins while more apps are hidden that way
-        MoreMarker(state.canScrollBackward, pointsRight = false, Modifier.align(Alignment.CenterStart))
-        MoreMarker(state.canScrollForward, pointsRight = true, Modifier.align(Alignment.CenterEnd))
+        // A slim track under the row's end showing how far along the favourites you are
+        ScrollIndicator(state, Modifier.align(Alignment.BottomEnd).padding(end = RowBleed + 12.dp, bottom = 2.dp))
     }
 }
 
@@ -202,24 +202,50 @@ private class RowScrollSpec(private val peek: Float, animate: Boolean) : BringIn
     }
 }
 
-/** A small glass chevron that fades in while there is more to scroll in its direction. */
+/**
+ * Fades and slightly shrinks a tile as it enters the outer [zone] of the row, so the row
+ * dissolves into the edge instead of being cut off. Only on a side with more to scroll
+ * to. Read in the layer phase from the list's layout, so scrolling never recomposes.
+ */
+private fun Modifier.edgeFade(state: LazyListState, index: Int, zone: Float) = graphicsLayer {
+    val info = state.layoutInfo
+    val item = info.visibleItemsInfo.firstOrNull { it.index == index } ?: return@graphicsLayer
+    val start = (item.offset - info.viewportStartOffset).toFloat()
+    val end = start + item.size
+    val width = info.viewportSize.width.toFloat()
+    val right = if (state.canScrollForward) ((end - (width - zone)) / zone).coerceIn(0f, 1f) else 0f
+    val left = if (state.canScrollBackward) ((zone - start) / zone).coerceIn(0f, 1f) else 0f
+    // Ease in, so the fade is gentle at first and fuller right at the edge
+    val t = maxOf(right, left).let { it * it * (3 - 2 * it) }
+    alpha = 1f - 0.88f * t
+    val scale = 1f - 0.08f * t
+    scaleX = scale
+    scaleY = scale
+}
+
+/** A thin track whose thumb shows the visible part of the row; shown only when it overflows. */
 @Composable
-private fun MoreMarker(visible: Boolean, pointsRight: Boolean, modifier: Modifier) {
-    val alpha by animateFloatAsState(if (visible) 1f else 0f, motion(true), label = "moreMarker")
-    Canvas(
-        modifier
-            .padding(top = 0.dp, bottom = 34.dp) // centre on the icons, not the labels
-            .size(22.dp)
-            .graphicsLayer { this.alpha = alpha }
-            .clip(CircleShape)
-            .background(Color(0x66000000)),
-    ) {
-        val w = size.width
-        val stroke = 2.dp.toPx()
-        val dir = if (pointsRight) 1f else -1f
-        val tip = Offset(w / 2 + dir * w * 0.12f, w / 2)
-        drawLine(Color.White, Offset(tip.x - dir * w * 0.2f, w * 0.3f), tip, stroke, StrokeCap.Round)
-        drawLine(Color.White, Offset(tip.x - dir * w * 0.2f, w * 0.7f), tip, stroke, StrokeCap.Round)
+private fun ScrollIndicator(state: LazyListState, modifier: Modifier) {
+    val overflowing = state.canScrollForward || state.canScrollBackward
+    val shown by animateFloatAsState(if (overflowing) 1f else 0f, motion(true), label = "indicator")
+    Canvas(modifier.size(width = 64.dp, height = 4.dp).graphicsLayer { alpha = shown }) {
+        val info = state.layoutInfo
+        val items = info.visibleItemsInfo
+        if (items.isEmpty() || info.totalItemsCount == 0) return@Canvas
+        // Fraction of the row on screen, and how far along it the view is
+        val visible = (items.size.toFloat() / info.totalItemsCount).coerceIn(0.15f, 1f)
+        val progress = if (state.canScrollForward || state.canScrollBackward) {
+            items.first().index.toFloat() / (info.totalItemsCount - items.size).coerceAtLeast(1)
+        } else 0f
+        val r = CornerRadius(size.height / 2)
+        drawRoundRect(Color(0x40FFFFFF), cornerRadius = r)
+        val thumb = size.width * visible
+        drawRoundRect(
+            Color(0xE6FFFFFF),
+            topLeft = Offset((size.width - thumb) * progress.coerceIn(0f, 1f), 0f),
+            size = Size(thumb, size.height),
+            cornerRadius = r,
+        )
     }
 }
 
