@@ -268,10 +268,18 @@ class Screenshots {
     /** Four widgets (the most allowed) switch to compact cards and all fit beside the buttons. */
     @Test
     fun widgets() {
-        val four = listOf(WidgetKind.Clock, WidgetKind.Fennecs, WidgetKind.Daylight, WidgetKind.System)
+        val four = listOf(WidgetKind.Clock, WidgetKind.Weather, WidgetKind.Fennecs, WidgetKind.System)
         show("mountain-lake", pins = favorites, settings = LauncherSettings(weather = WeatherMode.Celsius, widgets = four))
-        for (label in listOf("NEXT", "DAYLIGHT", "SYSTEM")) compose.onNodeWithText(label).assertIsDisplayed()
+        for (label in listOf("25° / 16°", "NEXT", "SYSTEM")) compose.onNodeWithText(label).assertIsDisplayed()
         compose.onRoot().captureRoboImage(File(out, "widgets.png").path)
+    }
+
+    /** Not the home screen yet: the prompt to set it up sits above the favourites. */
+    @Test
+    fun homePrompt() {
+        show("canyon-river", pins = favorites, home = HomeStatus(isDefault = false, redirectOn = false))
+        compose.onNodeWithText("Set up").assertIsDisplayed()
+        compose.onRoot().captureRoboImage(File(out, "home-prompt.png").path)
     }
 
     /** With four on, turning on a fifth is refused with a toast. */
@@ -306,6 +314,7 @@ class Screenshots {
         photo: String,
         pins: List<String>,
         settings: LauncherSettings = LauncherSettings(weather = WeatherMode.Celsius),
+        home: HomeStatus = HomeStatus(isDefault = true, redirectOn = false),
     ) {
         check(fixtures.next != null && fixtures.last?.outcome == 'W') { "fixtures didn't parse: $fixtures" }
         currentPins = pins
@@ -329,6 +338,7 @@ class Screenshots {
                     currentPins = pinned
                 },
                 onOpenSystemSettings = {},
+                home = home,
             )
         }
         settle()
