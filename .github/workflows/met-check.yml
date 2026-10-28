@@ -1,0 +1,13 @@
+name: MET check (temporary)
+on:
+  push:
+    paths: [.github/workflows/met-check.yml]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          curl -fsS -A "PillLauncher/1.5 github.com/S1rHades/One-TVOS" "https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=36.800&lon=10.180" | python3 -c "
+          import json,sys; d=json.load(sys.stdin); ts=d['properties']['timeseries']
+          t=[x['data']['instant']['details']['air_temperature'] for x in ts[:24]]
+          print('::notice::MET OK now', t[0], 'hi', max(t), 'lo', min(t), 'symbol', ts[0]['data']['next_1_hours']['summary']['symbol_code'])"
