@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import app.pill.launcher.FavoritesLayout
 import app.pill.launcher.HomeStatus
 import app.pill.launcher.LauncherSettings
 import app.pill.launcher.WeatherMode
@@ -89,10 +90,12 @@ fun SettingsPanel(
     home: HomeStatus = HomeStatus(isDefault = true, redirectOn = false),
     onMakeDefault: () -> String? = { null },
     onHomeHelper: () -> String? = { null },
+    onAllowAutostart: () -> String? = { null },
 ) {
     // A message from the last attempt, shown under the row until the panel closes
     var defaultNote by remember { mutableStateOf<String?>(null) }
     var helperNote by remember { mutableStateOf<String?>(null) }
+    var autostartNote by remember { mutableStateOf<String?>(null) }
     val firstRow = remember { FocusRequester() }
     val visible = remember { MutableTransitionState(false).apply { targetState = true } }
     val close = { visible.targetState = false }
@@ -186,7 +189,84 @@ fun SettingsPanel(
                             }
                         }
 
-                        Group("Home button") {
+                        Group("Favorites row") {
+                            val layouts = FavoritesLayout.entries
+                            val layoutIndex = layouts.indexOf(settings.favoritesLayout)
+                            SettingRow(
+                                title = "Layout",
+                                subtitle = when (settings.favoritesLayout) {
+                                    FavoritesLayout.Scroll -> "One row that slides when you go past the edge"
+                                    FavoritesLayout.Wrap -> "As many as fit across; the rest on rows below"
+                                },
+                                onClick = { onChange(settings.copy(favoritesLayout = layouts[(layoutIndex + 1) % layouts.size])) },
+                                onStep = { by ->
+                                    val next = (layoutIndex + by).coerceIn(0, layouts.lastIndex)
+                                    if (next != layoutIndex) onChange(settings.copy(favoritesLayout = layouts[next]))
+                                },
+                            ) { focused ->
+                                Stepper(
+                                    if (settings.favoritesLayout == FavoritesLayout.Scroll) "Scroll" else "Wrap",
+                                    layoutIndex > 0,
+                                    layoutIndex < layouts.lastIndex,
+                                    focused,
+                                )
+                            }
+                            SettingRow(
+                                title = "Animations",
+                                subtitle = if (settings.favoritesAnimation) "Smooth sliding and rearranging" else "Instant, no motion",
+                                onClick = { onChange(settings.copy(favoritesAnimation = !settings.favoritesAnimation)) },
+                            ) { focused -> Switch(checked = settings.favoritesAnimation, focused = focused) }
+                        }
+
+                        Group("Idle screen") {
+                            val idleOptions = LauncherSettings.IdleOptions
+                            val idleIndex = idleOptions.indexOf(settings.idleMinutes).coerceAtLeast(0)
+                            SettingRow(
+                                title = "Go idle after",
+                                subtitle = if (settings.idleMinutes == 0) {
+                                    "Never: the apps always stay on screen"
+                                } else {
+                                    "Without a key press, only the clock and weather stay"
+                                },
+                                onClick = { onChange(settings.copy(idleMinutes = idleOptions[(idleIndex + 1) % idleOptions.size])) },
+                                onStep = { by ->
+                                    val next = (idleIndex + by).coerceIn(0, idleOptions.lastIndex)
+                                    if (next != idleIndex) onChange(settings.copy(idleMinutes = idleOptions[next]))
+                                },
+                            ) { focused ->
+                                Stepper(idleLabel(settings.idleMinutes), idleIndex > 0, idleIndex < idleOptions.lastIndex, focused)
+                            }
+                            SettingRow(
+                                title = "Idle animation",
+                                subtitle = if (settings.idleMinutes == 0) "Turn on the idle screen first" else "Slow photo zoom; the clock drifts to spare the screen",
+                                enabled = settings.idleMinutes != 0,
+                                onClick = { onChange(settings.copy(idleAnimation = !settings.idleAnimation)) },
+                            ) { focused -> Switch(checked = settings.idleAnimation, focused = focused) }
+                        }
+
+                        Group("Home & startup") {
+                            SettingRow(
+                                title = "Open at startup",
+                                subtitle = autostartNote ?: when {
+                                    !settings.autostart -> "Show Pill Launcher when the TV turns on"
+                                    home.canAutostart -> "Opens when the TV turns on"
+                                    else -> "Needs one more permission, below"
+                                },
+                                onClick = {
+                                    val on = !settings.autostart
+                                    onChange(settings.copy(autostart = on))
+                                    // Android blocks opening at boot without one of these; go straight to the fix
+                                    if (on && !home.canAutostart) autostartNote = onAllowAutostart()
+                                },
+                            ) { focused -> Switch(checked = settings.autostart, focused = focused) }
+                            if (settings.autostart && !home.canAutostart) {
+                                SettingRow(
+                                    title = "Allow opening at startup",
+                                    subtitle = "Turn on \"Display over other apps\" for Pill Launcher",
+                                    onClick = { autostartNote = onAllowAutostart() },
+                                ) { focused -> Chevron(focused) }
+                            }
+
                             SettingRow(
                                 title = "Default home screen",
                                 subtitle = defaultNote ?: if (home.isDefault) {
@@ -225,6 +305,8 @@ fun SettingsPanel(
         }
     }
 }
+
+private fun idleLabel(minutes: Int): String = if (minutes == 0) "Off" else "$minutes min"
 
 private fun formatInterval(sec: Int): String = if (sec % 60 == 0) "${sec / 60} min" else "$sec s"
 

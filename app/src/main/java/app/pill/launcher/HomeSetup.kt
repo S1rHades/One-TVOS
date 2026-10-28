@@ -7,13 +7,22 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 
 /** Whether Pill Launcher is the home screen, and whether the Home-button helper is on. */
-data class HomeStatus(val isDefault: Boolean, val redirectOn: Boolean)
+data class HomeStatus(
+    val isDefault: Boolean,
+    val redirectOn: Boolean,
+    /** May display over other apps, which lets Autostart open the launcher at boot. */
+    val canDrawOverlays: Boolean = false,
+) {
+    /** Android lets the launcher open itself at boot in any of these cases. */
+    val canAutostart get() = isDefault || redirectOn || canDrawOverlays
+}
 
-fun Context.homeStatus() = HomeStatus(isDefaultHome(), isRedirectEnabled())
+fun Context.homeStatus() = HomeStatus(isDefaultHome(), isRedirectEnabled(), Settings.canDrawOverlays(this))
 
 private val homeIntent get() = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
 
@@ -51,6 +60,14 @@ fun Activity.requestDefaultHome(): String? {
     val resolved = packageManager.resolveActivity(homeIntent, PackageManager.MATCH_DEFAULT_ONLY)
     if (resolved?.activityInfo?.packageName == "android" && tryStart { startActivity(homeIntent) }) return null
     return "This TV doesn't let apps change the home screen. Turn on the Home button helper below instead."
+}
+
+/** Opens "Display over other apps" for this app (app info on TVs without that screen). */
+fun Activity.requestOverlayPermission(): String? {
+    val app = Uri.parse("package:$packageName")
+    if (tryStart { startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, app)) }) return null
+    if (tryStart { startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, app)) }) return null
+    return "Couldn't open the permission screen on this TV."
 }
 
 fun Activity.openAccessibilitySettings(): String? =

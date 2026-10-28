@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.Dp
 import kotlinx.coroutines.launch
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
@@ -39,6 +40,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -58,6 +60,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -65,6 +68,10 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import android.os.SystemClock
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -75,21 +82,22 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.pill.launcher.AppEntry
+import app.pill.launcher.FavoritesLayout
 import app.pill.launcher.HomeStatus
 import app.pill.launcher.LauncherSettings
 import app.pill.launcher.Weather
 import kotlinx.coroutines.delay
 
-private val FavoriteIcon = 108.dp
+private val FavoriteIcon = 96.dp
 private val GridIcon = 84.dp
 
-/** Height of the favourites row (one tile), kept fixed so pinning the first app does not shift the page. */
-private val FavoritesRowHeight = FavoriteIcon + 60.dp
+/** Room the clock, weather and buttons take at the top of the first page. */
+private val HeaderHeight = 150.dp
 
 /**
- * Space between the favourites row and the bottom of the first page, holding the
- * "All apps" hint. Also the margin [PageScrollSpec] keeps when it scrolls, so going
- * back up from the grid lands exactly on the first page.
+ * Space between the favourites row and the bottom of the first page. Also the margin
+ * [PageScrollSpec] keeps when it scrolls, so going back up from the grid lands exactly
+ * on the first page.
  */
 private const val PAGE_EDGE = 0.14f
 
@@ -113,14 +121,21 @@ fun LauncherScreen(
     onMakeDefault: () -> String? = { null },
     /** Open Accessibility settings for the Home button helper; returns a message on failure. */
     onHomeHelper: () -> String? = { null },
+    /** Open "Display over other apps" so Autostart can open the launcher at boot. */
+    onAllowAutostart: () -> String? = { null },
+    /** The TV's own search (Google / Assistant), when it has one. */
+    onSystemSearch: (() -> Unit)? = null,
 ) {
     var panelOpen by remember { mutableStateOf(false) }
+    var searchOpen by remember { mutableStateOf(false) }
     var photoError by remember { mutableStateOf<String?>(null) }
     var initialFocusDone by remember { mutableStateOf(false) }
     var toast by remember { mutableStateOf<Toast?>(null) }
     var toastVisible by remember { mutableStateOf(false) }
     // After an unpin from the favourites row, the package that should take focus (null = the pill)
     var refocus by remember { mutableStateOf<Refocus?>(null) }
+    var idle by remember { mutableStateOf(false) }
+    var lastInput by remember { mutableLongStateOf(SystemClock.uptimeMillis()) }
 
     val pillFocus = remember { FocusRequester() }
     val favoriteFocus = remember { HashMap<String, FocusRequester>() }
@@ -165,8 +180,25 @@ fun LauncherScreen(
     LaunchedEffect(homePresses) {
         if (homePresses == 0) return@LaunchedEffect
         panelOpen = false
+        searchOpen = false
+        idle = false
         focusFirstPage()
     }
+
+    // Idle: after idleMinutes without a key press, everything but the clock and weather fades
+    // out. Each key press restarts the timer; panels open hold it off.
+    LaunchedEffect(settings.idleMinutes, lastInput, panelOpen, searchOpen) {
+        if (settings.idleMinutes == 0 || panelOpen || searchOpen) return@LaunchedEffect
+        delay(settings.idleMinutes * 60_000L)
+        idle = true
+        // Back to the first page, with focus there too, so waking up lands somewhere visible
+        focusFirstPage()
+    }
+    val idleFade by animateFloatAsState(
+        if (idle) 1f else 0f,
+        tween(if (idle) 1600 else 450, easing = FastOutSlowInEasing),
+        label = "idleFade",
+    )
 
     // Back in All apps returns to the first page (on the first page, Back does nothing)
     val scrolled by remember { derivedStateOf { scroll.value > 0 } }
@@ -196,17 +228,42 @@ fun LauncherScreen(
         }
     }
 
-    Box(Modifier.fillMaxSize().background(Palette.Ink)) {
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(Palette.Ink)
+            .onPreviewKeyEvent { event ->
+                lastInput = SystemClock.uptimeMillis()
+                // While idle, a key only wakes the screen; it does not also act
+                if (idle) {
+                    if (event.type == KeyEventType.KeyDown) idle = false
+                    true
+                } else {
+                    false
+                }
+            },
+    ) {
         BackgroundSlideshow(
             urls = BackgroundSources.urls,
             intervalMs = settings.intervalSec * 1000L,
             enabled = settings.slideshow,
+            drift = idle && settings.idleAnimation,
             onStatus = { photoError = it },
         )
         BackgroundScrim()
 
         BoxWithConstraints(Modifier.fillMaxSize()) {
-            val pageHeight = maxHeight - Spacing.ScreenV
+            val contentWidth = maxWidth - Spacing.ScreenH * 2
+            // Wrapped favourites can need more than one row; the first page grows to fit them
+            val favoriteRows = if (settings.favoritesLayout == FavoritesLayout.Wrap) {
+                ((pinnedApps.size + favoritesPerRow(contentWidth, FavoriteIcon) - 1) / favoritesPerRow(contentWidth, FavoriteIcon)).coerceAtLeast(1)
+            } else {
+                1
+            }
+            val pageHeight = maxOf(
+                maxHeight - Spacing.ScreenV,
+                HeaderHeight + favoritesRowHeight(FavoriteIcon) * favoriteRows + maxHeight * PAGE_EDGE,
+            )
             val pageEdge = maxHeight * PAGE_EDGE
             val pageHeightPx = with(LocalDensity.current) { pageHeight.toPx() }
             val columns = ((maxWidth - Spacing.ScreenH * 2) / tileWidth(GridIcon)).toInt().coerceAtLeast(1)
@@ -215,7 +272,6 @@ fun LauncherScreen(
             // Alpha is read in the draw phase, so scrolling does not recompose the screen
             Box(Modifier.fillMaxSize().graphicsLayer { alpha = depth }.background(Color(0x8C05070D)))
 
-            val rowScrolling = LocalBringIntoViewSpec.current
             // Every tile is composed (a launcher has at most a few hundred apps), so plain D-pad
             // focus search reaches the grid from the first page; PageScrollSpec does the scrolling.
             val topPx = with(LocalDensity.current) { Spacing.ScreenV.toPx() }
@@ -229,7 +285,13 @@ fun LauncherScreen(
                 ) {
                     // First page: clock, weather and favourites only. The grid starts below the fold.
                     Column(Modifier.fillMaxWidth().height(pageHeight)) {
-                        Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.Tile), verticalAlignment = Alignment.Top) {
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = Spacing.Tile)
+                                .then(if (idle && settings.idleAnimation) Modifier.idleDrift() else Modifier),
+                            verticalAlignment = Alignment.Top,
+                        ) {
                             TimeWidget()
                             // Fades in once the first reading arrives (and out when turned off)
                             AnimatedContent(
@@ -248,53 +310,45 @@ fun LauncherScreen(
                                 }
                             }
                             Spacer(Modifier.weight(1f))
-                            SettingsPill(
-                                onClick = { panelOpen = true },
-                                focusRequester = pillFocus,
-                                modifier = Modifier.padding(top = 8.dp),
-                            )
+                            // Buttons fade with the apps while idle; the clock and weather stay
+                            Row(Modifier.padding(top = 8.dp).graphicsLayer { alpha = 1f - idleFade }) {
+                                SearchPill(onClick = { searchOpen = true })
+                                Spacer(Modifier.width(16.dp))
+                                SettingsPill(onClick = { panelOpen = true }, focusRequester = pillFocus)
+                            }
                         }
 
                         Spacer(Modifier.weight(1f))
 
-                        SectionTitle("Favorites", hint = if (pinnedApps.isNotEmpty()) "Hold OK to unpin" else null)
-                        Box(Modifier.fillMaxWidth().height(FavoritesRowHeight), contentAlignment = Alignment.CenterStart) {
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = favoritesRowHeight(FavoriteIcon))
+                                .graphicsLayer { alpha = 1f - idleFade },
+                            contentAlignment = Alignment.CenterStart,
+                        ) {
                             if (pinnedApps.isEmpty()) {
                                 EmptyFavorites(loading = apps == null)
                             } else {
-                                // The favourites row scrolls sideways the platform's usual way
-                                CompositionLocalProvider(LocalBringIntoViewSpec provides rowScrolling) {
-                                    // Widened into the side margins so a focused tile's ring is not clipped
-                                    LazyRow(
-                                        modifier = Modifier.bleed(RowBleed),
-                                        contentPadding = PaddingValues(horizontal = RowBleed),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    ) {
-                                        items(pinnedApps, key = { it.pkg }) { app ->
-                                            val requester = favoriteFocus.getOrPut(app.pkg) { FocusRequester() }
-                                            AppTile(
-                                                app = app,
-                                                iconSize = FavoriteIcon,
-                                                showPinBadge = false,
-                                                onOpen = { onOpen(app) },
-                                                onTogglePin = { togglePin(app, fromFavorites = true) },
-                                                modifier = Modifier.animateItem().focusRequester(requester),
-                                            )
-                                        }
-                                    }
-                                }
+                                FavoritesRow(
+                                    apps = pinnedApps,
+                                    layout = settings.favoritesLayout,
+                                    animate = settings.favoritesAnimation,
+                                    iconSize = FavoriteIcon,
+                                    width = contentWidth,
+                                    focusFor = { app -> favoriteFocus.getOrPut(app.pkg) { FocusRequester() } },
+                                    onOpen = onOpen,
+                                    onTogglePin = { togglePin(it, fromFavorites = true) },
+                                )
                             }
                         }
 
-                        MoreBelow(
-                            count = apps?.size,
-                            modifier = Modifier.fillMaxWidth().height(pageEdge).graphicsLayer { alpha = 1f - depth },
-                        )
+                        Spacer(Modifier.height(pageEdge))
                     }
 
                     SectionTitle(
                         "All apps",
-                        hint = apps?.let { (if (it.size == 1) "1 app" else "${it.size} apps") + "  ·  Hold OK to pin" },
+                        hint = apps?.let { if (it.size == 1) "1 app" else "${it.size} apps" },
                         modifier = Modifier.padding(top = 10.dp, bottom = 6.dp),
                     )
                     for (row in apps.orEmpty().chunked(columns)) {
@@ -339,7 +393,19 @@ fun LauncherScreen(
                 home = home,
                 onMakeDefault = onMakeDefault,
                 onHomeHelper = onHomeHelper,
+                onAllowAutostart = onAllowAutostart,
                 onDismiss = { panelOpen = false },
+            )
+        }
+
+        if (searchOpen) {
+            SearchPanel(
+                apps = apps.orEmpty(),
+                pins = pins,
+                onOpen = onOpen,
+                onTogglePin = { togglePin(it, fromFavorites = false) },
+                onSystemSearch = onSystemSearch,
+                onDismiss = { searchOpen = false },
             )
         }
     }
@@ -384,46 +450,20 @@ private class PageScrollSpec(
     }
 }
 
-private val RowBleed = 16.dp
-
-/** Lets a horizontally clipped child extend [x] past its parent on both sides. */
-private fun Modifier.bleed(x: Dp) = layout { measurable, constraints ->
-    val extra = (x * 2).roundToPx()
-    val placeable = measurable.measure(
-        constraints.copy(minWidth = constraints.minWidth + extra, maxWidth = constraints.maxWidth + extra),
-    )
-    layout(constraints.maxWidth, placeable.height) { placeable.place(-x.roundToPx(), 0) }
-}
-
 /** A short confirmation message. A new instance restarts the hide timer even for the same text. */
 private class Toast(val message: String)
 
 private class Refocus(val pkg: String?)
 
-/** "All apps" and a gently bobbing chevron at the bottom of the first page. */
+/** A slow wander of a few dp, so static text does not sit on one spot of the screen while idle. */
 @Composable
-private fun MoreBelow(count: Int?, modifier: Modifier = Modifier) {
-    // A few gentle bobs, then still: an endless animation would keep the TV redrawing every frame
-    val bob = remember { Animatable(0f) }
-    LaunchedEffect(Unit) {
-        delay(1500)
-        repeat(3) {
-            bob.animateTo(1f, tween(500, easing = FastOutSlowInEasing))
-            bob.animateTo(0f, tween(500, easing = FastOutSlowInEasing))
-        }
-    }
-    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-        Text(
-            if (count != null) "All apps  ·  $count" else "All apps",
-            style = TextStyle(color = Palette.TextSecondary, fontSize = 15.sp, fontWeight = FontWeight.Medium, shadow = TextShadow),
-        )
-        Canvas(Modifier.padding(top = 4.dp).size(width = 22.dp, height = 12.dp).offset(y = (bob.value * 4).dp)) {
-            val w = size.width
-            val h = size.height
-            val stroke = 2.5.dp.toPx()
-            drawLine(Palette.TextSecondary, Offset(stroke, stroke), Offset(w / 2, h - stroke), stroke, StrokeCap.Round)
-            drawLine(Palette.TextSecondary, Offset(w / 2, h - stroke), Offset(w - stroke, stroke), stroke, StrokeCap.Round)
-        }
+private fun Modifier.idleDrift(): Modifier {
+    val t = rememberInfiniteTransition(label = "idleDrift")
+    val x by t.animateFloat(-1f, 1f, infiniteRepeatable(tween(47_000, easing = LinearEasing), RepeatMode.Reverse), label = "driftX")
+    val y by t.animateFloat(-1f, 1f, infiniteRepeatable(tween(31_000, easing = LinearEasing), RepeatMode.Reverse), label = "driftY")
+    return graphicsLayer {
+        translationX = x * 14.dp.toPx()
+        translationY = y * 10.dp.toPx()
     }
 }
 

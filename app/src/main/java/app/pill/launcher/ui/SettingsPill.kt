@@ -30,6 +30,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
@@ -50,6 +51,30 @@ fun SettingsPill(
     focusRequester: FocusRequester,
     modifier: Modifier = Modifier,
 ) {
+    RoundButton("Settings", onClick, modifier, focusRequester) { tint, active ->
+        val turn by animateFloatAsState(if (active) 45f else 0f, tween(450), label = "gearTurn")
+        GearIcon(tint = tint, iconSize = 26.dp, modifier = Modifier.rotate(turn))
+    }
+}
+
+/** Round glass button with a magnifier, opening search. */
+@Composable
+fun SearchPill(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    RoundButton("Search", onClick, modifier, focusRequester = null) { tint, active ->
+        val tilt by animateFloatAsState(if (active) -12f else 0f, tween(450), label = "searchTilt")
+        SearchIcon(tint = tint, iconSize = 24.dp, modifier = Modifier.rotate(tilt))
+    }
+}
+
+/** The shared look of the header buttons: glass at rest, white and lifted when focused. */
+@Composable
+private fun RoundButton(
+    description: String,
+    onClick: () -> Unit,
+    modifier: Modifier,
+    focusRequester: FocusRequester?,
+    icon: @Composable (tint: Color, active: Boolean) -> Unit,
+) {
     val interaction = remember { MutableInteractionSource() }
     val hovered by interaction.collectIsHoveredAsState()
     var focused by remember { mutableStateOf(false) }
@@ -59,7 +84,6 @@ fun SettingsPill(
     val elevation by animateDpAsState(if (active) 14.dp else 0.dp, label = "pillElevation")
     val fill by animateColorAsState(if (active) Palette.Focus else Color(0x47000000), label = "pillFill")
     val tint by animateColorAsState(if (active) Palette.Ink else Palette.TextPrimary, label = "pillTint")
-    val turn by animateFloatAsState(if (active) 45f else 0f, tween(450), label = "gearTurn")
 
     Box(
         modifier
@@ -72,13 +96,27 @@ fun SettingsPill(
             .clip(CircleShape)
             .background(fill)
             .border(1.dp, if (active) Color.Transparent else Palette.Hairline, CircleShape)
-            .semantics { contentDescription = "Settings" }
+            .semantics { contentDescription = description }
             .onFocusChanged { focused = it.isFocused }
-            .focusRequester(focusRequester)
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .clickable(interactionSource = interaction, indication = null, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        GearIcon(tint = tint, iconSize = 26.dp, modifier = Modifier.rotate(turn))
+        icon(tint, active)
+    }
+}
+
+/** Outlined magnifier in the same stroke weight as [GearIcon]. */
+@Composable
+fun SearchIcon(tint: Color, iconSize: Dp, modifier: Modifier = Modifier) {
+    Canvas(modifier.size(iconSize)) {
+        val s = size.minDimension
+        val stroke = s * 0.1f
+        val c = Offset(s * 0.42f, s * 0.42f)
+        val r = s * 0.28f
+        drawCircle(tint, radius = r, center = c, style = Stroke(width = stroke))
+        val d = r * 0.7071f
+        drawLine(tint, Offset(c.x + d + stroke * 0.3f, c.y + d + stroke * 0.3f), Offset(s * 0.88f, s * 0.88f), stroke, StrokeCap.Round)
     }
 }
 
