@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import app.pill.launcher.HomeStatus
 import app.pill.launcher.LauncherSettings
 import app.pill.launcher.WeatherMode
 import kotlinx.coroutines.delay
@@ -85,7 +86,13 @@ fun SettingsPanel(
     /** Why photos or weather last failed to load, shown under their rows; null when fine. */
     photoError: String? = null,
     weatherError: String? = null,
+    home: HomeStatus = HomeStatus(isDefault = true, redirectOn = false),
+    onMakeDefault: () -> String? = { null },
+    onHomeHelper: () -> String? = { null },
 ) {
+    // A message from the last attempt, shown under the row until the panel closes
+    var defaultNote by remember { mutableStateOf<String?>(null) }
+    var helperNote by remember { mutableStateOf<String?>(null) }
     val firstRow = remember { FocusRequester() }
     val visible = remember { MutableTransitionState(false).apply { targetState = true } }
     val close = { visible.targetState = false }
@@ -176,6 +183,30 @@ fun SettingsPanel(
                                 },
                             ) { focused ->
                                 Stepper(weatherLabel(settings.weather), mode > 0, mode < modes.lastIndex, focused)
+                            }
+                        }
+
+                        Group("Home button") {
+                            SettingRow(
+                                title = "Default home screen",
+                                subtitle = defaultNote ?: if (home.isDefault) {
+                                    "Pill Launcher opens on Home and after closing apps"
+                                } else {
+                                    "Make Pill Launcher open on Home and after closing apps"
+                                },
+                                onClick = { if (!home.isDefault) defaultNote = onMakeDefault() },
+                            ) { focused -> if (home.isDefault) Check(focused) else Chevron(focused) }
+
+                            if (!home.isDefault) {
+                                SettingRow(
+                                    title = "Home button helper",
+                                    subtitle = helperNote ?: if (home.redirectOn) {
+                                        "On: returns here whenever the TV's own home screen opens"
+                                    } else {
+                                        "For TVs that won't change their home screen. Turn on \"Pill Launcher Home button\" in Accessibility"
+                                    },
+                                    onClick = { helperNote = onHomeHelper() },
+                                ) { focused -> if (home.redirectOn) Check(focused) else Chevron(focused) }
                             }
                         }
 
@@ -326,6 +357,11 @@ private fun Stepper(value: String, canDecrease: Boolean, canIncrease: Boolean, f
         )
         if (focused) Text("›", color = color.copy(alpha = if (canIncrease) 0.85f else 0.2f), fontSize = 24.sp)
     }
+}
+
+@Composable
+private fun Check(focused: Boolean) {
+    Text("✓", color = if (focused) Palette.Ink else Palette.Accent, fontSize = 22.sp, fontWeight = FontWeight.Bold)
 }
 
 @Composable

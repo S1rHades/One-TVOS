@@ -75,6 +75,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.pill.launcher.AppEntry
+import app.pill.launcher.HomeStatus
 import app.pill.launcher.LauncherSettings
 import app.pill.launcher.Weather
 import kotlinx.coroutines.delay
@@ -107,6 +108,11 @@ fun LauncherScreen(
     onOpenSystemSettings: () -> Unit,
     /** Bumped each time Home is pressed while the launcher is already showing. */
     homePresses: Int = 0,
+    home: HomeStatus = HomeStatus(isDefault = true, redirectOn = false),
+    /** Ask to become the home screen; returns a message if this TV can't. */
+    onMakeDefault: () -> String? = { null },
+    /** Open Accessibility settings for the Home button helper; returns a message on failure. */
+    onHomeHelper: () -> String? = { null },
 ) {
     var panelOpen by remember { mutableStateOf(false) }
     var photoError by remember { mutableStateOf<String?>(null) }
@@ -330,6 +336,9 @@ fun LauncherScreen(
                 onOpenSystemSettings = onOpenSystemSettings,
                 photoError = photoError,
                 weatherError = weatherError,
+                home = home,
+                onMakeDefault = onMakeDefault,
+                onHomeHelper = onHomeHelper,
                 onDismiss = { panelOpen = false },
             )
         }

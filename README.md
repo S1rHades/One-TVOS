@@ -50,7 +50,9 @@
 2. Open it and enter `https://github.com/S1rHades/One-TVOS/releases/download/latest/launcher.apk`.
 3. Allow Downloader to install unknown apps when Android asks, then choose **Install**.
 
-To make it your home screen, press **Home** on the remote. If the TV asks which app to use, choose **Pill Launcher** and **Always**. Some TVs, including most Google TV devices, never ask; on those, open Pill Launcher from the apps list instead.
+To make it your home screen, open **Settings** (the gear) → **Default home screen**. Android asks you to confirm; after that, Home and closing or killing any app bring you back to Pill Launcher.
+
+Many TVs, most Google TV devices among them, don't let any app replace the home screen. On those, use **Settings → Home button helper**: it opens Accessibility settings, where you turn on **Pill Launcher Home button**. Whenever the TV's own home screen opens (Home pressed, an app closed or killed), the helper brings Pill Launcher straight back. It only checks which app came to the front, never what is on screen. On Android 13 and later, a sideloaded app's accessibility switch may be greyed out at first: open **Settings → Apps → Pill Launcher**, choose **⋮ → Allow restricted settings**, then turn it on.
 
 The `latest` release is rebuilt automatically every time `main` changes, so installing it again always gets you the newest version.
 
