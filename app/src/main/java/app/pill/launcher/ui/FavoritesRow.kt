@@ -15,12 +15,21 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.BringIntoViewSpec
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -31,16 +40,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
@@ -137,20 +141,21 @@ private fun ScrollRow(
     // Keep half of the next tile in view, so it is clear more apps follow
     val peek = with(LocalDensity.current) { (tileWidth(iconSize) / 2).toPx() }
     val scrolling = remember(peek, animate) { RowScrollSpec(peek, animate) }
-    CompositionLocalProvider(LocalBringIntoViewSpec provides scrolling) {
-        LazyRow(
-            state = state,
-            modifier = Modifier
-                .height(favoritesRowHeight(iconSize))
-                .bleed(RowBleed)
-                .edgeFade(state, RowBleed * 2),
-            contentPadding = PaddingValues(horizontal = RowBleed, vertical = RowAir),
-            horizontalArrangement = Arrangement.spacedBy(Gap),
-        ) {
-            itemsIndexed(apps, key = { _, app -> app.pkg }) { i, app ->
-                tile(app, i == 0, i == apps.lastIndex, if (animate) Modifier.animateItem() else Modifier)
+    Box(Modifier.height(favoritesRowHeight(iconSize)).bleed(RowBleed)) {
+        CompositionLocalProvider(LocalBringIntoViewSpec provides scrolling) {
+            LazyRow(
+                state = state,
+                contentPadding = PaddingValues(horizontal = RowBleed, vertical = RowAir),
+                horizontalArrangement = Arrangement.spacedBy(Gap),
+            ) {
+                itemsIndexed(apps, key = { _, app -> app.pkg }) { i, app ->
+                    tile(app, i == 0, i == apps.lastIndex, if (animate) Modifier.animateItem() else Modifier)
+                }
             }
         }
+        // Small arrows in the margins while more apps are hidden that way
+        MoreMarker(state.canScrollBackward, pointsRight = false, Modifier.align(Alignment.CenterStart))
+        MoreMarker(state.canScrollForward, pointsRight = true, Modifier.align(Alignment.CenterEnd))
     }
 }
 
@@ -197,28 +202,26 @@ private class RowScrollSpec(private val peek: Float, animate: Boolean) : BringIn
     }
 }
 
-/** Fades the row's edges, each only while there is more to scroll that way. */
-private fun Modifier.edgeFade(state: LazyListState, fade: Dp) =
-    graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-        .drawWithContent {
-            drawContent()
-            val w = fade.toPx().coerceAtMost(size.width / 2)
-            if (state.canScrollBackward) {
-                drawRect(
-                    Brush.horizontalGradient(listOf(Color.Transparent, Color.Black), startX = 0f, endX = w),
-                    size = Size(w, size.height),
-                    blendMode = BlendMode.DstIn,
-                )
-            }
-            if (state.canScrollForward) {
-                drawRect(
-                    Brush.horizontalGradient(listOf(Color.Black, Color.Transparent), startX = size.width - w, endX = size.width),
-                    topLeft = Offset(size.width - w, 0f),
-                    size = Size(w, size.height),
-                    blendMode = BlendMode.DstIn,
-                )
-            }
-        }
+/** A small glass chevron that fades in while there is more to scroll in its direction. */
+@Composable
+private fun MoreMarker(visible: Boolean, pointsRight: Boolean, modifier: Modifier) {
+    val alpha by animateFloatAsState(if (visible) 1f else 0f, motion(true), label = "moreMarker")
+    Canvas(
+        modifier
+            .padding(top = 0.dp, bottom = 34.dp) // centre on the icons, not the labels
+            .size(22.dp)
+            .graphicsLayer { this.alpha = alpha }
+            .clip(CircleShape)
+            .background(Color(0x66000000)),
+    ) {
+        val w = size.width
+        val stroke = 2.dp.toPx()
+        val dir = if (pointsRight) 1f else -1f
+        val tip = Offset(w / 2 + dir * w * 0.12f, w / 2)
+        drawLine(Color.White, Offset(tip.x - dir * w * 0.2f, w * 0.3f), tip, stroke, StrokeCap.Round)
+        drawLine(Color.White, Offset(tip.x - dir * w * 0.2f, w * 0.7f), tip, stroke, StrokeCap.Round)
+    }
+}
 
 /** Lets a horizontally clipped child extend [x] past its parent on both sides. */
 internal fun Modifier.bleed(x: Dp) = layout { measurable, constraints ->
