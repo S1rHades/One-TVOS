@@ -24,6 +24,7 @@ private const val RETRY_MS = 2 * 60 * 1000L
 class MainActivity : ComponentActivity() {
 
     private var refresh by mutableIntStateOf(0)
+    private var homePresses by mutableIntStateOf(0)
     private lateinit var store: SettingsStore
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -63,6 +64,7 @@ class MainActivity : ComponentActivity() {
                     pins = if (app.pkg in pins) pins - app.pkg else pins + app.pkg
                     store.savePins(pins)
                 },
+                homePresses = homePresses,
                 onOpenSystemSettings = {
                     try {
                         startActivity(
@@ -74,6 +76,12 @@ class MainActivity : ComponentActivity() {
                 },
             )
         }
+    }
+
+    // singleTask: pressing Home while the launcher exists arrives here
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        if (intent.hasCategory(Intent.CATEGORY_HOME)) homePresses++
     }
 
     override fun onResume() {

@@ -14,7 +14,7 @@ object Palette {
 
     val TextPrimary = Color.White
     val TextSecondary = Color(0xCCFFFFFF)
-    val TextTertiary = Color(0x8CFFFFFF)
+    val TextTertiary = Color(0xA6FFFFFF)
 
     val Glass = Color(0x33FFFFFF)
     val GlassStrong = Color(0x4DFFFFFF)

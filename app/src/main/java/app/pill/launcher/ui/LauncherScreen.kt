@@ -1,6 +1,17 @@
 package app.pill.launcher.ui
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.Dp
+import kotlinx.coroutines.launch
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -91,6 +102,8 @@ fun LauncherScreen(
     onOpen: (AppEntry) -> Unit,
     onTogglePin: (AppEntry) -> Unit,
     onOpenSystemSettings: () -> Unit,
+    /** Bumped each time Home is pressed while the launcher is already showing. */
+    homePresses: Int = 0,
 ) {
     var panelOpen by remember { mutableStateOf(false) }
     var initialFocusDone by remember { mutableStateOf(false) }
@@ -114,14 +127,36 @@ fun LauncherScreen(
         toast = Toast(if (wasPinned) "Removed ${app.label} from Favorites" else "Added ${app.label} to Favorites")
     }
 
-    // First launch: focus the first favourite, else the settings pill, so the opening view is the first page
+    val scroll = rememberScrollState()
+    val scope = rememberCoroutineScope()
+    val currentPinned by rememberUpdatedState(pinnedApps)
+
+    // Focus the first favourite, else the settings pill. Page scrolling then brings the first
+    // page into view. Retries for a few frames until the target is attached.
+    suspend fun focusFirstPage() {
+        val target = currentPinned.firstOrNull()?.let { favoriteFocus[it.pkg] } ?: pillFocus
+        repeat(20) {
+            withFrameNanos { }
+            if (runCatching { target.requestFocus() }.isSuccess) return
+        }
+    }
+
     LaunchedEffect(apps != null) {
         if (apps == null || initialFocusDone) return@LaunchedEffect
-        delay(150)
-        val target = pinnedApps.firstOrNull()?.let { favoriteFocus[it.pkg] } ?: pillFocus
-        runCatching { target.requestFocus() }
+        focusFirstPage()
         initialFocusDone = true
     }
+
+    // Home while already home: close settings and go back to the first page
+    LaunchedEffect(homePresses) {
+        if (homePresses == 0) return@LaunchedEffect
+        panelOpen = false
+        focusFirstPage()
+    }
+
+    // Back in All apps returns to the first page (on the first page, Back does nothing)
+    val scrolled by remember { derivedStateOf { scroll.value > 0 } }
+    BackHandler(enabled = scrolled && !panelOpen) { scope.launch { focusFirstPage() } }
 
     // Return focus to the pill when the settings panel closes
     LaunchedEffect(panelOpen) {
@@ -160,7 +195,6 @@ fun LauncherScreen(
             val pageEdge = maxHeight * PAGE_EDGE
             val pageHeightPx = with(LocalDensity.current) { pageHeight.toPx() }
             val columns = ((maxWidth - Spacing.ScreenH * 2) / tileWidth(GridIcon)).toInt().coerceAtLeast(1)
-            val scroll = rememberScrollState()
             // 0 on the first page, 1 once the grid fills the screen; dims the photo behind the apps
             val depth by remember(pageHeightPx) { derivedStateOf { (scroll.value / pageHeightPx).coerceIn(0f, 1f) } }
             Box(Modifier.fillMaxSize().alpha(depth).background(Color(0x8C05070D)))
@@ -181,11 +215,21 @@ fun LauncherScreen(
                     Column(Modifier.fillMaxWidth().height(pageHeight)) {
                         Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.Tile), verticalAlignment = Alignment.Top) {
                             TimeWidget()
-                            if (weather != null) {
-                                Spacer(Modifier.width(36.dp))
-                                Box(Modifier.padding(top = 18.dp).width(1.dp).height(84.dp).background(Palette.Hairline))
-                                Spacer(Modifier.width(36.dp))
-                                WeatherWidget(weather, settings.weather, Modifier.padding(top = 12.dp))
+                            // Fades in once the first reading arrives (and out when turned off)
+                            AnimatedContent(
+                                targetState = weather,
+                                transitionSpec = { fadeIn(tween(500)) togetherWith fadeOut(tween(300)) },
+                                contentKey = { it != null },
+                                label = "weatherSlot",
+                            ) { w ->
+                                if (w != null) {
+                                    Row {
+                                        Spacer(Modifier.width(36.dp))
+                                        Box(Modifier.padding(top = 18.dp).width(1.dp).height(84.dp).background(Palette.Hairline))
+                                        Spacer(Modifier.width(36.dp))
+                                        WeatherWidget(w, settings.weather, Modifier.padding(top = 12.dp))
+                                    }
+                                }
                             }
                             Spacer(Modifier.weight(1f))
                             SettingsPill(
@@ -204,7 +248,12 @@ fun LauncherScreen(
                             } else {
                                 // The favourites row scrolls sideways the platform's usual way
                                 CompositionLocalProvider(LocalBringIntoViewSpec provides rowScrolling) {
-                                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    // Widened into the side margins so a focused tile's ring is not clipped
+                                    LazyRow(
+                                        modifier = Modifier.bleed(RowBleed),
+                                        contentPadding = PaddingValues(horizontal = RowBleed),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    ) {
                                         items(pinnedApps, key = { it.pkg }) { app ->
                                             val requester = favoriteFocus.getOrPut(app.pkg) { FocusRequester() }
                                             AppTile(
@@ -229,7 +278,7 @@ fun LauncherScreen(
 
                     SectionTitle(
                         "All apps",
-                        hint = apps?.let { if (it.size == 1) "1 app" else "${it.size} apps" },
+                        hint = apps?.let { (if (it.size == 1) "1 app" else "${it.size} apps") + "  ·  Hold OK to pin" },
                         modifier = Modifier.padding(top = 10.dp, bottom = 6.dp),
                     )
                     for (row in apps.orEmpty().chunked(columns)) {
@@ -256,9 +305,10 @@ fun LauncherScreen(
 
         AnimatedVisibility(
             visible = toastVisible,
-            modifier = Modifier.align(Alignment.TopCenter).padding(top = 36.dp),
-            enter = fadeIn() + slideInVertically { -it / 2 },
-            exit = fadeOut() + slideOutVertically { -it / 2 },
+            // Bottom centre: clear of the clock and weather on the first page
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 36.dp),
+            enter = fadeIn() + slideInVertically { it / 2 },
+            exit = fadeOut() + slideOutVertically { it / 2 },
         ) {
             ToastChip(toast?.message.orEmpty())
         }
@@ -313,6 +363,17 @@ private class PageScrollSpec(
     }
 }
 
+private val RowBleed = 16.dp
+
+/** Lets a horizontally clipped child extend [x] past its parent on both sides. */
+private fun Modifier.bleed(x: Dp) = layout { measurable, constraints ->
+    val extra = (x * 2).roundToPx()
+    val placeable = measurable.measure(
+        constraints.copy(minWidth = constraints.minWidth + extra, maxWidth = constraints.maxWidth + extra),
+    )
+    layout(constraints.maxWidth, placeable.height) { placeable.place(-x.roundToPx(), 0) }
+}
+
 /** A short confirmation message. A new instance restarts the hide timer even for the same text. */
 private class Toast(val message: String)
 
@@ -321,18 +382,21 @@ private class Refocus(val pkg: String?)
 /** "All apps" and a gently bobbing chevron at the bottom of the first page. */
 @Composable
 private fun MoreBelow(count: Int?, modifier: Modifier = Modifier) {
-    val bob by rememberInfiniteTransition(label = "moreBelow").animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(1100, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "bob",
-    )
+    // A few gentle bobs, then still: an endless animation would keep the TV redrawing every frame
+    val bob = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        delay(1500)
+        repeat(3) {
+            bob.animateTo(1f, tween(500, easing = FastOutSlowInEasing))
+            bob.animateTo(0f, tween(500, easing = FastOutSlowInEasing))
+        }
+    }
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
         Text(
             if (count != null) "All apps  ·  $count" else "All apps",
             style = TextStyle(color = Palette.TextSecondary, fontSize = 15.sp, fontWeight = FontWeight.Medium, shadow = TextShadow),
         )
-        Canvas(Modifier.padding(top = 4.dp).size(width = 22.dp, height = 12.dp).offset(y = (bob * 4).dp)) {
+        Canvas(Modifier.padding(top = 4.dp).size(width = 22.dp, height = 12.dp).offset(y = (bob.value * 4).dp)) {
             val w = size.width
             val h = size.height
             val stroke = 2.5.dp.toPx()
