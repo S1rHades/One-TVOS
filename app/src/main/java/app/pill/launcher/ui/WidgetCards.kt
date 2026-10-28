@@ -1,8 +1,5 @@
 package app.pill.launcher.ui
 
-import android.content.Context
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
 import android.os.Environment
 import android.os.StatFs
 import android.text.format.DateFormat
@@ -50,7 +47,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -130,6 +126,7 @@ fun WidgetRow(
     weatherError: String?,
     mode: WeatherMode,
     fixtures: Fixtures?,
+    fixturesError: String?,
     animate: Boolean,
     modifier: Modifier = Modifier,
 ) {
@@ -156,7 +153,7 @@ fun WidgetRow(
                 when (kind) {
                     WidgetKind.Clock -> ClockCard(compact, item)
                     WidgetKind.Weather -> WeatherCard(weather, weatherError, mode, compact, animate, item)
-                    WidgetKind.Fennecs -> FennecsCard(fixtures, compact, item)
+                    WidgetKind.Fennecs -> FennecsCard(fixtures, fixturesError, compact, item)
                     WidgetKind.Daylight -> DaylightCard(weather, compact, item)
                     WidgetKind.System -> SystemCard(compact, item)
                 }
@@ -189,7 +186,6 @@ private fun WidgetCard(accent: Color, modifier: Modifier = Modifier, content: @C
                 translationY = (1f - appear.value) * rise
             }
             .hoverable(interaction)
-            .shadow(14.dp + 10.dp * lift, CardShape, ambientColor = wash, spotColor = Color.Black)
             .glass(CardShape)
             .background(Brush.linearGradient(listOf(wash.copy(alpha = 0.2f + 0.08f * lift), Color.Transparent), start = Offset.Zero, end = Offset(520f, 360f)))
             .border(1.5.dp, Color.White.copy(alpha = 0.32f * lift), CardShape)
@@ -289,7 +285,7 @@ private fun skyAccent(weather: Weather?): Color = when {
  * Without data it says so; a saved copy is marked when it's old.
  */
 @Composable
-private fun FennecsCard(fixtures: Fixtures?, compact: Boolean, modifier: Modifier) {
+private fun FennecsCard(fixtures: Fixtures?, error: String?, compact: Boolean, modifier: Modifier) {
     val now = Instant.now()
     val live = listOfNotNull(fixtures?.last, fixtures?.next).firstOrNull { it.isLive(now) }
     val upcoming = fixtures?.next?.takeIf { it != live }
@@ -316,7 +312,11 @@ private fun FennecsCard(fixtures: Fixtures?, compact: Boolean, modifier: Modifie
                         AlgeriaFlag(26.dp)
                         Spacer(Modifier.width(10.dp))
                         Text(
-                            if (fixtures == null) "Fixtures appear when online" else "No match scheduled yet",
+                            when {
+                                fixtures != null -> "No match scheduled yet"
+                                error != null -> "Can't reach match data · see Settings"
+                                else -> "Loading fixtures…"
+                            },
                             style = lineStyle(15.sp, Palette.TextPrimary),
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
@@ -540,73 +540,41 @@ private fun SunArc(fraction: Float?, modifier: Modifier) {
 
 // ---- System info -------------------------------------------------------------------
 
-private data class SystemInfo(val connection: String?, val freeBytes: Long)
-
-/** The network the TV is on (or offline) and free storage, checked every 15 seconds. */
+/** The network the TV is on (with VPN) and free storage, checked every 15 seconds. */
 @Composable
 private fun SystemCard(compact: Boolean, modifier: Modifier) {
-    val context = LocalContext.current
-    val info by produceState(SystemInfo(null, -1)) {
+    val network by rememberNetworkStatus()
+    val freeBytes by produceState(-1L) {
         while (true) {
-            value = withContext(Dispatchers.IO) { readSystem(context) }
+            value = withContext(Dispatchers.IO) {
+                runCatching { StatFs(Environment.getDataDirectory().path).availableBytes }.getOrDefault(-1L)
+            }
             delay(15_000)
         }
     }
-    val online = info.connection != null
+    val online = network.link != Link.Offline
     WidgetCard(if (online) Color(0xFF38D9A9) else Color(0xFFFF8787), modifier) {
         Row(Modifier.align(Alignment.CenterStart), verticalAlignment = Alignment.CenterVertically) {
-            SignalIcon(online, Modifier.size(if (compact) 26.dp else 32.dp))
+            WifiIcon(network, if (online) Color.White else Color(0xFFFF8787), if (compact) 26.dp else 32.dp)
             Spacer(Modifier.width(if (compact) 10.dp else 14.dp))
             Column {
                 CardLabel("System")
                 Spacer(Modifier.height(4.dp))
-                Text(info.connection ?: "Offline", style = lineStyle(if (compact) 16.sp else 18.sp, Palette.TextPrimary, 600), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (info.freeBytes >= 0) {
-                    Text(formatBytes(info.freeBytes) + if (compact) " free" else " storage free", style = lineStyle(15.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    network.label + if (network.vpn) " · VPN" else "",
+                    style = lineStyle(if (compact) 16.sp else 18.sp, Palette.TextPrimary, 600),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (freeBytes >= 0) {
+                    Text(formatBytes(freeBytes) + if (compact) " free" else " storage free", style = lineStyle(15.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
         }
     }
 }
 
-private fun readSystem(context: Context): SystemInfo {
-    val connection = runCatching {
-        val cm = context.getSystemService(ConnectivityManager::class.java)
-        val caps = cm.getNetworkCapabilities(cm.activeNetwork)
-        when {
-            caps == null || !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) -> null
-            caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> "Ethernet"
-            caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "Wi-Fi"
-            caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "Mobile data"
-            else -> "Online"
-        }
-    }.getOrNull()
-    val free = runCatching { StatFs(Environment.getDataDirectory().path).availableBytes }.getOrDefault(-1L)
-    return SystemInfo(connection, free)
-}
-
 private fun formatBytes(bytes: Long): String {
     val gb = bytes / 1e9
     return if (gb >= 10) "%.0f GB".format(gb) else if (gb >= 1) "%.1f GB".format(gb) else "%.0f MB".format(bytes / 1e6)
-}
-
-/** Three rising bars, or one with a slash when offline. */
-@Composable
-private fun SignalIcon(online: Boolean, modifier: Modifier) {
-    Canvas(modifier) {
-        val w = size.width
-        val h = size.height
-        val bar = w / 5
-        for (i in 0 until 3) {
-            val height = h * (0.4f + 0.3f * i)
-            val lit = online || i == 0
-            drawRoundRect(
-                if (lit) Color.White else Color(0x44FFFFFF),
-                topLeft = Offset(i * bar * 2f, h - height),
-                size = Size(bar, height),
-                cornerRadius = androidx.compose.ui.geometry.CornerRadius(bar / 2),
-            )
-        }
-        if (!online) drawLine(Color(0xFFFF8787), Offset(0f, 0f), Offset(w, h), 2.5.dp.toPx(), StrokeCap.Round)
-    }
 }

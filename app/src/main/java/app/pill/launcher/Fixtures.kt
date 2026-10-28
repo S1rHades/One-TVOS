@@ -1,6 +1,7 @@
 package app.pill.launcher
 
 import android.content.Context
+import java.io.IOException
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.Duration
@@ -48,6 +49,15 @@ data class Fixtures(val next: Match?, val last: Match?, val fetchedAt: Instant, 
 /** The men's national team on TheSportsDB. */
 private const val AlgeriaId = "134516"
 private const val Api = "https://www.thesportsdb.com/api/v1/json/123"
+
+/** Refreshed every 30 minutes by .github/workflows/fixtures.yml. */
+private const val Mirror = "https://raw.githubusercontent.com/S1rHades/One-TVOS/fixtures-data/fixtures.json"
+
+/** The innermost cause's type and message, short enough for a settings row. */
+private fun describeError(error: Throwable): String {
+    val root = generateSequence(error) { it.cause }.last()
+    return root::class.java.simpleName + (root.message?.take(80)?.let { ": $it" } ?: "")
+}
 private val LiveStatuses = setOf("1H", "HT", "2H", "ET", "BT", "P", "LIVE", "INT")
 private val FinishedStatuses = setOf("FT", "AET", "PEN", "AP", "CANC", "PST", "ABD", "AWD", "WO", "Match Finished")
 
@@ -65,9 +75,19 @@ class FixturesSource(context: Context) {
         parseFixtures(next, last, Instant.ofEpochMilli(prefs.getLong("at", 0))).copy(fromCache = true)
     }.getOrNull()
 
+    /** TheSportsDB first (it has live scores); if the TV can't reach it, the copy on GitHub. */
     fun fetch(): Result<Fixtures> = runCatching {
-        val next = httpGet("$Api/eventsnext.php?id=$AlgeriaId")
-        val last = httpGet("$Api/eventslast.php?id=$AlgeriaId")
+        val (next, last) = runCatching {
+            httpGet("$Api/eventsnext.php?id=$AlgeriaId") to httpGet("$Api/eventslast.php?id=$AlgeriaId")
+        }.getOrElse { direct ->
+            runCatching {
+                val copy = JSONObject(httpGet(Mirror))
+                copy.getJSONObject("next").toString() to copy.getJSONObject("last").toString()
+            }.getOrElse { mirror ->
+                // Name both failures, so the line in Settings says what each did
+                throw IOException("TheSportsDB: ${describeError(direct)}; GitHub copy: ${describeError(mirror)}")
+            }
+        }
         val now = Instant.now()
         parseFixtures(next, last, now).also {
             prefs.edit().putString("next", next).putString("last", last).putLong("at", now.toEpochMilli()).apply()

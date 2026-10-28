@@ -2,6 +2,7 @@ package app.pill.launcher
 
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import java.time.Duration
 import java.time.Instant
@@ -61,13 +62,14 @@ class MainActivity : ComponentActivity() {
 
             // Algeria's fixtures: the saved copy at once, then fresh ones every 30 minutes, every 3 around a match
             val fennecsOn = WidgetKind.Fennecs in settings.widgets
+            var fixturesError by remember { mutableStateOf<String?>(null) }
             val savedFixtures = remember { fixturesSource.cached() }
             val fixtures by produceState(savedFixtures, fennecsOn) {
                 var failures = 0
                 while (fennecsOn) {
                     val result = withContext(Dispatchers.IO) { fixturesSource.fetch() }
-                    result.onSuccess { value = it; failures = 0 }
-                    result.onFailure { failures++; value = value?.copy(fromCache = true) }
+                    result.onSuccess { value = it; fixturesError = null; failures = 0 }
+                    result.onFailure { fixturesError = it.message ?: it::class.java.simpleName; failures++; value = value?.copy(fromCache = true) }
                     val soon = value?.let { f ->
                         val now = Instant.now()
                         f.next?.kickoff?.let { Duration.between(now, it).abs() < Duration.ofHours(3) } == true || f.last?.isLive(now) == true
@@ -93,6 +95,7 @@ class MainActivity : ComponentActivity() {
                 weather = weather.takeIf { weatherOn },
                 weatherError = weatherError.takeIf { weatherOn },
                 fixtures = fixtures,
+                fixturesError = fixturesError.takeIf { fennecsOn },
                 pins = pins,
                 settings = settings,
                 onSettingsChange = {
@@ -110,7 +113,29 @@ class MainActivity : ComponentActivity() {
                 onHomeHelper = { openAccessibilitySettings() },
                 onAllowAutostart = { requestOverlayPermission() },
                 onSystemSearch = remember { systemSearchIntent() }?.let { search ->
-                    { tryStartActivity(search) }
+                    { tryStartActivity(search); Unit }
+                },
+                onMovePin = { app, by ->
+                    val from = pins.indexOf(app.pkg)
+                    val to = (from + by).coerceIn(0, pins.lastIndex)
+                    if (from >= 0 && to != from) {
+                        pins = pins.toMutableList().apply { add(to, removeAt(from)) }
+                        store.savePins(pins)
+                    }
+                },
+                onUninstall = { app ->
+                    // The system asks to confirm; the app list refreshes when the launcher resumes
+                    tryStartActivity(Intent(Intent.ACTION_DELETE, Uri.parse("package:${app.pkg}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                },
+                onAppInfo = { app ->
+                    tryStartActivity(
+                        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${app.pkg}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                    )
+                },
+                onOpenNetworkSettings = {
+                    // TVs differ in which of these screens they have
+                    listOf(Settings.ACTION_WIFI_SETTINGS, Settings.ACTION_WIRELESS_SETTINGS, Settings.ACTION_SETTINGS)
+                        .firstOrNull { tryStartActivity(Intent(it).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
                 },
                 onOpenSystemSettings = {
                     try {
@@ -142,15 +167,16 @@ class MainActivity : ComponentActivity() {
             .map { it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
             .firstOrNull { it.resolveActivity(packageManager) != null }
 
-    private fun tryStartActivity(intent: Intent) {
+    /** Starts [intent]; false if no app handles it or it isn't open to us. */
+    private fun tryStartActivity(intent: Intent): Boolean =
         try {
             startActivity(intent)
+            true
         } catch (e: ActivityNotFoundException) {
-            // removed since the check
+            false
         } catch (e: SecurityException) {
-            // not exported to us
+            false
         }
-    }
 
     private fun openApp(app: AppEntry) {
         val intent = Intent(Intent.ACTION_MAIN)

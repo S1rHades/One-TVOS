@@ -22,6 +22,8 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.isRoot
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.isFocused
@@ -114,6 +116,9 @@ class Screenshots {
 
     private val favorites = listOf("Cinema", "Live TV", "Music", "Photos", "Podcasts").map(::pkg)
 
+    /** The pins as the screen last changed them. */
+    private var currentPins: List<String> = emptyList()
+
     @Before
     fun setUp() {
         out.mkdirs()
@@ -134,15 +139,41 @@ class Screenshots {
             repeat(6) { pressKey(Key.DirectionRight) }
         }
         settle()
-        // Hold OK the way a remote does: one key-down, a pause, one key-up (no repeats)
+        // Hold OK the way a remote does: one key-down, a pause, one key-up (no repeats).
+        // That opens the app's menu, and the release mustn't pick anything in it.
         compose.onRoot().performKeyInput { keyDown(Key.DirectionCenter) }
         compose.mainClock.advanceTimeBy(800)
-        compose.onRoot().performKeyInput { keyUp(Key.DirectionCenter) }
+        compose.onAllNodes(isRoot()).onFirst().performKeyInput { keyUp(Key.DirectionCenter) }
+        settle()
+        compose.onNodeWithText("Add to Favorites").assertIsDisplayed()
+        compose.onNodeWithText("Uninstall").assertIsDisplayed()
+        captureScreenRoboImage(File(out, "menu.png").path)
+        compose.onNodeWithText("Add to Favorites").performSemanticsAction(SemanticsActions.OnClick)
         settle()
         runCatching { compose.onNodeWithText("Added Maps to Favorites").assertExists() }
             .onFailure { println(compose.onRoot().printToString(maxDepth = 12)); throw it }
         settle()
         compose.onRoot().captureRoboImage(File(out, "pin.png").path)
+    }
+
+    /** Menu → Move on the first favourite, then Right twice and OK: it ends up third. */
+    @Test
+    fun moveFavorite() {
+        show("misty-valley", pins = favorites)
+        compose.onRoot().performKeyInput { pressKey(Key.Menu) }
+        settle()
+        compose.onNodeWithText("Move").performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onRoot().performKeyInput {
+            pressKey(Key.DirectionRight)
+            pressKey(Key.DirectionRight)
+        }
+        settle()
+        check(currentPins.indexOf(pkg("Cinema")) == 2) { "Cinema should be third: $currentPins" }
+        compose.onRoot().captureRoboImage(File(out, "move.png").path)
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionCenter) }
+        settle()
+        check(currentPins.indexOf(pkg("Cinema")) == 2) { "OK should only finish the move: $currentPins" }
     }
 
     /** The widget's condition icons side by side, for the README. */
@@ -277,6 +308,7 @@ class Screenshots {
         settings: LauncherSettings = LauncherSettings(weather = WeatherMode.Celsius),
     ) {
         check(fixtures.next != null && fixtures.last?.outcome == 'W') { "fixtures didn't parse: $fixtures" }
+        currentPins = pins
         useBackground(photo)
         compose.setContent {
             var pinned by remember { mutableStateOf(pins) }
@@ -289,7 +321,13 @@ class Screenshots {
                 settings = current,
                 onSettingsChange = { current = it },
                 onOpen = {},
-                onTogglePin = { app -> pinned = if (app.pkg in pinned) pinned - app.pkg else pinned + app.pkg },
+                onTogglePin = { app -> pinned = if (app.pkg in pinned) pinned - app.pkg else pinned + app.pkg; currentPins = pinned },
+                onMovePin = { app, by ->
+                    val from = pinned.indexOf(app.pkg)
+                    val to = (from + by).coerceIn(0, pinned.lastIndex)
+                    pinned = pinned.toMutableList().apply { add(to, removeAt(from)) }
+                    currentPins = pinned
+                },
                 onOpenSystemSettings = {},
             )
         }

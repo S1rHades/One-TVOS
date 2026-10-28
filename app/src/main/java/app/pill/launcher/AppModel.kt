@@ -1,6 +1,7 @@
 package app.pill.launcher
 
 import android.content.ComponentName
+import android.content.pm.ApplicationInfo
 import android.content.Intent
 import android.content.pm.PackageManager
 import androidx.compose.ui.graphics.ImageBitmap
@@ -20,6 +21,8 @@ data class AppEntry(
     val banner: ImageBitmap? = null,
     /** A vivid colour from the app's artwork (ARGB), for its glow and the ambient light. */
     val accent: Int = DefaultAccent,
+    /** False for apps built into the TV, which can't be uninstalled. */
+    val removable: Boolean = true,
     /**
      * The two layers of an adaptive icon, so the foreground can lift against the background
      * on focus. Drawables, not bitmaps, so this costs no extra memory; null for older icons.
@@ -91,6 +94,7 @@ fun loadApps(pm: PackageManager, self: String): List<AppEntry> {
                 banner = banner?.asImageBitmap(),
                 accent = runCatching { accentOf(banner ?: icon) }.getOrDefault(DefaultAccent),
                 iconLayers = layers,
+                removable = (info.activityInfo.applicationInfo.flags and ApplicationInfo.FLAG_SYSTEM) == 0,
             )
         }
     }

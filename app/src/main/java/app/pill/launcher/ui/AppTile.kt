@@ -69,8 +69,8 @@ fun tileWidth(iconSize: Dp): Dp = iconSize + Spacing.Tile * 2
 val FocusSpring = spring<Float>(dampingRatio = 0.6f, stiffness = 400f)
 
 /**
- * App icon, shown edge to edge in a squircle. OK opens the app; holding OK (or Menu) pins
- * or unpins it. On focus (or pointer hover) the tile springs to 1.12x, glows in the app's
+ * App icon, shown edge to edge in a squircle. OK opens the app; holding OK (or Menu) opens
+ * its menu. On focus (or pointer hover) the tile springs to 1.12x, glows in the app's
  * own colour, gains a crisp white outline and a bold label, and draws above its neighbours.
  */
 @Composable
@@ -79,11 +79,11 @@ fun AppTile(
     iconSize: Dp,
     showPinBadge: Boolean,
     onOpen: () -> Unit,
-    onTogglePin: () -> Unit,
+    onMenu: (okHeld: Boolean) -> Unit,
     modifier: Modifier = Modifier,
     onFocus: (Boolean) -> Unit = {},
 ) {
-    val input = rememberTileInput(onOpen, onTogglePin, onFocus)
+    val input = rememberTileInput(onOpen, onMenu, onFocus)
     val active = input.active
     val accent = Color(app.accent)
     val scale by animateFloatAsState(if (active) 1.12f else 1f, FocusSpring, label = "tileScale")
