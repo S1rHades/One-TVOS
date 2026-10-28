@@ -64,6 +64,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import app.pill.launcher.FavoritesLayout
+import app.pill.launcher.FavoritesStyle
 import app.pill.launcher.HomeStatus
 import app.pill.launcher.LauncherSettings
 import app.pill.launcher.WeatherMode
@@ -185,6 +186,11 @@ fun SettingsPanel(
                             ) { focused ->
                                 Stepper(weatherLabel(settings.weather), mode > 0, mode < modes.lastIndex, focused)
                             }
+                            SettingRow(
+                                title = "Ambient light",
+                                subtitle = if (settings.ambientLight) "Tints the photo with the focused app's colour" else "Photo shown as it is",
+                                onClick = { onChange(settings.copy(ambientLight = !settings.ambientLight)) },
+                            ) { focused -> Switch(checked = settings.ambientLight, focused = focused) }
                         }
 
                         Group("Favorites row") {
@@ -208,6 +214,19 @@ fun SettingsPanel(
                                     layoutIndex < layouts.lastIndex,
                                     focused,
                                 )
+                            }
+                            val styles = FavoritesStyle.entries
+                            val styleIndex = styles.indexOf(settings.favoritesStyle)
+                            SettingRow(
+                                title = "Tile style",
+                                subtitle = if (settings.favoritesStyle == FavoritesStyle.Banners) "App artwork, or a card made from the icon" else "Square app icons",
+                                onClick = { onChange(settings.copy(favoritesStyle = styles[(styleIndex + 1) % styles.size])) },
+                                onStep = { by ->
+                                    val next = (styleIndex + by).coerceIn(0, styles.lastIndex)
+                                    if (next != styleIndex) onChange(settings.copy(favoritesStyle = styles[next]))
+                                },
+                            ) { focused ->
+                                Stepper(if (settings.favoritesStyle == FavoritesStyle.Banners) "Banners" else "Icons", styleIndex > 0, styleIndex < styles.lastIndex, focused)
                             }
                             SettingRow(
                                 title = "Animations",

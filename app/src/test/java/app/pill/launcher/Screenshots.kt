@@ -280,7 +280,33 @@ class Screenshots {
         val y = size / 2f - (text.descent() + text.ascent()) / 2f
         canvas.drawText(label.take(1), size / 2f, y, text)
         val pkg = pkg(label)
-        return AppEntry(label, pkg, ComponentName(pkg, "$pkg.Main"), bitmap.asImageBitmap())
+        // Two stand-ins ship a TV banner, like real TV apps; the rest get generated ones
+        val banner = if (label in setOf("Cinema", "Live TV")) fakeBanner(label, color) else null
+        return AppEntry(label, pkg, ComponentName(pkg, "$pkg.Main"), bitmap.asImageBitmap(), banner?.asImageBitmap(), accentOf(banner ?: bitmap))
+    }
+
+    /** A 16:9 banner in the style of a TV app: a deep gradient with the name set large. */
+    private fun fakeBanner(label: String, color: Int): Bitmap {
+        val w = 640
+        val h = 360
+        val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        canvas.drawPaint(Paint().apply {
+            shader = LinearGradient(0f, 0f, w.toFloat(), h.toFloat(), lighten(color), darken(color), Shader.TileMode.CLAMP)
+        })
+        canvas.drawCircle(w * 0.84f, h * 0.22f, h * 0.5f, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = 0x22FFFFFF })
+        val text = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            this.color = android.graphics.Color.WHITE
+            textSize = h * 0.2f
+            typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+        }
+        canvas.drawText(label.uppercase(), w * 0.07f, h * 0.84f, text)
+        return bitmap
+    }
+
+    private fun darken(color: Int): Int {
+        fun ch(shift: Int) = (color shr shift and 0xFF) / 2
+        return (0xFF shl 24) or (ch(16) shl 16) or (ch(8) shl 8) or ch(0)
     }
 
     private fun lighten(color: Int): Int {

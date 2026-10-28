@@ -64,6 +64,9 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -134,6 +137,8 @@ fun LauncherScreen(
     var searchOpen by remember { mutableStateOf(false) }
     var photoError by remember { mutableStateOf<String?>(null) }
     var backdrop by remember { mutableStateOf<ImageBitmap?>(null) }
+    // Accent of the focused app; read only by AmbientLight, so focus moves don't recompose the screen
+    val ambient = remember { mutableStateOf<Int?>(null) }
     var initialFocusDone by remember { mutableStateOf(false) }
     var toast by remember { mutableStateOf<Toast?>(null) }
     var toastVisible by remember { mutableStateOf(false) }
@@ -262,18 +267,19 @@ fun LauncherScreen(
                 onBackdrop = { backdrop = it },
             )
             BackgroundScrim()
+            if (settings.ambientLight) AmbientLight(ambient, fade = { idleFade })
 
             BoxWithConstraints(Modifier.fillMaxSize()) {
                 val contentWidth = maxWidth - Spacing.ScreenH * 2
                 // Wrapped favourites can need more than one row; the first page grows to fit them
                 val favoriteRows = if (settings.favoritesLayout == FavoritesLayout.Wrap) {
-                    ((pinnedApps.size + favoritesPerRow(contentWidth, FavoriteIcon) - 1) / favoritesPerRow(contentWidth, FavoriteIcon)).coerceAtLeast(1)
+                    favoritesPerRow(contentWidth, settings.favoritesStyle, FavoriteIcon).let { (pinnedApps.size + it - 1) / it }.coerceAtLeast(1)
                 } else {
                     1
                 }
                 val pageHeight = maxOf(
                     maxHeight - Spacing.ScreenV,
-                    HeaderHeight + favoritesRowHeight(FavoriteIcon) * favoriteRows + maxHeight * PAGE_EDGE,
+                    HeaderHeight + favoritesRowHeight(settings.favoritesStyle, FavoriteIcon) * favoriteRows + maxHeight * PAGE_EDGE,
                 )
                 val pageEdge = maxHeight * PAGE_EDGE
                 val pageHeightPx = with(LocalDensity.current) { pageHeight.toPx() }
@@ -327,9 +333,11 @@ fun LauncherScreen(
                                 Spacer(Modifier.weight(1f))
                                 // Buttons fade with the apps while idle; the clock and weather stay
                                 Row(Modifier.padding(top = 8.dp).graphicsLayer { alpha = 1f - idleFade }) {
-                                    SearchPill(onClick = { searchOpen = true })
-                                    Spacer(Modifier.width(16.dp))
-                                    SettingsPill(onClick = { panelOpen = true }, focusRequester = pillFocus)
+                                    QuickActions(
+                                        onSearch = { searchOpen = true },
+                                        onSettings = { panelOpen = true },
+                                        settingsFocus = pillFocus,
+                                    )
                                 }
                             }
 
@@ -338,7 +346,7 @@ fun LauncherScreen(
                             Box(
                                 Modifier
                                     .fillMaxWidth()
-                                    .heightIn(min = favoritesRowHeight(FavoriteIcon))
+                                    .heightIn(min = favoritesRowHeight(settings.favoritesStyle, FavoriteIcon))
                                     .graphicsLayer { alpha = 1f - idleFade },
                                 contentAlignment = Alignment.CenterStart,
                             ) {
@@ -348,6 +356,8 @@ fun LauncherScreen(
                                     FavoritesRow(
                                         apps = pinnedApps,
                                         layout = settings.favoritesLayout,
+                                        style = settings.favoritesStyle,
+                                        onFocus = { ambient.value = it.accent },
                                         animate = settings.favoritesAnimation,
                                         iconSize = FavoriteIcon,
                                         width = contentWidth,
@@ -376,6 +386,7 @@ fun LauncherScreen(
                                             showPinBadge = app.pkg in pins,
                                             onOpen = { onOpen(app) },
                                             onTogglePin = { togglePin(app, fromFavorites = false) },
+                                            onFocus = { if (it) ambient.value = app.accent },
                                             // Equal cells across the row, with the icon centred in each
                                             modifier = Modifier.weight(1f),
                                         )
@@ -537,5 +548,24 @@ private fun ToastChip(message: String) {
             .padding(horizontal = 24.dp, vertical = 13.dp),
     ) {
         Text(message, color = Palette.TextPrimary, fontSize = 17.sp, fontWeight = FontWeight(560))
+    }
+}
+
+/**
+ * A soft wash of the focused app's colour rising from the lower left, cross-fading in
+ * 400 ms as focus moves. Drawn in the draw phase from [accent], so only this layer redraws.
+ */
+@Composable
+private fun AmbientLight(accent: State<Int?>, fade: () -> Float) {
+    val color = animateColorAsState(
+        accent.value?.let { Color(it) } ?: Color.Transparent,
+        tween(400, easing = FastOutSlowInEasing),
+        label = "ambient",
+    )
+    Canvas(Modifier.fillMaxSize().graphicsLayer { alpha = 1f - fade() }) {
+        val c = color.value
+        val origin = Offset(size.width * 0.2f, size.height)
+        drawRect(Brush.radialGradient(listOf(c.copy(alpha = c.alpha * 0.42f), Color.Transparent), origin, size.width * 0.62f))
+        drawRect(Brush.radialGradient(listOf(c.copy(alpha = c.alpha * 0.3f), Color.Transparent), origin, size.width * 0.3f))
     }
 }

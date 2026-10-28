@@ -12,6 +12,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
@@ -57,6 +62,30 @@ fun SettingsPill(
     }
 }
 
+/**
+ * Search and Settings in one frosted capsule, as on Google TV. Left and Right move between
+ * them; the focused one fills white.
+ */
+@Composable
+fun QuickActions(
+    onSearch: () -> Unit,
+    onSettings: () -> Unit,
+    settingsFocus: FocusRequester,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier
+            .shadow(18.dp, RoundedCornerShape(50))
+            .glass(RoundedCornerShape(50))
+            .padding(5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        SearchPill(onClick = onSearch)
+        Box(Modifier.padding(horizontal = 4.dp).width(1.dp).height(22.dp).background(Color(0x38FFFFFF)))
+        SettingsPill(onClick = onSettings, focusRequester = settingsFocus)
+    }
+}
+
 /** Round glass button with a magnifier, opening search. */
 @Composable
 fun SearchPill(onClick: () -> Unit, modifier: Modifier = Modifier) {
@@ -82,12 +111,13 @@ private fun RoundButton(
 
     val scale by animateFloatAsState(if (active) 1.1f else 1f, spring(dampingRatio = 0.7f, stiffness = 500f), label = "pillScale")
     val elevation by animateDpAsState(if (active) 14.dp else 0.dp, label = "pillElevation")
-    val fill by animateColorAsState(if (active) Palette.Focus else Color(0x47000000), label = "pillFill")
+    // Transparent at rest: the quick-actions capsule around the buttons provides the glass
+    val fill by animateColorAsState(if (active) Palette.Focus else Color.Transparent, label = "pillFill")
     val tint by animateColorAsState(if (active) Palette.Ink else Palette.TextPrimary, label = "pillTint")
 
     Box(
         modifier
-            .size(56.dp)
+            .size(44.dp)
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
@@ -95,7 +125,6 @@ private fun RoundButton(
             .shadow(elevation, CircleShape, ambientColor = Color.White, spotColor = Color.White)
             .clip(CircleShape)
             .background(fill)
-            .border(1.dp, if (active) Color.Transparent else Palette.Hairline, CircleShape)
             .semantics { contentDescription = description }
             .onFocusChanged { focused = it.isFocused }
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
