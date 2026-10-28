@@ -3,6 +3,11 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 1.4 (October 2026)
+
+- **Holding OK now pins and unpins apps** on every remote. Hold for half a second; a quick press still opens the app. Some remotes (especially TV remotes passed through HDMI) never sent the signal the old long press needed.
+- The remote's **Menu** (☰) button also pins or unpins the focused app.
+
 ## 1.3 (October 2026)
 
 **Photos and weather on more TVs**
