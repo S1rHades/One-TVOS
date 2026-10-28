@@ -3,12 +3,16 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 1.7.1 (October 2026)
+
+- The favourites row now fades softly into the screen edges: apps beyond the edge recede (fainter and slightly smaller) instead of being cut off, and a slim bar under the row shows where you are in it. This replaces the round arrow markers.
+
 ## 1.7 (October 2026)
 
 **New**
 - **Search**: a magnifier button next to Settings finds your apps by name, and links to the TV's own search when it has one.
 - **Idle screen**: after a while without a key press, the apps fade away and only the clock and weather stay, with a slow photo zoom and a gentle drift that spares plasma and OLED screens. The first key press just wakes it. Set the time (or Off) and the animation in **Settings → Idle screen**.
-- **Favorites row settings**: choose **Scroll** (one row that slides, with arrows showing more apps on either side) or **Wrap** (as many as fit across, the rest on rows below), and turn the row's animations on or off. Left and Right stop at the ends of a row instead of jumping elsewhere.
+- **Favorites row settings**: choose **Scroll** (one row that slides and fades into the screen edges) or **Wrap** (as many as fit across, the rest on rows below), and turn the row's animations on or off. Left and Right stop at the ends of a row instead of jumping elsewhere.
 - **Open at startup**: show Pill Launcher when the TV turns on (**Settings → Home & startup**). Settings tells you if Android needs one more permission for it.
 
 **Cleaner first page**
