@@ -13,7 +13,7 @@ android {
         minSdk = 26
         targetSdk = 34
         versionCode = 14
-        versionName = "2.1.1"
+        versionName = "2.2"
     }
 
     // CI signs with one permanent key (from repository secrets, see build.yml) so each new

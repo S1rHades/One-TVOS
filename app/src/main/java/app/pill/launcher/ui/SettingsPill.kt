@@ -1,7 +1,6 @@
 package app.pill.launcher.ui
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -31,6 +30,15 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import kotlin.math.roundToInt
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
@@ -70,26 +78,30 @@ fun SettingsPill(
 
 private val ButtonSize = 44.dp
 
-/** Divider plus its padding, between the two buttons. */
-private val DividerSpan = 9.dp
-
 /**
- * Search and Settings in one frosted capsule, as on Google TV. Left and Right move between
- * them; the focused one fills white.
+ * The status bar, top right, in one frosted capsule: connection (Wi-Fi strength or
+ * Ethernet; OK opens the TV's network settings), a key while a VPN is on, then Search and
+ * Settings. Left and Right move along it, and one white highlight slides to the focused button.
  */
 @Composable
 fun QuickActions(
     onSearch: () -> Unit,
     onSettings: () -> Unit,
+    onNetwork: () -> Unit,
     settingsFocus: FocusRequester,
     modifier: Modifier = Modifier,
 ) {
-    // Which button is focused (0 search, 1 settings, -1 neither); one highlight slides between them
+    val network by rememberNetworkStatus()
+    // Which button is focused (0 network, 1 search, 2 settings; -1 none), and where each sits
     var focused by remember { mutableIntStateOf(-1) }
-    var last by remember { mutableIntStateOf(0) }
+    var last by remember { mutableIntStateOf(2) }
     if (focused >= 0) last = focused
-    val x by animateDpAsState(if (last == 1) ButtonSize + DividerSpan else 0.dp, spring(dampingRatio = 0.7f, stiffness = 500f), label = "highlightX")
+    val positions = remember { mutableStateMapOf<Int, Float>() }
+    val x by animateFloatAsState(positions[last] ?: 0f, spring(dampingRatio = 0.7f, stiffness = 500f), label = "highlightX")
     val shown by animateFloatAsState(if (focused >= 0) 1f else 0f, tween(160), label = "highlightAlpha")
+    fun track(index: Int) = { active: Boolean -> if (active) focused = index else if (focused == index) focused = -1 }
+    fun Modifier.at(index: Int) = onPlaced { positions[index] = it.positionInParent().x }
+
     Box(
         modifier
             .glass(RoundedCornerShape(50))
@@ -97,23 +109,44 @@ fun QuickActions(
     ) {
         Box(
             Modifier
-                .offset { IntOffset(x.roundToPx(), 0) }
+                .offset { IntOffset(x.roundToInt(), 0) }
                 .size(ButtonSize)
-                .graphicsLayer { alpha = shown }
+                .graphicsLayer { alpha = if (positions.isEmpty()) 0f else shown }
                 .shadow(12.dp, CircleShape, ambientColor = Color.White, spotColor = Color.White)
                 .background(Palette.Focus, CircleShape),
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
-            SearchPill(onClick = onSearch, onActive = { if (it) focused = 0 else if (focused == 0) focused = -1 })
+            AnimatedVisibility(
+                visible = network.vpn,
+                enter = fadeIn(tween(300)) + expandHorizontally(tween(300)),
+                exit = fadeOut(tween(200)) + shrinkHorizontally(tween(300)),
+            ) {
+                // Status only, so not a focus stop
+                Box(
+                    Modifier.size(ButtonSize).semantics { contentDescription = "VPN on" },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    KeyIcon(tint = VpnGreen, iconSize = 24.dp)
+                }
+            }
+            RoundButton(
+                description = "Network: " + network.label + if (network.vpn) ", VPN on" else "",
+                onClick = onNetwork,
+                modifier = Modifier.at(0),
+                focusRequester = null,
+                onActive = track(0),
+            ) { tint, _ ->
+                WifiIcon(network, tint = if (network.link == Link.Offline && tint == Palette.TextPrimary) OfflineRed else tint, iconSize = 24.dp)
+            }
             Box(Modifier.padding(horizontal = 4.dp).width(1.dp).height(22.dp).background(Color(0x38FFFFFF)))
-            SettingsPill(
-                onClick = onSettings,
-                focusRequester = settingsFocus,
-                onActive = { if (it) focused = 1 else if (focused == 1) focused = -1 },
-            )
+            SearchPill(onClick = onSearch, modifier = Modifier.at(1), onActive = track(1))
+            SettingsPill(onClick = onSettings, focusRequester = settingsFocus, modifier = Modifier.at(2), onActive = track(2))
         }
     }
 }
+
+private val VpnGreen = Color(0xFF8CE99A)
+private val OfflineRed = Color(0xFFFF8787)
 
 /** Round glass button with a magnifier, opening search. */
 @Composable

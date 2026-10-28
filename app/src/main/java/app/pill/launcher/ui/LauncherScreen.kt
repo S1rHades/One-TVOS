@@ -129,6 +129,8 @@ fun LauncherScreen(
     onOpen: (AppEntry) -> Unit,
     onTogglePin: (AppEntry) -> Unit,
     onOpenSystemSettings: () -> Unit,
+    /** The TV's Wi-Fi / network settings, from the status bar's connection button. */
+    onOpenNetworkSettings: () -> Unit = {},
     /** Bumped each time Home is pressed while the launcher is already showing. */
     homePresses: Int = 0,
     home: HomeStatus = HomeStatus(isDefault = true, redirectOn = false),
@@ -337,6 +339,7 @@ fun LauncherScreen(
                                     QuickActions(
                                         onSearch = { searchOpen = true },
                                         onSettings = { panelOpen = true },
+                                        onNetwork = onOpenNetworkSettings,
                                         settingsFocus = pillFocus,
                                     )
                                 }

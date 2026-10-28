@@ -1,8 +1,5 @@
 package app.pill.launcher.ui
 
-import android.content.Context
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
 import android.os.Environment
 import android.os.StatFs
 import android.text.format.DateFormat
@@ -543,73 +540,41 @@ private fun SunArc(fraction: Float?, modifier: Modifier) {
 
 // ---- System info -------------------------------------------------------------------
 
-private data class SystemInfo(val connection: String?, val freeBytes: Long)
-
-/** The network the TV is on (or offline) and free storage, checked every 15 seconds. */
+/** The network the TV is on (with VPN) and free storage, checked every 15 seconds. */
 @Composable
 private fun SystemCard(compact: Boolean, modifier: Modifier) {
-    val context = LocalContext.current
-    val info by produceState(SystemInfo(null, -1)) {
+    val network by rememberNetworkStatus()
+    val freeBytes by produceState(-1L) {
         while (true) {
-            value = withContext(Dispatchers.IO) { readSystem(context) }
+            value = withContext(Dispatchers.IO) {
+                runCatching { StatFs(Environment.getDataDirectory().path).availableBytes }.getOrDefault(-1L)
+            }
             delay(15_000)
         }
     }
-    val online = info.connection != null
+    val online = network.link != Link.Offline
     WidgetCard(if (online) Color(0xFF38D9A9) else Color(0xFFFF8787), modifier) {
         Row(Modifier.align(Alignment.CenterStart), verticalAlignment = Alignment.CenterVertically) {
-            SignalIcon(online, Modifier.size(if (compact) 26.dp else 32.dp))
+            WifiIcon(network, if (online) Color.White else Color(0xFFFF8787), if (compact) 26.dp else 32.dp)
             Spacer(Modifier.width(if (compact) 10.dp else 14.dp))
             Column {
                 CardLabel("System")
                 Spacer(Modifier.height(4.dp))
-                Text(info.connection ?: "Offline", style = lineStyle(if (compact) 16.sp else 18.sp, Palette.TextPrimary, 600), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (info.freeBytes >= 0) {
-                    Text(formatBytes(info.freeBytes) + if (compact) " free" else " storage free", style = lineStyle(15.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    network.label + if (network.vpn) " · VPN" else "",
+                    style = lineStyle(if (compact) 16.sp else 18.sp, Palette.TextPrimary, 600),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (freeBytes >= 0) {
+                    Text(formatBytes(freeBytes) + if (compact) " free" else " storage free", style = lineStyle(15.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
         }
     }
 }
 
-private fun readSystem(context: Context): SystemInfo {
-    val connection = runCatching {
-        val cm = context.getSystemService(ConnectivityManager::class.java)
-        val caps = cm.getNetworkCapabilities(cm.activeNetwork)
-        when {
-            caps == null || !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) -> null
-            caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> "Ethernet"
-            caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "Wi-Fi"
-            caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "Mobile data"
-            else -> "Online"
-        }
-    }.getOrNull()
-    val free = runCatching { StatFs(Environment.getDataDirectory().path).availableBytes }.getOrDefault(-1L)
-    return SystemInfo(connection, free)
-}
-
 private fun formatBytes(bytes: Long): String {
     val gb = bytes / 1e9
     return if (gb >= 10) "%.0f GB".format(gb) else if (gb >= 1) "%.1f GB".format(gb) else "%.0f MB".format(bytes / 1e6)
-}
-
-/** Three rising bars, or one with a slash when offline. */
-@Composable
-private fun SignalIcon(online: Boolean, modifier: Modifier) {
-    Canvas(modifier) {
-        val w = size.width
-        val h = size.height
-        val bar = w / 5
-        for (i in 0 until 3) {
-            val height = h * (0.4f + 0.3f * i)
-            val lit = online || i == 0
-            drawRoundRect(
-                if (lit) Color.White else Color(0x44FFFFFF),
-                topLeft = Offset(i * bar * 2f, h - height),
-                size = Size(bar, height),
-                cornerRadius = androidx.compose.ui.geometry.CornerRadius(bar / 2),
-            )
-        }
-        if (!online) drawLine(Color(0xFFFF8787), Offset(0f, 0f), Offset(w, h), 2.5.dp.toPx(), StrokeCap.Round)
-    }
 }

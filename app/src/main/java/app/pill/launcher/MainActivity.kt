@@ -112,7 +112,12 @@ class MainActivity : ComponentActivity() {
                 onHomeHelper = { openAccessibilitySettings() },
                 onAllowAutostart = { requestOverlayPermission() },
                 onSystemSearch = remember { systemSearchIntent() }?.let { search ->
-                    { tryStartActivity(search) }
+                    { tryStartActivity(search); Unit }
+                },
+                onOpenNetworkSettings = {
+                    // TVs differ in which of these screens they have
+                    listOf(Settings.ACTION_WIFI_SETTINGS, Settings.ACTION_WIRELESS_SETTINGS, Settings.ACTION_SETTINGS)
+                        .firstOrNull { tryStartActivity(Intent(it).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
                 },
                 onOpenSystemSettings = {
                     try {
@@ -144,15 +149,16 @@ class MainActivity : ComponentActivity() {
             .map { it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
             .firstOrNull { it.resolveActivity(packageManager) != null }
 
-    private fun tryStartActivity(intent: Intent) {
+    /** Starts [intent]; false if no app handles it or it isn't open to us. */
+    private fun tryStartActivity(intent: Intent): Boolean =
         try {
             startActivity(intent)
+            true
         } catch (e: ActivityNotFoundException) {
-            // removed since the check
+            false
         } catch (e: SecurityException) {
-            // not exported to us
+            false
         }
-    }
 
     private fun openApp(app: AppEntry) {
         val intent = Intent(Intent.ACTION_MAIN)

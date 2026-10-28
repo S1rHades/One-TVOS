@@ -77,6 +77,8 @@ The `latest` release is rebuilt automatically every time `main` changes, so inst
 | Open an app | **OK** |
 | See all apps | **Down** from Favorites |
 | Find an app | The magnifier (top right), then type |
+| Open Wi-Fi settings | The connection icon (top right, left of the magnifier), then **OK** |
+| See if a VPN is on | A green key shows beside the connection icon |
 | Change how favourites are laid out | **Settings → Favorites row → Layout**: Scroll or Wrap |
 | Banners or icons for favourites | **Settings → Favorites row → Tile style** |
 | Wake the idle screen | Any key |
