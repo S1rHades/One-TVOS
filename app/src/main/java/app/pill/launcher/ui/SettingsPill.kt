@@ -92,7 +92,6 @@ fun QuickActions(
     val shown by animateFloatAsState(if (focused >= 0) 1f else 0f, tween(160), label = "highlightAlpha")
     Box(
         modifier
-            .shadow(18.dp, RoundedCornerShape(50))
             .glass(RoundedCornerShape(50))
             .padding(5.dp),
     ) {

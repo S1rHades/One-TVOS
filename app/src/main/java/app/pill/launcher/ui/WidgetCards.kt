@@ -50,7 +50,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -189,7 +188,6 @@ private fun WidgetCard(accent: Color, modifier: Modifier = Modifier, content: @C
                 translationY = (1f - appear.value) * rise
             }
             .hoverable(interaction)
-            .shadow(14.dp + 10.dp * lift, CardShape, ambientColor = wash, spotColor = Color.Black)
             .glass(CardShape)
             .background(Brush.linearGradient(listOf(wash.copy(alpha = 0.2f + 0.08f * lift), Color.Transparent), start = Offset.Zero, end = Offset(520f, 360f)))
             .border(1.5.dp, Color.White.copy(alpha = 0.32f * lift), CardShape)
