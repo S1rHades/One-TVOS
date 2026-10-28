@@ -29,6 +29,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
@@ -74,6 +75,7 @@ fun favoritesRowHeight(iconSize: Dp): Dp = iconSize + 60.dp + RowAir * 2
  * ([FavoritesLayout.Wrap]). Left and Right stop at the ends of each row instead of jumping
  * to other controls; in Wrap, Down moves to the next row.
  */
+@OptIn(ExperimentalComposeUiApi::class) // FocusRequester.Cancel
 @Composable
 fun FavoritesRow(
     apps: List<AppEntry>,
