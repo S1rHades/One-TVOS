@@ -3,6 +3,11 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 2.1.1 (October 2026)
+
+- **Algeria widget loads on more TVs**: when a TV can't reach TheSportsDB directly, the widget now reads a copy of the fixtures that GitHub refreshes every 30 minutes. If neither works, Settings → Widgets shows why under the Algeria row, and the card says it can't reach the data rather than suggesting the TV is offline.
+- The widget cards and the search/settings capsule no longer cast a shadow; their glass edge sets them apart.
+
 ## 2.1 (October 2026)
 
 - **Widgets**: the clock and weather are now frosted-glass cards in one band across the top (the divider between them is gone), each with a soft wash of colour that follows what it shows. Cards rise in when turned on, fade out when turned off and glide when moved.

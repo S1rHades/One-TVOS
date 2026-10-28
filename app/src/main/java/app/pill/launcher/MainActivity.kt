@@ -61,13 +61,14 @@ class MainActivity : ComponentActivity() {
 
             // Algeria's fixtures: the saved copy at once, then fresh ones every 30 minutes, every 3 around a match
             val fennecsOn = WidgetKind.Fennecs in settings.widgets
+            var fixturesError by remember { mutableStateOf<String?>(null) }
             val savedFixtures = remember { fixturesSource.cached() }
             val fixtures by produceState(savedFixtures, fennecsOn) {
                 var failures = 0
                 while (fennecsOn) {
                     val result = withContext(Dispatchers.IO) { fixturesSource.fetch() }
-                    result.onSuccess { value = it; failures = 0 }
-                    result.onFailure { failures++; value = value?.copy(fromCache = true) }
+                    result.onSuccess { value = it; fixturesError = null; failures = 0 }
+                    result.onFailure { fixturesError = it.message ?: it::class.java.simpleName; failures++; value = value?.copy(fromCache = true) }
                     val soon = value?.let { f ->
                         val now = Instant.now()
                         f.next?.kickoff?.let { Duration.between(now, it).abs() < Duration.ofHours(3) } == true || f.last?.isLive(now) == true
@@ -93,6 +94,7 @@ class MainActivity : ComponentActivity() {
                 weather = weather.takeIf { weatherOn },
                 weatherError = weatherError.takeIf { weatherOn },
                 fixtures = fixtures,
+                fixturesError = fixturesError.takeIf { fennecsOn },
                 pins = pins,
                 settings = settings,
                 onSettingsChange = {

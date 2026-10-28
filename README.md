@@ -95,7 +95,7 @@ The widget finds the TV's approximate location from its internet address with [G
 
 ### Les Fennecs (Algeria)
 
-The Algeria widget shows the men's national team's next fixture (competition, crests and kick-off in the TV's time zone) and the latest result, marked W, D or L. During a match it shows **LIVE** and the score. The data comes from [TheSportsDB](https://www.thesportsdb.com/)'s free API, with no account needed. It refreshes every 30 minutes, and every 3 minutes around a match. The last good copy is saved on the TV, so the widget still has something to show when the TV is offline.
+The Algeria widget shows the men's national team's next fixture (competition, crests and kick-off in the TV's time zone) and the latest result, marked W, D or L. During a match it shows **LIVE** and the score. The data comes from [TheSportsDB](https://www.thesportsdb.com/)'s free API, with no account needed. If a TV can't reach TheSportsDB, it reads a copy that the **Fixtures mirror** workflow (`.github/workflows/fixtures.yml`) refreshes every 30 minutes on the `fixtures-data` branch. It refreshes every 30 minutes, and every 3 minutes around a match. The last good copy is saved on the TV, so the widget still has something to show when the TV is offline.
 
 ### Your own photos
 

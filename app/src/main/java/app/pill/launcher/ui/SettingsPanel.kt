@@ -96,6 +96,7 @@ fun SettingsPanel(
     /** Why photos or weather last failed to load, shown under their rows; null when fine. */
     photoError: String? = null,
     weatherError: String? = null,
+    fixturesError: String? = null,
     home: HomeStatus = HomeStatus(isDefault = true, redirectOn = false),
     onMakeDefault: () -> String? = { null },
     onHomeHelper: () -> String? = { null },
@@ -221,6 +222,7 @@ fun SettingsPanel(
                                         title = kind.title,
                                         subtitle = when {
                                             on && kind == WidgetKind.Weather && weatherError != null -> "Can't get the weather: $weatherError"
+                                            on && kind == WidgetKind.Fennecs && fixturesError != null -> "Can't get fixtures: $fixturesError"
                                             on && settings.widgets.size > 1 -> "Position ${position + 1} of ${settings.widgets.size} · Left / Right to move"
                                             full -> "Turn another widget off first"
                                             else -> kind.description

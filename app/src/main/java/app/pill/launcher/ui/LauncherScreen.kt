@@ -121,6 +121,8 @@ fun LauncherScreen(
     weatherError: String? = null,
     /** Algeria's next and latest match, for the Les Fennecs widget. */
     fixtures: Fixtures? = null,
+    /** Why the last fixtures fetch failed; null when it works. */
+    fixturesError: String? = null,
     pins: List<String>,
     settings: LauncherSettings,
     onSettingsChange: (LauncherSettings) -> Unit,
@@ -325,6 +327,7 @@ fun LauncherScreen(
                                     weatherError = weatherError,
                                     mode = settings.weather,
                                     fixtures = fixtures,
+                                    fixturesError = fixturesError,
                                     animate = !idle,
                                     modifier = Modifier.weight(1f),
                                 )
@@ -414,6 +417,7 @@ fun LauncherScreen(
                     onOpenSystemSettings = onOpenSystemSettings,
                     photoError = photoError,
                     weatherError = weatherError,
+                    fixturesError = fixturesError,
                     home = home,
                     onMakeDefault = onMakeDefault,
                     onHomeHelper = onHomeHelper,

@@ -129,6 +129,7 @@ fun WidgetRow(
     weatherError: String?,
     mode: WeatherMode,
     fixtures: Fixtures?,
+    fixturesError: String?,
     animate: Boolean,
     modifier: Modifier = Modifier,
 ) {
@@ -155,7 +156,7 @@ fun WidgetRow(
                 when (kind) {
                     WidgetKind.Clock -> ClockCard(compact, item)
                     WidgetKind.Weather -> WeatherCard(weather, weatherError, mode, compact, animate, item)
-                    WidgetKind.Fennecs -> FennecsCard(fixtures, compact, item)
+                    WidgetKind.Fennecs -> FennecsCard(fixtures, fixturesError, compact, item)
                     WidgetKind.Daylight -> DaylightCard(weather, compact, item)
                     WidgetKind.System -> SystemCard(compact, item)
                 }
@@ -287,7 +288,7 @@ private fun skyAccent(weather: Weather?): Color = when {
  * Without data it says so; a saved copy is marked when it's old.
  */
 @Composable
-private fun FennecsCard(fixtures: Fixtures?, compact: Boolean, modifier: Modifier) {
+private fun FennecsCard(fixtures: Fixtures?, error: String?, compact: Boolean, modifier: Modifier) {
     val now = Instant.now()
     val live = listOfNotNull(fixtures?.last, fixtures?.next).firstOrNull { it.isLive(now) }
     val upcoming = fixtures?.next?.takeIf { it != live }
@@ -314,7 +315,11 @@ private fun FennecsCard(fixtures: Fixtures?, compact: Boolean, modifier: Modifie
                         AlgeriaFlag(26.dp)
                         Spacer(Modifier.width(10.dp))
                         Text(
-                            if (fixtures == null) "Fixtures appear when online" else "No match scheduled yet",
+                            when {
+                                fixtures != null -> "No match scheduled yet"
+                                error != null -> "Can't reach match data · see Settings"
+                                else -> "Loading fixtures…"
+                            },
                             style = lineStyle(15.sp, Palette.TextPrimary),
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
