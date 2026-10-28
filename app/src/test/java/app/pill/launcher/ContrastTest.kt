@@ -111,7 +111,13 @@ class ContrastTest {
             var x = xa
             while (x < xb) {
                 val rgb = photo.getRGB(x, y)
-                red += (rgb shr 16) and 0xFF; green += (rgb shr 8) and 0xFF; blue += rgb and 0xFF; n++
+                val r8 = (rgb shr 16) and 0xFF
+                val g8 = (rgb shr 8) and 0xFF
+                val b8 = rgb and 0xFF
+                red += r8
+                green += g8
+                blue += b8
+                n++
                 x += 2
             }
             y += 2
