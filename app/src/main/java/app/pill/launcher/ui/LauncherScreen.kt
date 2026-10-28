@@ -11,6 +11,10 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.draw.shadow
+import androidx.compose.material3.LocalTextStyle
 import kotlinx.coroutines.launch
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -129,6 +133,7 @@ fun LauncherScreen(
     var panelOpen by remember { mutableStateOf(false) }
     var searchOpen by remember { mutableStateOf(false) }
     var photoError by remember { mutableStateOf<String?>(null) }
+    var backdrop by remember { mutableStateOf<ImageBitmap?>(null) }
     var initialFocusDone by remember { mutableStateOf(false) }
     var toast by remember { mutableStateOf<Toast?>(null) }
     var toastVisible by remember { mutableStateOf(false) }
@@ -228,185 +233,196 @@ fun LauncherScreen(
         }
     }
 
-    Box(
-        Modifier
-            .fillMaxSize()
-            .background(Palette.Ink)
-            .onPreviewKeyEvent { event ->
-                lastInput = SystemClock.uptimeMillis()
-                // While idle, a key only wakes the screen; it does not also act
-                if (idle) {
-                    if (event.type == KeyEventType.KeyDown) idle = false
-                    true
-                } else {
-                    false
-                }
-            },
+    // The blurred photo for glass surfaces, and Roboto Flex as the default for all text
+    CompositionLocalProvider(
+        LocalBackdrop provides backdrop,
+        LocalTextStyle provides LocalTextStyle.current.merge(TextStyle(fontFamily = Flex)),
     ) {
-        BackgroundSlideshow(
-            urls = BackgroundSources.urls,
-            intervalMs = settings.intervalSec * 1000L,
-            enabled = settings.slideshow,
-            drift = idle && settings.idleAnimation,
-            onStatus = { photoError = it },
-        )
-        BackgroundScrim()
-
-        BoxWithConstraints(Modifier.fillMaxSize()) {
-            val contentWidth = maxWidth - Spacing.ScreenH * 2
-            // Wrapped favourites can need more than one row; the first page grows to fit them
-            val favoriteRows = if (settings.favoritesLayout == FavoritesLayout.Wrap) {
-                ((pinnedApps.size + favoritesPerRow(contentWidth, FavoriteIcon) - 1) / favoritesPerRow(contentWidth, FavoriteIcon)).coerceAtLeast(1)
-            } else {
-                1
-            }
-            val pageHeight = maxOf(
-                maxHeight - Spacing.ScreenV,
-                HeaderHeight + favoritesRowHeight(FavoriteIcon) * favoriteRows + maxHeight * PAGE_EDGE,
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(Palette.Ink)
+                .onPreviewKeyEvent { event ->
+                    lastInput = SystemClock.uptimeMillis()
+                    // While idle, a key only wakes the screen; it does not also act
+                    if (idle) {
+                        if (event.type == KeyEventType.KeyDown) idle = false
+                        true
+                    } else {
+                        false
+                    }
+                },
+        ) {
+            BackgroundSlideshow(
+                urls = BackgroundSources.urls,
+                intervalMs = settings.intervalSec * 1000L,
+                enabled = settings.slideshow,
+                drift = idle && settings.idleAnimation,
+                onStatus = { photoError = it },
+                onBackdrop = { backdrop = it },
             )
-            val pageEdge = maxHeight * PAGE_EDGE
-            val pageHeightPx = with(LocalDensity.current) { pageHeight.toPx() }
-            val columns = ((maxWidth - Spacing.ScreenH * 2) / tileWidth(GridIcon)).toInt().coerceAtLeast(1)
-            // 0 on the first page, 1 once the grid fills the screen; dims the photo behind the apps
-            val depth by remember(pageHeightPx) { derivedStateOf { (scroll.value / pageHeightPx).coerceIn(0f, 1f) } }
-            // Alpha is read in the draw phase, so scrolling does not recompose the screen
-            Box(Modifier.fillMaxSize().graphicsLayer { alpha = depth }.background(Color(0x8C05070D)))
+            BackgroundScrim()
 
-            // Every tile is composed (a launcher has at most a few hundred apps), so plain D-pad
-            // focus search reaches the grid from the first page; PageScrollSpec does the scrolling.
-            val topPx = with(LocalDensity.current) { Spacing.ScreenV.toPx() }
-            val pageScrolling = remember(scroll, pageHeightPx) { PageScrollSpec(scroll, topPx + pageHeightPx) }
-            CompositionLocalProvider(LocalBringIntoViewSpec provides pageScrolling) {
-                Column(
-                    Modifier
-                        .fillMaxSize()
-                        .verticalScroll(scroll)
-                        .padding(start = Spacing.ScreenH, end = Spacing.ScreenH, top = Spacing.ScreenV, bottom = 48.dp),
-                ) {
-                    // First page: clock, weather and favourites only. The grid starts below the fold.
-                    Column(Modifier.fillMaxWidth().height(pageHeight)) {
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = Spacing.Tile)
-                                .then(if (idle && settings.idleAnimation) Modifier.idleDrift() else Modifier),
-                            verticalAlignment = Alignment.Top,
-                        ) {
-                            TimeWidget()
-                            // Fades in once the first reading arrives (and out when turned off)
-                            AnimatedContent(
-                                targetState = weather,
-                                transitionSpec = { fadeIn(tween(500)) togetherWith fadeOut(tween(300)) },
-                                contentKey = { it != null },
-                                label = "weatherSlot",
-                            ) { w ->
-                                if (w != null) {
-                                    Row {
-                                        Spacer(Modifier.width(36.dp))
-                                        Box(Modifier.padding(top = 18.dp).width(1.dp).height(84.dp).background(Palette.Hairline))
-                                        Spacer(Modifier.width(36.dp))
-                                        WeatherWidget(w, settings.weather, Modifier.padding(top = 12.dp))
+            BoxWithConstraints(Modifier.fillMaxSize()) {
+                val contentWidth = maxWidth - Spacing.ScreenH * 2
+                // Wrapped favourites can need more than one row; the first page grows to fit them
+                val favoriteRows = if (settings.favoritesLayout == FavoritesLayout.Wrap) {
+                    ((pinnedApps.size + favoritesPerRow(contentWidth, FavoriteIcon) - 1) / favoritesPerRow(contentWidth, FavoriteIcon)).coerceAtLeast(1)
+                } else {
+                    1
+                }
+                val pageHeight = maxOf(
+                    maxHeight - Spacing.ScreenV,
+                    HeaderHeight + favoritesRowHeight(FavoriteIcon) * favoriteRows + maxHeight * PAGE_EDGE,
+                )
+                val pageEdge = maxHeight * PAGE_EDGE
+                val pageHeightPx = with(LocalDensity.current) { pageHeight.toPx() }
+                val columns = ((maxWidth - Spacing.ScreenH * 2) / tileWidth(GridIcon)).toInt().coerceAtLeast(1)
+                // 0 on the first page, 1 once the grid fills the screen; dims the photo behind the apps
+                val depth by remember(pageHeightPx) { derivedStateOf { (scroll.value / pageHeightPx).coerceIn(0f, 1f) } }
+                // Alpha is read in the draw phase, so scrolling does not recompose the screen
+                // Scrolling into All apps blurs and dims the photo, so the grid reads cleanly
+                Canvas(Modifier.fillMaxSize().graphicsLayer { alpha = depth }) {
+                    backdrop?.let { drawBackdrop(it, IntSize(size.width.toInt(), size.height.toInt())) }
+                    drawRect(Color(0x8C05070D))
+                }
+
+                // Every tile is composed (a launcher has at most a few hundred apps), so plain D-pad
+                // focus search reaches the grid from the first page; PageScrollSpec does the scrolling.
+                val topPx = with(LocalDensity.current) { Spacing.ScreenV.toPx() }
+                val pageScrolling = remember(scroll, pageHeightPx) { PageScrollSpec(scroll, topPx + pageHeightPx) }
+                CompositionLocalProvider(LocalBringIntoViewSpec provides pageScrolling) {
+                    Column(
+                        Modifier
+                            .fillMaxSize()
+                            .verticalScroll(scroll)
+                            .padding(start = Spacing.ScreenH, end = Spacing.ScreenH, top = Spacing.ScreenV, bottom = 48.dp),
+                    ) {
+                        // First page: clock, weather and favourites only. The grid starts below the fold.
+                        Column(Modifier.fillMaxWidth().height(pageHeight)) {
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = Spacing.Tile)
+                                    .then(if (idle && settings.idleAnimation) Modifier.idleDrift() else Modifier),
+                                verticalAlignment = Alignment.Top,
+                            ) {
+                                TimeWidget()
+                                // Fades in once the first reading arrives (and out when turned off)
+                                AnimatedContent(
+                                    targetState = weather,
+                                    transitionSpec = { fadeIn(tween(500)) togetherWith fadeOut(tween(300)) },
+                                    contentKey = { it != null },
+                                    label = "weatherSlot",
+                                ) { w ->
+                                    if (w != null) {
+                                        Row {
+                                            Spacer(Modifier.width(36.dp))
+                                            Box(Modifier.padding(top = 18.dp).width(1.dp).height(84.dp).background(Palette.Hairline))
+                                            Spacer(Modifier.width(36.dp))
+                                            WeatherWidget(w, settings.weather, Modifier.padding(top = 12.dp))
+                                        }
                                     }
                                 }
+                                Spacer(Modifier.weight(1f))
+                                // Buttons fade with the apps while idle; the clock and weather stay
+                                Row(Modifier.padding(top = 8.dp).graphicsLayer { alpha = 1f - idleFade }) {
+                                    SearchPill(onClick = { searchOpen = true })
+                                    Spacer(Modifier.width(16.dp))
+                                    SettingsPill(onClick = { panelOpen = true }, focusRequester = pillFocus)
+                                }
                             }
+
                             Spacer(Modifier.weight(1f))
-                            // Buttons fade with the apps while idle; the clock and weather stay
-                            Row(Modifier.padding(top = 8.dp).graphicsLayer { alpha = 1f - idleFade }) {
-                                SearchPill(onClick = { searchOpen = true })
-                                Spacer(Modifier.width(16.dp))
-                                SettingsPill(onClick = { panelOpen = true }, focusRequester = pillFocus)
-                            }
-                        }
 
-                        Spacer(Modifier.weight(1f))
-
-                        Box(
-                            Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = favoritesRowHeight(FavoriteIcon))
-                                .graphicsLayer { alpha = 1f - idleFade },
-                            contentAlignment = Alignment.CenterStart,
-                        ) {
-                            if (pinnedApps.isEmpty()) {
-                                EmptyFavorites(loading = apps == null)
-                            } else {
-                                FavoritesRow(
-                                    apps = pinnedApps,
-                                    layout = settings.favoritesLayout,
-                                    animate = settings.favoritesAnimation,
-                                    iconSize = FavoriteIcon,
-                                    width = contentWidth,
-                                    focusFor = { app -> favoriteFocus.getOrPut(app.pkg) { FocusRequester() } },
-                                    onOpen = onOpen,
-                                    onTogglePin = { togglePin(it, fromFavorites = true) },
-                                )
-                            }
-                        }
-
-                        Spacer(Modifier.height(pageEdge))
-                    }
-
-                    SectionTitle(
-                        "All apps",
-                        hint = apps?.let { if (it.size == 1) "1 app" else "${it.size} apps" },
-                        modifier = Modifier.padding(top = 10.dp, bottom = 6.dp),
-                    )
-                    for (row in apps.orEmpty().chunked(columns)) {
-                        Row(Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
-                            for (app in row) {
-                                key(app.pkg) {
-                                    AppTile(
-                                        app = app,
-                                        iconSize = GridIcon,
-                                        showPinBadge = app.pkg in pins,
-                                        onOpen = { onOpen(app) },
-                                        onTogglePin = { togglePin(app, fromFavorites = false) },
-                                        // Equal cells across the row, with the icon centred in each
-                                        modifier = Modifier.weight(1f),
+                            Box(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = favoritesRowHeight(FavoriteIcon))
+                                    .graphicsLayer { alpha = 1f - idleFade },
+                                contentAlignment = Alignment.CenterStart,
+                            ) {
+                                if (pinnedApps.isEmpty()) {
+                                    EmptyFavorites(loading = apps == null)
+                                } else {
+                                    FavoritesRow(
+                                        apps = pinnedApps,
+                                        layout = settings.favoritesLayout,
+                                        animate = settings.favoritesAnimation,
+                                        iconSize = FavoriteIcon,
+                                        width = contentWidth,
+                                        focusFor = { app -> favoriteFocus.getOrPut(app.pkg) { FocusRequester() } },
+                                        onOpen = onOpen,
+                                        onTogglePin = { togglePin(it, fromFavorites = true) },
                                     )
                                 }
                             }
-                            repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
+
+                            Spacer(Modifier.height(pageEdge))
+                        }
+
+                        SectionTitle(
+                            "All apps",
+                            hint = apps?.let { if (it.size == 1) "1 app" else "${it.size} apps" },
+                            modifier = Modifier.padding(top = 10.dp, bottom = 6.dp),
+                        )
+                        for (row in apps.orEmpty().chunked(columns)) {
+                            Row(Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
+                                for (app in row) {
+                                    key(app.pkg) {
+                                        AppTile(
+                                            app = app,
+                                            iconSize = GridIcon,
+                                            showPinBadge = app.pkg in pins,
+                                            onOpen = { onOpen(app) },
+                                            onTogglePin = { togglePin(app, fromFavorites = false) },
+                                            // Equal cells across the row, with the icon centred in each
+                                            modifier = Modifier.weight(1f),
+                                        )
+                                    }
+                                }
+                                repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
+                            }
                         }
                     }
                 }
             }
-        }
 
-        AnimatedVisibility(
-            visible = toastVisible,
-            // Bottom centre: clear of the clock and weather on the first page
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 36.dp),
-            enter = fadeIn() + slideInVertically { it / 2 },
-            exit = fadeOut() + slideOutVertically { it / 2 },
-        ) {
-            ToastChip(toast?.message.orEmpty())
-        }
+            AnimatedVisibility(
+                visible = toastVisible,
+                // Bottom centre: clear of the clock and weather on the first page
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 36.dp),
+                enter = fadeIn() + slideInVertically { it / 2 },
+                exit = fadeOut() + slideOutVertically { it / 2 },
+            ) {
+                ToastChip(toast?.message.orEmpty())
+            }
 
-        if (panelOpen) {
-            SettingsPanel(
-                settings = settings,
-                onChange = onSettingsChange,
-                onOpenSystemSettings = onOpenSystemSettings,
-                photoError = photoError,
-                weatherError = weatherError,
-                home = home,
-                onMakeDefault = onMakeDefault,
-                onHomeHelper = onHomeHelper,
-                onAllowAutostart = onAllowAutostart,
-                onDismiss = { panelOpen = false },
-            )
-        }
+            if (panelOpen) {
+                SettingsPanel(
+                    settings = settings,
+                    onChange = onSettingsChange,
+                    onOpenSystemSettings = onOpenSystemSettings,
+                    photoError = photoError,
+                    weatherError = weatherError,
+                    home = home,
+                    onMakeDefault = onMakeDefault,
+                    onHomeHelper = onHomeHelper,
+                    onAllowAutostart = onAllowAutostart,
+                    onDismiss = { panelOpen = false },
+                )
+            }
 
-        if (searchOpen) {
-            SearchPanel(
-                apps = apps.orEmpty(),
-                pins = pins,
-                onOpen = onOpen,
-                onTogglePin = { togglePin(it, fromFavorites = false) },
-                onSystemSearch = onSystemSearch,
-                onDismiss = { searchOpen = false },
-            )
+            if (searchOpen) {
+                SearchPanel(
+                    apps = apps.orEmpty(),
+                    pins = pins,
+                    onOpen = onOpen,
+                    onTogglePin = { togglePin(it, fromFavorites = false) },
+                    onSystemSearch = onSystemSearch,
+                    onDismiss = { searchOpen = false },
+                )
+            }
         }
     }
 }
@@ -475,7 +491,7 @@ private fun SectionTitle(text: String, hint: String? = null, modifier: Modifier 
     ) {
         Text(
             text,
-            style = TextStyle(
+            style = TextStyle(fontFamily = Flex,
                 color = Palette.TextPrimary,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -486,7 +502,7 @@ private fun SectionTitle(text: String, hint: String? = null, modifier: Modifier 
             Spacer(Modifier.width(14.dp))
             Text(
                 hint,
-                style = TextStyle(color = Palette.TextTertiary, fontSize = 15.sp, shadow = TextShadow),
+                style = TextStyle(fontFamily = Flex, color = Palette.TextTertiary, fontSize = 15.sp, shadow = TextShadow),
                 modifier = Modifier.padding(bottom = 3.dp),
             )
         }
@@ -506,7 +522,7 @@ private fun EmptyFavorites(loading: Boolean) {
     ) {
         Text(
             if (loading) "Loading apps…" else "Go down to All apps and hold OK on an app to pin it here",
-            style = TextStyle(color = Palette.TextSecondary, fontSize = 17.sp, shadow = TextShadow),
+            style = TextStyle(fontFamily = Flex, color = Palette.TextSecondary, fontSize = 17.sp, shadow = TextShadow),
         )
     }
 }
@@ -516,11 +532,10 @@ private fun ToastChip(message: String) {
     val shape = RoundedCornerShape(50)
     Box(
         Modifier
-            .clip(shape)
-            .background(Palette.Panel)
-            .border(1.dp, Palette.Hairline, shape)
-            .padding(horizontal = 26.dp, vertical = 14.dp),
+            .shadow(24.dp, shape)
+            .glass(shape)
+            .padding(horizontal = 24.dp, vertical = 13.dp),
     ) {
-        Text(message, color = Palette.TextPrimary, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+        Text(message, color = Palette.TextPrimary, fontSize = 17.sp, fontWeight = FontWeight(560))
     }
 }

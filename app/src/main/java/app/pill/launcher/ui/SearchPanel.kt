@@ -103,9 +103,7 @@ fun SearchPanel(
                         .padding(top = 32.dp, start = 48.dp, end = 48.dp)
                         .fillMaxWidth()
                         .shadow(32.dp, CardShape)
-                        .clip(CardShape)
-                        .background(Palette.Panel)
-                        .border(1.dp, Palette.Hairline, CardShape)
+                        .glass(CardShape)
                         .padding(24.dp),
                 ) {
                     SearchField(query, { query = it }, Modifier.focusRequester(field))
@@ -158,7 +156,7 @@ private fun SearchField(value: String, onChange: (String) -> Unit, modifier: Mod
         value = value,
         onValueChange = onChange,
         singleLine = true,
-        textStyle = TextStyle(color = Palette.TextPrimary, fontSize = 24.sp),
+        textStyle = TextStyle(fontFamily = Flex, color = Palette.TextPrimary, fontSize = 24.sp),
         cursorBrush = SolidColor(Palette.Focus),
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
         modifier = modifier

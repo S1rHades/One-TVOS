@@ -1,6 +1,12 @@
 package app.pill.launcher.ui
 
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.text.ExperimentalTextApi
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontVariation
+import androidx.compose.ui.text.font.FontWeight
+import app.pill.launcher.R
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.unit.dp
@@ -33,3 +39,30 @@ object Spacing {
     /** Space from a tile's edge to its icon (room for the focus ring); headers are indented the same so everything lines up. */
     val Tile = 12.dp
 }
+
+/**
+ * Roboto Flex, a variable typeface (bundled Latin subset, SIL OFL; see assets/licenses).
+ * One family entry per weight the UI uses; large sizes pick up the display optical size.
+ */
+@OptIn(ExperimentalTextApi::class)
+val Flex = FontFamily(
+    listOf(250, 300, 400, 450, 500, 560, 650, 700, 800).map { w ->
+        Font(
+            R.font.roboto_flex,
+            weight = FontWeight(w),
+            variationSettings = FontVariation.Settings(FontVariation.weight(w)),
+        )
+    },
+)
+
+/** Clock and other very large, light text: the display optical size keeps strokes crisp. */
+@OptIn(ExperimentalTextApi::class)
+val FlexDisplay = FontFamily(
+    listOf(250, 300).map { w ->
+        Font(
+            R.font.roboto_flex,
+            weight = FontWeight(w),
+            variationSettings = FontVariation.Settings(FontVariation.weight(w), FontVariation.Setting("opsz", 144f)),
+        )
+    },
+)

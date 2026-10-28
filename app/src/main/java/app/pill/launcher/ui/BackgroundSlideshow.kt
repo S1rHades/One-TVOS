@@ -31,7 +31,11 @@ import coil.imageLoader
 import coil.request.ErrorResult
 import coil.request.ImageRequest
 import coil.request.SuccessResult
+import android.graphics.drawable.BitmapDrawable
+import androidx.compose.ui.graphics.ImageBitmap
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 /**
  * Nature photos bundled in the app (assets/photos), so the slideshow works without a
@@ -66,10 +70,13 @@ fun BackgroundSlideshow(
     /** Slow zoom and pan (the idle animation). Eases in and out rather than snapping. */
     drift: Boolean = false,
     onStatus: (String?) -> Unit = {},
+    /** A blurred copy of each photo as it is shown, for glass surfaces ([LocalBackdrop]). */
+    onBackdrop: (ImageBitmap) -> Unit = {},
 ) {
     if (urls.isEmpty()) return
     val context = LocalContext.current
     val report by rememberUpdatedState(onStatus)
+    val publishBackdrop by rememberUpdatedState(onBackdrop)
     // Index of the photo on screen; null until one has loaded
     var shown by remember { mutableStateOf<Int?>(null) }
 
@@ -91,6 +98,9 @@ fun BackgroundSlideshow(
             }
             when (val result = loader.execute(requestFor(candidate))) {
                 is SuccessResult -> {
+                    (result.drawable as? BitmapDrawable)?.bitmap?.let { photo ->
+                        publishBackdrop(withContext(Dispatchers.Default) { blurredBackdrop(photo) })
+                    }
                     shown = candidate % urls.size
                     failures = 0
                     report(null)

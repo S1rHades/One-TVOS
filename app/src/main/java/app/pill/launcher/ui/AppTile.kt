@@ -190,7 +190,7 @@ fun AppTile(
         Spacer(Modifier.height(8.dp))
         Text(
             app.label,
-            style = TextStyle(
+            style = TextStyle(fontFamily = Flex,
                 color = if (active) Palette.TextPrimary else Palette.TextSecondary,
                 fontSize = 15.sp,
                 fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,

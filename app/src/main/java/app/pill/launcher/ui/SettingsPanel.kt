@@ -131,9 +131,7 @@ fun SettingsPanel(
                         .width(440.dp)
                         .fillMaxHeight()
                         .shadow(32.dp, PanelShape)
-                        .clip(PanelShape)
-                        .background(Palette.Panel)
-                        .border(1.dp, Palette.Hairline, PanelShape)
+                        .glass(PanelShape)
                         .padding(horizontal = 22.dp, vertical = 22.dp),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 8.dp)) {
