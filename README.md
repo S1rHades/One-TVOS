@@ -70,6 +70,7 @@ The `latest` release is rebuilt automatically every time `main` changes, so inst
 | Open an app | **OK** |
 | See all apps | **Down** from Favorites |
 | Find an app | The magnifier (top right), then type |
+| Change how favourites are laid out | **Settings → Favorites row → Layout**: Scroll or Wrap |
 | Wake the idle screen | Any key |
 | Pin or unpin an app | Hold **OK** for half a second, or press **Menu** (☰) |
 | Open settings | Go up to the round gear button (top right), then **OK** |
