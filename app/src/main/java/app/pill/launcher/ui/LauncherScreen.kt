@@ -502,10 +502,11 @@ private fun SectionTitle(text: String, hint: String? = null, modifier: Modifier 
     ) {
         Text(
             text,
-            style = TextStyle(fontFamily = Flex,
+            style = TextStyle(
+                fontFamily = Flex,
                 color = Palette.TextPrimary,
                 fontSize = 22.sp,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight(650),
                 shadow = TextShadow,
             ),
         )
@@ -517,6 +518,15 @@ private fun SectionTitle(text: String, hint: String? = null, modifier: Modifier 
                 modifier = Modifier.padding(bottom = 3.dp),
             )
         }
+        // A thin rule fading to the right, setting the section apart without a box
+        Spacer(Modifier.width(16.dp))
+        Box(
+            Modifier
+                .weight(1f)
+                .padding(bottom = 10.dp)
+                .height(1.dp)
+                .background(Brush.horizontalGradient(listOf(Color(0x47FFFFFF), Color.Transparent))),
+        )
     }
 }
 

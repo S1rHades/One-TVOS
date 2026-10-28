@@ -61,7 +61,8 @@ fun WeatherWidget(weather: Weather, mode: WeatherMode, modifier: Modifier = Modi
             Column {
                 Text(
                     formatTemp(w.tempC, mode),
-                    style = TextStyle(fontFamily = Flex,
+                    style = TextStyle(
+                        fontFamily = Flex,
                         color = Palette.TextPrimary,
                         fontSize = 46.sp,
                         fontWeight = FontWeight.Light,

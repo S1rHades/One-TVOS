@@ -67,7 +67,8 @@ fun TimeWidget(modifier: Modifier = Modifier) {
         )
         Text(
             text = now.format(date),
-            style = TextStyle(fontFamily = Flex,
+            style = TextStyle(
+                fontFamily = Flex,
                 color = Palette.TextSecondary,
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Medium,
