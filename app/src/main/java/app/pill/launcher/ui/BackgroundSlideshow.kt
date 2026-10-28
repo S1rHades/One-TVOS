@@ -174,12 +174,7 @@ fun BackgroundScrim(modifier: Modifier = Modifier) {
         modifier
             .fillMaxSize()
             .background(
-                Brush.verticalGradient(
-                    0f to Color(0xCC000000),
-                    0.3f to Color(0x4D000000),
-                    0.55f to Color(0x66000000),
-                    1f to Color(0xE6000000),
-                ),
+                Brush.verticalGradient(*ScrimStops.map { (at, alpha) -> at to Color.Black.copy(alpha = alpha) }.toTypedArray()),
             ),
     )
 }

@@ -45,6 +45,10 @@ jobs:
           echo "SIGNING_KEYSTORE=$RUNNER_TEMP/pill.jks" >> "$GITHUB_ENV"
           echo "Signing with the permanent key"
 
+      # Fails the build if any text drops below WCAG AA contrast on any bundled photo
+      - name: Check text contrast
+        run: gradle :app:testDebugUnitTest --tests '*ContrastTest*' --no-daemon
+
       - name: Build debug APK
         env:
           SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}

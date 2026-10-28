@@ -90,9 +90,6 @@ fun DrawScope.drawBackdrop(image: ImageBitmap, screen: IntSize, origin: Offset =
     )
 }
 
-/** Tint over the blurred photo: dark enough for white text at WCAG AA everywhere. */
-private val GlassTint = Color(0x9E121826)
-
 /**
  * Frosted glass: the blurred photo behind this element, a dark tint, a hairline edge and
  * a faint top highlight. Falls back to the plain tint until the first photo has loaded.

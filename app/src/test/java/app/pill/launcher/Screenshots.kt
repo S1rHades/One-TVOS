@@ -22,6 +22,8 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.isFocused
+import org.junit.Assert.assertTrue
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performKeyInput
@@ -192,6 +194,29 @@ class Screenshots {
         compose.onRoot().performKeyInput { repeat(8) { pressKey(Key.DirectionRight) } }
         settle()
         compose.onRoot().captureRoboImage(File(out, "favorites-scroll.png").path)
+    }
+
+    /** Fast D-pad presses across favourites, quick actions and the grid never lose or strand focus. */
+    @Test
+    fun fastNavigationKeepsFocusOnScreen() {
+        show("pine-forest", pins = apps.take(12).map { it.pkg })
+        val d = Key.DirectionDown; val u = Key.DirectionUp; val l = Key.DirectionLeft; val r = Key.DirectionRight
+        val presses = listOf(r, r, r, r, r, r, u, u, l, r, d, d, d, d, r, r, r, d, d, l, l, u, u, u, u, u, l, l, l, l, l, l, d, d, d)
+        for ((i, key) in presses.withIndex()) {
+            compose.onRoot().performKeyInput { pressKey(key) }
+            compose.mainClock.advanceTimeBy(16) // a key every frame, faster than any remote repeats
+            compose.waitForIdle()
+            assertTrue("focus lost after press ${i + 1} ($key)", runCatching { compose.onNode(isFocused()).fetchSemanticsNode() }.isSuccess)
+        }
+        settle()
+        val focused = compose.onNode(isFocused()).fetchSemanticsNode().boundsInRoot
+        val screen = compose.onRoot().fetchSemanticsNode().boundsInRoot
+        val slack = 8f // focus scale may push the outline a few px past the edge
+        assertTrue(
+            "focused item $focused is not on screen $screen",
+            focused.left >= screen.left - slack && focused.top >= screen.top - slack &&
+                focused.right <= screen.right + slack && focused.bottom <= screen.bottom + slack,
+        )
     }
 
     @Test
