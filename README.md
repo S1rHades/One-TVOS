@@ -42,6 +42,13 @@
 
 <p align="center"><img src="docs/screenshots/weather-icons.png" width="620" alt="The weather widget's icons: clear, partly cloudy, cloudy, fog, rain, snow, thunderstorm, clear night and partly cloudy night"></p>
 
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/idle.png" alt="The idle screen: only the clock and weather over a slowly zooming mountain photo"><br><sub><b>Idle screen</b>: after a while without a key press, only the clock and weather stay.</sub></td>
+    <td width="50%"><img src="docs/screenshots/search.png" alt="The search panel with m typed, showing Maps, Music, Cinema and Games"><br><sub><b>Search</b>: find any app by name with the TV keyboard.</sub></td>
+  </tr>
+</table>
+
 <sub>Screenshots are rendered at 1920×1080 from the app's own interface code by <code>.github/workflows/screenshots.yml</code>. The app names and icons in them are stand-ins; on your TV you'll see your installed apps. Photos: <a href="https://picsum.photos">Lorem Picsum</a> (Unsplash licence).</sub>
 
 ## Install
@@ -62,6 +69,8 @@ The `latest` release is rebuilt automatically every time `main` changes, so inst
 | --- | --- |
 | Open an app | **OK** |
 | See all apps | **Down** from Favorites |
+| Find an app | The magnifier (top right), then type |
+| Wake the idle screen | Any key |
 | Pin or unpin an app | Hold **OK** for half a second, or press **Menu** (☰) |
 | Open settings | Go up to the round gear button (top right), then **OK** |
 | Change how often the photo changes, or the weather unit | In settings, **Left** / **Right** on that row |

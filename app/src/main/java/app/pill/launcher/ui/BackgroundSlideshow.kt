@@ -116,7 +116,9 @@ fun BackgroundSlideshow(
                 .fillMaxSize()
                 .graphicsLayer {
                     if (motion != null) {
-                        val zoom = 1f + 0.09f * amount * motion.zoom.value
+                        // Always zoomed in at least 7%, so the pan (at most 3% either way)
+                        // never uncovers an edge of the photo
+                        val zoom = 1f + amount * (0.07f + 0.05f * motion.zoom.value)
                         scaleX = zoom
                         scaleY = zoom
                         translationX = amount * motion.pan.value * size.width * 0.03f
