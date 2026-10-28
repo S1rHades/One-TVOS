@@ -22,7 +22,7 @@
 ## Highlights
 
 - **Just your apps.** The home screen shows only your favourites; everything else waits one press below, in an alphabetical grid that turns over a page at a time.
-- **Time and weather.** A big clock with the current conditions, today's high and low beside it.
+- **Widgets you choose.** Up to four frosted-glass cards across the top: clock, weather, sunrise & sunset, system info, and a tracker for Algeria's national team (Les Fennecs) with the next fixture and the latest result.
 - **Built for the remote.** Focused apps lift and get a crisp white ring, every move animates smoothly, and every action is one or two presses of the D-pad.
 - **A fresh view.** The background cross-fades between full-screen photos, and the next one is loaded before it appears, so it never flashes.
 - **Light on the TV.** One small app, written in Jetpack Compose, with no background services and no tracking.
@@ -40,11 +40,18 @@
   </tr>
 </table>
 
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/widgets.png" alt="Four widget cards across the top: the clock, Algeria's next match with the last result, sunrise and sunset on an arc, and system info"><br><sub><b>Widgets</b>: up to four cards; with four on they switch to compact layouts.</sub></td>
+    <td width="50%"><img src="docs/screenshots/widget-settings.png" alt="Settings with the Widgets group: four widgets on with their positions, System info dimmed, and a message saying Maximum of 4 widgets can be active at once"><br><sub><b>Widget settings</b>: switch widgets on and off and move them with Left / Right.</sub></td>
+  </tr>
+</table>
+
 <p align="center"><img src="docs/screenshots/weather-icons.png" width="620" alt="The weather widget's icons: clear, partly cloudy, cloudy, fog, rain, snow, thunderstorm, clear night and partly cloudy night"></p>
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/idle.png" alt="The idle screen: only the clock and weather over a slowly zooming mountain photo"><br><sub><b>Idle screen</b>: after a while without a key press, only the clock and weather stay.</sub></td>
+    <td width="50%"><img src="docs/screenshots/idle.png" alt="The idle screen: only the clock and weather over a slowly zooming mountain photo"><br><sub><b>Idle screen</b>: after a while without a key press, only the widgets stay.</sub></td>
     <td width="50%"><img src="docs/screenshots/search.png" alt="The search panel with m typed, showing Maps, Music, Cinema and Games"><br><sub><b>Search</b>: find any app by name with the TV keyboard.</sub></td>
   </tr>
 </table>
@@ -76,13 +83,19 @@ The `latest` release is rebuilt automatically every time `main` changes, so inst
 | Pin or unpin an app | Hold **OK** for half a second, or press **Menu** (☰) |
 | Open settings | Go up to the round gear button (top right), then **OK** |
 | Change how often the photo changes, or the weather unit | In settings, **Left** / **Right** on that row |
+| Turn widgets on or off | **Settings → Widgets**, **OK** on a widget (up to four at once) |
+| Reorder widgets | **Settings → Widgets**, **Left** / **Right** on a widget that's on |
 | Close settings | **Back** |
 
 Settings and favourites are saved on the TV and survive restarts and updates.
 
 ### Weather
 
-The widget finds the TV's approximate location from its internet address with [GeoJS](https://www.geojs.io/) and gets the forecast from [Open-Meteo](https://open-meteo.com/), or from [MET Norway](https://api.met.no/) if Open-Meteo can't be reached. None of them needs an account or key. It refreshes every 30 minutes. Choose °C or °F in settings, or turn it **Off** and the launcher contacts none of them. If the weather can't load, Settings shows why under the Weather row.
+The widget finds the TV's approximate location from its internet address with [GeoJS](https://www.geojs.io/) and gets the forecast from [Open-Meteo](https://open-meteo.com/), or from [MET Norway](https://api.met.no/) if Open-Meteo can't be reached. None of them needs an account or key. It refreshes every 30 minutes. Choose °C or °F in settings. Turn off both the Weather and the Sunrise & sunset widgets, and the launcher contacts none of these services. If the weather can't load, Settings shows why under the Weather widget's row. Sunrise and sunset are worked out on the TV from the same location.
+
+### Les Fennecs (Algeria)
+
+The Algeria widget shows the men's national team's next fixture (competition, crests and kick-off in the TV's time zone) and the latest result, marked W, D or L. During a match it shows **LIVE** and the score. The data comes from [TheSportsDB](https://www.thesportsdb.com/)'s free API, with no account needed. It refreshes every 30 minutes, and every 3 minutes around a match. The last good copy is saved on the TV, so the widget still has something to show when the TV is offline.
 
 ### Your own photos
 
@@ -108,14 +121,17 @@ app/src/main/java/app/pill/launcher/
   AppModel.kt            lists launchable apps (TV apps first) with their icons
   LauncherSettings.kt    settings and pinned apps in SharedPreferences
   Weather.kt             location and forecast lookup, condition names and units
+  Widgets.kt             the widget kinds, the four-widget limit, toggling and reordering
+  Fixtures.kt            Algeria's fixtures from TheSportsDB, with an offline copy
+  Daylight.kt            sunrise and sunset from latitude and longitude
   ui/
     LauncherScreen.kt    the home screen: a first page with the clock and favourites, All apps below, page scrolling
     AppTile.kt           a focusable squircle app tile
     BackgroundSlideshow.kt  photo cross-fade and the readability scrim
     SettingsPanel.kt     the floating settings card (its own dialog window, so focus stays inside)
     SettingsPill.kt      the round gear button and the gear icon
-    TimeWidget.kt        clock and date
-    WeatherWidget.kt     weather beside the clock, with drawn condition icons
+    WidgetCards.kt       the header's glass widget cards and their row
+    WeatherWidget.kt     the weather card's content, with drawn condition icons
     Theme.kt             shared colours and spacing
     Squircle.kt          the superellipse tile shape
 app/src/test/.../Screenshots.kt   Robolectric + Roborazzi renders for this README
