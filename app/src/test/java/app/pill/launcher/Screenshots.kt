@@ -22,6 +22,8 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.isFocused
 import org.junit.Assert.assertTrue
 import androidx.compose.ui.test.hasSetTextAction
@@ -95,7 +97,20 @@ class Screenshots {
         "Travel" to 0xFF00A2C7, "Clock" to 0xFF5B5BD6, "Gallery" to 0xFFAB4ABA,
     ).map { (label, color) -> fakeApp(label, color.toInt()) }
 
-    private val weather = Weather(tempC = 22.4, highC = 25.0, lowC = 16.0, code = 2, isDay = true, place = "Lisbon")
+    private val weather = Weather(tempC = 22.4, highC = 25.0, lowC = 16.0, code = 2, isDay = true, place = "Lisbon", lat = 38.72, lon = -9.14)
+
+    /** In TheSportsDB's shape, so the parsing is exercised too. Kick-off three days from now. */
+    private val fixtures = run {
+        val kickoff = java.time.LocalDateTime.now(java.time.ZoneOffset.UTC).plusDays(3).withHour(17).withMinute(0).withSecond(0).withNano(0)
+        fun event(home: String, away: String, homeId: String, awayId: String, league: String, at: String, hs: String?, aws: String?, status: String) =
+            """{"strHomeTeam":"$home","strAwayTeam":"$away","idHomeTeam":"$homeId","idAwayTeam":"$awayId","strLeague":"$league",""" +
+                """"strTimestamp":"$at","intHomeScore":${hs ?: "null"},"intAwayScore":${aws ?: "null"},"strStatus":"$status"}"""
+        parseFixtures(
+            """{"events":[${event("Algeria", "Togo", "134516", "136484", "African Cup of Nations Qualifying", kickoff.toString() + ":00", null, null, "NS")}]}""",
+            """{"results":[${event("Algeria", "Niger", "134516", "136491", "International Friendlies", "2026-10-06T17:00:00", "\"2\"", "\"1\"", "FT")}]}""",
+            java.time.Instant.now(),
+        )
+    }
 
     private val favorites = listOf("Cinema", "Live TV", "Music", "Photos", "Podcasts").map(::pkg)
 
@@ -219,6 +234,28 @@ class Screenshots {
         )
     }
 
+    /** Four widgets (the most allowed) switch to compact cards and all fit beside the buttons. */
+    @Test
+    fun widgets() {
+        val four = listOf(WidgetKind.Clock, WidgetKind.Fennecs, WidgetKind.Daylight, WidgetKind.System)
+        show("mountain-lake", pins = favorites, settings = LauncherSettings(weather = WeatherMode.Celsius, widgets = four))
+        for (label in listOf("NEXT", "DAYLIGHT", "SYSTEM")) compose.onNodeWithText(label).assertIsDisplayed()
+        compose.onRoot().captureRoboImage(File(out, "widgets.png").path)
+    }
+
+    /** With four on, turning on a fifth is refused with a toast. */
+    @Test
+    fun widgetLimit() {
+        val four = listOf(WidgetKind.Clock, WidgetKind.Weather, WidgetKind.Fennecs, WidgetKind.Daylight)
+        show("aurora-sky", pins = favorites, settings = LauncherSettings(weather = WeatherMode.Celsius, widgets = four))
+        compose.onNodeWithContentDescription("Settings").performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNodeWithText("System info").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNodeWithText("Maximum of 4 widgets can be active at once").assertIsDisplayed()
+        captureScreenRoboImage(File(out, "widget-settings.png").path)
+    }
+
     @Test
     fun firstLaunch() {
         show("pine-forest", pins = emptyList())
@@ -239,6 +276,7 @@ class Screenshots {
         pins: List<String>,
         settings: LauncherSettings = LauncherSettings(weather = WeatherMode.Celsius),
     ) {
+        check(fixtures.next != null && fixtures.last?.outcome == 'W') { "fixtures didn't parse: $fixtures" }
         useBackground(photo)
         compose.setContent {
             var pinned by remember { mutableStateOf(pins) }
@@ -246,6 +284,7 @@ class Screenshots {
             LauncherScreen(
                 apps = apps,
                 weather = weather,
+                fixtures = fixtures,
                 pins = pinned,
                 settings = current,
                 onSettingsChange = { current = it },

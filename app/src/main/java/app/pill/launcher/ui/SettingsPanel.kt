@@ -11,6 +11,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -39,6 +41,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -67,7 +71,11 @@ import app.pill.launcher.FavoritesLayout
 import app.pill.launcher.FavoritesStyle
 import app.pill.launcher.HomeStatus
 import app.pill.launcher.LauncherSettings
+import app.pill.launcher.MaxWidgets
 import app.pill.launcher.WeatherMode
+import app.pill.launcher.WidgetKind
+import app.pill.launcher.moved
+import app.pill.launcher.toggled
 import kotlinx.coroutines.delay
 
 private const val PANEL_MS = 320
@@ -97,6 +105,16 @@ fun SettingsPanel(
     var defaultNote by remember { mutableStateOf<String?>(null) }
     var helperNote by remember { mutableStateOf<String?>(null) }
     var autostartNote by remember { mutableStateOf<String?>(null) }
+    // Each press on a widget past the limit shows the toast again
+    var limitToasts by remember { mutableIntStateOf(0) }
+    var limitToastShown by remember { mutableStateOf(false) }
+    LaunchedEffect(limitToasts) {
+        if (limitToasts > 0) {
+            limitToastShown = true
+            delay(2600)
+            limitToastShown = false
+        }
+    }
     val firstRow = remember { FocusRequester() }
     val visible = remember { MutableTransitionState(false).apply { targetState = true } }
     val close = { visible.targetState = false }
@@ -170,27 +188,51 @@ fun SettingsPanel(
                                 Stepper(formatInterval(settings.intervalSec), current > 0, current < options.lastIndex, focused)
                             }
 
-                            val modes = WeatherMode.entries
-                            val mode = modes.indexOf(settings.weather)
+                            // Shown or hidden under Widgets; only the unit lives here
+                            val units = listOf(WeatherMode.Celsius, WeatherMode.Fahrenheit)
+                            val unit = units.indexOf(settings.weather).coerceAtLeast(0)
                             SettingRow(
-                                title = "Weather",
-                                subtitle = when (settings.weather) {
-                                    WeatherMode.Off -> "Hidden"
-                                    else -> weatherError?.let { "Can't get the weather: $it" } ?: "Beside the clock, for your approximate area"
-                                },
-                                onClick = { onChange(settings.copy(weather = modes[(mode + 1) % modes.size])) },
+                                title = "Temperature unit",
+                                subtitle = "For the weather widget",
+                                onClick = { onChange(settings.copy(weather = units[(unit + 1) % units.size])) },
                                 onStep = { by ->
-                                    val next = (mode + by).coerceIn(0, modes.lastIndex)
-                                    if (next != mode) onChange(settings.copy(weather = modes[next]))
+                                    val next = (unit + by).coerceIn(0, units.lastIndex)
+                                    if (next != unit) onChange(settings.copy(weather = units[next]))
                                 },
                             ) { focused ->
-                                Stepper(weatherLabel(settings.weather), mode > 0, mode < modes.lastIndex, focused)
+                                Stepper(weatherLabel(settings.weather), unit > 0, unit < units.lastIndex, focused)
                             }
                             SettingRow(
                                 title = "Ambient light",
                                 subtitle = if (settings.ambientLight) "Tints the photo with the focused app's colour" else "Photo shown as it is",
                                 onClick = { onChange(settings.copy(ambientLight = !settings.ambientLight)) },
                             ) { focused -> Switch(checked = settings.ambientLight, focused = focused) }
+                        }
+
+                        Group("Widgets · ${settings.widgets.size} of $MaxWidgets on") {
+                            // On widgets first, in header order, then the others
+                            val ordered = settings.widgets + WidgetKind.entries.filter { it !in settings.widgets }
+                            for (kind in ordered) {
+                                key(kind) {
+                                    val position = settings.widgets.indexOf(kind)
+                                    val on = position >= 0
+                                    val full = !on && settings.widgets.size >= MaxWidgets
+                                    SettingRow(
+                                        title = kind.title,
+                                        subtitle = when {
+                                            on && kind == WidgetKind.Weather && weatherError != null -> "Can't get the weather: $weatherError"
+                                            on && settings.widgets.size > 1 -> "Position ${position + 1} of ${settings.widgets.size} · Left / Right to move"
+                                            full -> "Turn another widget off first"
+                                            else -> kind.description
+                                        },
+                                        dimmed = full,
+                                        onClick = {
+                                            if (full) limitToasts++ else onChange(settings.copy(widgets = settings.widgets.toggled(kind)))
+                                        },
+                                        onStep = if (!on) null else { by -> onChange(settings.copy(widgets = settings.widgets.moved(kind, by))) },
+                                    ) { focused -> Switch(checked = on, focused = focused) }
+                                }
+                            }
                         }
 
                         Group("Favorites row") {
@@ -243,7 +285,7 @@ fun SettingsPanel(
                                 subtitle = if (settings.idleMinutes == 0) {
                                     "Never: the apps always stay on screen"
                                 } else {
-                                    "Without a key press, only the clock and weather stay"
+                                    "Without a key press, only the widgets stay"
                                 },
                                 onClick = { onChange(settings.copy(idleMinutes = idleOptions[(idleIndex + 1) % idleOptions.size])) },
                                 onStep = { by ->
@@ -319,6 +361,15 @@ fun SettingsPanel(
                     Footer()
                 }
             }
+            // Over the bottom of the panel, centred on it
+            AnimatedVisibility(
+                visible = limitToastShown,
+                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 24.dp, bottom = 40.dp).width(440.dp),
+                enter = fadeIn() + slideInVertically { it / 2 },
+                exit = fadeOut() + slideOutVertically { it / 2 },
+            ) {
+                Box(contentAlignment = Alignment.Center) { ToastChip("Maximum of $MaxWidgets widgets can be active at once") }
+            }
         }
     }
 }
@@ -328,7 +379,7 @@ private fun idleLabel(minutes: Int): String = if (minutes == 0) "Off" else "$min
 private fun formatInterval(sec: Int): String = if (sec % 60 == 0) "${sec / 60} min" else "$sec s"
 
 private fun weatherLabel(mode: WeatherMode): String = when (mode) {
-    WeatherMode.Off -> "Off"
+    WeatherMode.Off -> "Off" // only in settings saved before widgets
     WeatherMode.Celsius -> "°C"
     WeatherMode.Fahrenheit -> "°F"
 }
@@ -367,6 +418,8 @@ private fun SettingRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    /** Looks unavailable but still takes focus and clicks (to explain why). */
+    dimmed: Boolean = false,
     onStep: ((Int) -> Unit)? = null,
     trailing: @Composable (focused: Boolean) -> Unit,
 ) {
@@ -385,7 +438,7 @@ private fun SettingRow(
                 scaleX = scale
                 scaleY = scale
             }
-            .alpha(if (enabled) 1f else 0.4f)
+            .alpha(if (enabled && !dimmed) 1f else 0.4f)
             .clip(RowShape)
             .background(bg)
             .onFocusChanged { focused = it.isFocused }

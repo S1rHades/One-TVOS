@@ -1,10 +1,8 @@
 package app.pill.launcher.ui
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -94,6 +92,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.pill.launcher.AppEntry
+import app.pill.launcher.Fixtures
 import app.pill.launcher.FavoritesLayout
 import app.pill.launcher.HomeStatus
 import app.pill.launcher.LauncherSettings
@@ -120,6 +119,8 @@ fun LauncherScreen(
     weather: Weather?,
     /** Why the last weather fetch failed, shown in settings; null when it works. */
     weatherError: String? = null,
+    /** Algeria's next and latest match, for the Les Fennecs widget. */
+    fixtures: Fixtures? = null,
     pins: List<String>,
     settings: LauncherSettings,
     onSettingsChange: (LauncherSettings) -> Unit,
@@ -200,7 +201,7 @@ fun LauncherScreen(
         focusFirstPage()
     }
 
-    // Idle: after idleMinutes without a key press, everything but the clock and weather fades
+    // Idle: after idleMinutes without a key press, everything but the widgets fades
     // out. Each key press restarts the timer; panels open hold it off.
     LaunchedEffect(settings.idleMinutes, lastInput, panelOpen, searchOpen) {
         if (settings.idleMinutes == 0 || panelOpen || searchOpen) return@LaunchedEffect
@@ -318,25 +319,17 @@ fun LauncherScreen(
                                     .then(if (idle && settings.idleAnimation) Modifier.idleDrift() else Modifier),
                                 verticalAlignment = Alignment.Top,
                             ) {
-                                TimeWidget()
-                                // Fades in once the first reading arrives (and out when turned off)
-                                AnimatedContent(
-                                    targetState = weather,
-                                    transitionSpec = { fadeIn(tween(500)) togetherWith fadeOut(tween(300)) },
-                                    contentKey = { it != null },
-                                    label = "weatherSlot",
-                                ) { w ->
-                                    if (w != null) {
-                                        Row {
-                                            Spacer(Modifier.width(36.dp))
-                                            Box(Modifier.padding(top = 18.dp).width(1.dp).height(84.dp).background(Palette.Hairline))
-                                            Spacer(Modifier.width(36.dp))
-                                            WeatherWidget(w, settings.weather, Modifier.padding(top = 12.dp), animate = !idle)
-                                        }
-                                    }
-                                }
-                                Spacer(Modifier.weight(1f))
-                                // Buttons fade with the apps while idle; the clock and weather stay
+                                WidgetRow(
+                                    widgets = settings.widgets,
+                                    weather = weather,
+                                    weatherError = weatherError,
+                                    mode = settings.weather,
+                                    fixtures = fixtures,
+                                    animate = !idle,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                Spacer(Modifier.width(16.dp))
+                                // Buttons fade with the apps while idle; the widgets stay
                                 Row(Modifier.padding(top = 8.dp).graphicsLayer { alpha = 1f - idleFade }) {
                                     QuickActions(
                                         onSearch = { searchOpen = true },
@@ -406,7 +399,7 @@ fun LauncherScreen(
 
             AnimatedVisibility(
                 visible = toastVisible,
-                // Bottom centre: clear of the clock and weather on the first page
+                // Bottom centre: clear of the widgets on the first page
                 modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 36.dp),
                 enter = fadeIn() + slideInVertically { it / 2 },
                 exit = fadeOut() + slideOutVertically { it / 2 },
@@ -578,7 +571,7 @@ private fun EmptyFavorites(loading: Boolean) {
 }
 
 @Composable
-private fun ToastChip(message: String) {
+internal fun ToastChip(message: String) {
     val shape = RoundedCornerShape(50)
     Box(
         Modifier
