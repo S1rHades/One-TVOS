@@ -15,6 +15,9 @@ data class Weather(
     val code: Int,
     val isDay: Boolean,
     val place: String,
+    /** Where the reading is for, also used for sunrise and sunset. */
+    val lat: Double = Double.NaN,
+    val lon: Double = Double.NaN,
 )
 
 enum class Sky { Clear, PartlyCloudy, Cloudy, Fog, Rain, Snow, Storm }
@@ -62,8 +65,8 @@ fun fetchWeather(): Result<Weather> = runCatching {
     val lon = geo.getString("longitude").toDouble()
     val place = geo.optString("city")
     // Some networks cannot reach Open-Meteo at all; MET Norway covers the whole world too
-    runCatching { openMeteo(lat, lon, place) }.getOrElse { first ->
-        runCatching { metNorway(lat, lon, place) }.getOrElse { second ->
+    runCatching { openMeteo(lat, lon, place).copy(lat = lat, lon = lon) }.getOrElse { first ->
+        runCatching { metNorway(lat, lon, place).copy(lat = lat, lon = lon) }.getOrElse { second ->
             // Name both failures so the message in Settings says what each service did
             throw IOException("Open-Meteo: ${shortName(first)}, MET Norway: ${shortName(second)}")
         }
@@ -142,7 +145,7 @@ private fun wmoCodeFor(symbol: String): Int {
     }
 }
 
-private fun httpGet(url: String, userAgent: String? = null): String {
+internal fun httpGet(url: String, userAgent: String? = null): String {
     val connection = URL(url).openConnection() as HttpURLConnection
     connection.connectTimeout = 8000
     connection.readTimeout = 8000

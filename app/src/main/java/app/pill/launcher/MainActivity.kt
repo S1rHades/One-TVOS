@@ -3,6 +3,8 @@ package app.pill.launcher
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.os.Bundle
+import java.time.Duration
+import java.time.Instant
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -20,6 +22,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 private const val REFRESH_MS = 30 * 60 * 1000L
+private const val LIVE_REFRESH_MS = 3 * 60 * 1000L
 /** Waits between attempts while the weather cannot be fetched (no network yet at boot, say). */
 private val RetryDelaysMs = listOf(10_000L, 30_000L, 60_000L, 2 * 60_000L, 5 * 60_000L)
 
@@ -28,10 +31,12 @@ class MainActivity : ComponentActivity() {
     private var refresh by mutableIntStateOf(0)
     private var homePresses by mutableIntStateOf(0)
     private lateinit var store: SettingsStore
+    private lateinit var fixturesSource: FixturesSource
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         store = SettingsStore(this)
+        fixturesSource = FixturesSource(this)
 
         setContent {
             // null until the first scan finishes; later refreshes keep the old list on screen
@@ -40,8 +45,9 @@ class MainActivity : ComponentActivity() {
             }
             var pins by remember { mutableStateOf(store.readPins()) }
             var settings by remember { mutableStateOf(store.load()) }
-            // Refreshed every 30 minutes while the widget is on; the last reading stays up if a refresh fails
-            val weatherOn = settings.weather != WeatherMode.Off
+            // Refreshed every 30 minutes while a widget needs it; the last reading stays up if a refresh fails.
+            // Sunrise and sunset need only the location that comes with it.
+            val weatherOn = WidgetKind.Weather in settings.widgets || WidgetKind.Daylight in settings.widgets
             var weatherError by remember { mutableStateOf<String?>(null) }
             val weather by produceState<Weather?>(null, weatherOn) {
                 var failures = 0
@@ -50,6 +56,29 @@ class MainActivity : ComponentActivity() {
                     result.onSuccess { value = it; weatherError = null; failures = 0 }
                     result.onFailure { weatherError = describe(it); failures++ }
                     delay(if (result.isSuccess) REFRESH_MS else RetryDelaysMs[(failures - 1).coerceAtMost(RetryDelaysMs.lastIndex)])
+                }
+            }
+
+            // Algeria's fixtures: the saved copy at once, then fresh ones every 30 minutes, every 3 around a match
+            val fennecsOn = WidgetKind.Fennecs in settings.widgets
+            val savedFixtures = remember { fixturesSource.cached() }
+            val fixtures by produceState(savedFixtures, fennecsOn) {
+                var failures = 0
+                while (fennecsOn) {
+                    val result = withContext(Dispatchers.IO) { fixturesSource.fetch() }
+                    result.onSuccess { value = it; failures = 0 }
+                    result.onFailure { failures++; value = value?.copy(fromCache = true) }
+                    val soon = value?.let { f ->
+                        val now = Instant.now()
+                        f.next?.kickoff?.let { Duration.between(now, it).abs() < Duration.ofHours(3) } == true || f.last?.isLive(now) == true
+                    } == true
+                    delay(
+                        when {
+                            result.isFailure -> RetryDelaysMs[(failures - 1).coerceAtMost(RetryDelaysMs.lastIndex)]
+                            soon -> LIVE_REFRESH_MS
+                            else -> REFRESH_MS
+                        },
+                    )
                 }
             }
 
@@ -63,6 +92,7 @@ class MainActivity : ComponentActivity() {
                 apps = apps,
                 weather = weather.takeIf { weatherOn },
                 weatherError = weatherError.takeIf { weatherOn },
+                fixtures = fixtures,
                 pins = pins,
                 settings = settings,
                 onSettingsChange = {

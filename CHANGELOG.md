@@ -3,6 +3,13 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 2.1 (October 2026)
+
+- **Widgets**: the clock and weather are now frosted-glass cards in one band across the top (the divider between them is gone), each with a soft wash of colour that follows what it shows. Cards rise in when turned on, fade out when turned off and glide when moved.
+- **Les Fennecs**: a new widget for Algeria's national team, showing the next match (competition, crests, kick-off in your time zone) and the latest result with W / D / L. During a match it shows LIVE and the score. It keeps the last copy for when the TV is offline.
+- **Sunrise & sunset** and **System info** (connection and free storage) widgets.
+- **Settings → Widgets**: turn each widget on or off, up to four at once. Turning on a fifth explains the limit. Press Left / Right on a widget that's on to move it. The weather's on/off switch moved here; the °C / °F choice stays under Home screen.
+
 ## 2.0 (October 2026)
 
 - **Icons with depth**: when you focus an app whose icon has layers, the artwork lifts a little off its background, like on Apple TV.

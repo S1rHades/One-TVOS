@@ -9,7 +9,7 @@ enum class FavoritesLayout { Scroll, Wrap }
 /** How favourites look: wide app artwork (TV banners) or square icons. */
 enum class FavoritesStyle { Banners, Icons }
 
-/** What the weather widget shows: nothing, or the temperature in one unit. */
+/** The unit the weather widget shows temperatures in. Off is only read from older settings. */
 enum class WeatherMode { Off, Celsius, Fahrenheit }
 
 data class LauncherSettings(
@@ -28,6 +28,8 @@ data class LauncherSettings(
     val favoritesStyle: FavoritesStyle = FavoritesStyle.Banners,
     /** Tint the photo with the focused app's colour. */
     val ambientLight: Boolean = true,
+    /** Header cards, in display order; at most [MaxWidgets]. */
+    val widgets: List<WidgetKind> = DefaultWidgets,
 ) {
     companion object {
         val IntervalOptions = listOf(10, 20, 30, 60)
@@ -60,7 +62,10 @@ class SettingsStore(context: Context) {
             ?.let { name -> FavoritesStyle.entries.firstOrNull { it.name == name } }
             ?: FavoritesStyle.Banners,
         ambientLight = prefs.getBoolean("ambientLight", true),
-    )
+        // Before widgets, the weather setting had an Off choice; it maps to the widget being off
+        widgets = parseWidgets(prefs.getString("widgets", null))
+            ?: if (prefs.getString("weather", null) == WeatherMode.Off.name) DefaultWidgets - WidgetKind.Weather else DefaultWidgets,
+    ).let { if (it.weather == WeatherMode.Off) it.copy(weather = defaultWeatherMode()) else it }
 
     fun save(settings: LauncherSettings) {
         prefs.edit()
@@ -74,6 +79,7 @@ class SettingsStore(context: Context) {
             .putBoolean("favoritesAnimation", settings.favoritesAnimation)
             .putString("favoritesStyle", settings.favoritesStyle.name)
             .putBoolean("ambientLight", settings.ambientLight)
+            .putString("widgets", settings.widgets.toStored())
             .apply()
     }
 

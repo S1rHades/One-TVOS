@@ -61,9 +61,9 @@ private val CloudColor = Color(0xFFF1F3F8)
 private val CloudShade = Color(0xFFC9CFDC)
 private val RainColor = Color(0xFF74C0FC)
 
-/** Condition icon, temperature and today's range. Fades between readings. */
+/** Condition icon, temperature and today's range, for the weather card. Fades between readings. */
 @Composable
-fun WeatherWidget(weather: Weather, mode: WeatherMode, modifier: Modifier = Modifier, animate: Boolean = true) {
+fun WeatherWidget(weather: Weather, mode: WeatherMode, compact: Boolean, modifier: Modifier = Modifier, animate: Boolean = true) {
     // The icon moves in short bursts (on each new reading, then every 40 s) rather than
     // constantly, so the screen can rest between them. None with "remove animations" on.
     val context = LocalContext.current
@@ -94,28 +94,30 @@ fun WeatherWidget(weather: Weather, mode: WeatherMode, modifier: Modifier = Modi
         label = "weather",
     ) { w ->
         Row(verticalAlignment = Alignment.CenterVertically) {
-            WeatherIcon(skyFor(w.code), w.isDay, 60.dp, motion = { progress.value }, cycles = { cycles })
-            Spacer(Modifier.width(14.dp))
+            WeatherIcon(skyFor(w.code), w.isDay, if (compact) 44.dp else 52.dp, motion = { progress.value }, cycles = { cycles })
+            Spacer(Modifier.width(if (compact) 10.dp else 14.dp))
             Column {
                 Text(
                     formatTemp(w.tempC, mode),
                     style = TextStyle(
                         fontFamily = Flex,
                         color = Palette.TextPrimary,
-                        fontSize = 46.sp,
+                        fontSize = if (compact) 34.sp else 40.sp,
                         fontWeight = FontWeight.Light,
-                        shadow = TextShadow,
                     ),
                 )
-                Text(
-                    listOf(describe(w.code), w.place).filter { it.isNotBlank() }.joinToString("  ·  "),
-                    style = TextStyle(fontFamily = Flex, color = Palette.TextSecondary, fontSize = 18.sp, fontWeight = FontWeight.Medium, shadow = TextShadow),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                // Compact cards drop the condition; the icon shows it
+                if (!compact) {
+                    Text(
+                        describe(w.code),
+                        style = TextStyle(fontFamily = Flex, color = Palette.TextSecondary, fontSize = if (compact) 14.sp else 16.sp, fontWeight = FontWeight.Medium),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
                 Text(
                     "H ${formatTemp(w.highC, mode)}   L ${formatTemp(w.lowC, mode)}",
-                    style = TextStyle(fontFamily = Flex, color = Palette.TextTertiary, fontSize = 16.sp, shadow = TextShadow),
+                    style = TextStyle(fontFamily = Flex, color = Palette.TextTertiary, fontSize = if (compact) 13.sp else 15.sp),
                 )
             }
         }
