@@ -217,8 +217,8 @@ private fun Modifier.edgeFade(state: LazyListState, index: Int, zone: Float) = g
     val left = if (state.canScrollBackward) ((zone - start) / zone).coerceIn(0f, 1f) else 0f
     // Ease in, so the fade is gentle at first and fuller right at the edge
     val t = maxOf(right, left).let { it * it * (3 - 2 * it) }
-    alpha = 1f - 0.88f * t
-    val scale = 1f - 0.08f * t
+    alpha = 1f - 0.7f * t
+    val scale = 1f - 0.06f * t
     scaleX = scale
     scaleY = scale
 }
