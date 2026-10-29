@@ -122,6 +122,7 @@ class Screenshots {
 
     /** Algeria with a match [inMinutes] from now (today), and Arsenal from the saved answers. */
     private fun matchDay(inMinutes: Long): List<Fixtures> {
+        // The feed's times are UTC; "today" is the TV's own day
         val kickoff = java.time.LocalDateTime.now(java.time.ZoneOffset.UTC).plusMinutes(inMinutes).withSecond(0).withNano(0)
         val next = """{"events":[{"idEvent":"77","strHomeTeam":"Algeria","idHomeTeam":"134516","strAwayTeam":"Togo","idAwayTeam":"136484",""" +
             """"strLeague":"African Cup of Nations Qualifying","idLeague":"5520","strSeason":"2027","strTimestamp":"$kickoff:00","strStatus":"NS","strVenue":"Stade Nelson-Mandela"}]}"""
@@ -381,7 +382,10 @@ class Screenshots {
     /** Match day: the football card counts down to kick-off and stays on the team that plays. */
     @Test
     fun matchDayCard() {
-        show("mountain-lake", pins = favorites, football = matchDay(inMinutes = 135))
+        // Later today; just before midnight, minutes away instead (the countdown shows either way)
+        val now = java.time.LocalDateTime.now()
+        val inMinutes = if (now.plusMinutes(135).toLocalDate() == now.toLocalDate()) 135L else 5L
+        show("mountain-lake", pins = favorites, football = matchDay(inMinutes))
         compose.onNodeWithText("KICK-OFF IN", substring = true).assertIsDisplayed()
         compose.onRoot().captureRoboImage(File(out, "match-day.png").path)
     }
