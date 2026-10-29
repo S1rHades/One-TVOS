@@ -22,7 +22,7 @@
 ## Highlights
 
 - **Just your apps.** The home screen shows only your favourites; everything else waits one press below, in an alphabetical grid that turns over a page at a time.
-- **Widgets you choose.** Up to four frosted-glass cards across the top: clock, weather, sunrise & sunset, system info, and a tracker for Algeria's national team (Les Fennecs) with the next fixture and the latest result.
+- **Widgets you choose.** Up to four frosted-glass cards across the top: clock, weather (OK opens the forecast), sunrise & sunset, system info, headlines from Al Jazeera English and RT English by topic, and football for Algeria and the teams you follow, with a match-day countdown and a kick-off reminder.
 - **Built for the remote.** Focused apps lift and get a crisp white ring, every move animates smoothly, and every action is one or two presses of the D-pad.
 - **A fresh view.** The background cross-fades between full-screen photos, and the next one is loaded before it appears, so it never flashes.
 - **Light on the TV.** One small app, written in Jetpack Compose, with no background services and no tracking.
@@ -51,6 +51,21 @@
   <tr>
     <td width="50%"><img src="docs/screenshots/widgets.png" alt="Four widget cards across the top: the clock, Algeria's next match with the last result, sunrise and sunset on an arc, and system info"><br><sub><b>Widgets</b>: up to four cards; with four on they switch to compact layouts.</sub></td>
     <td width="50%"><img src="docs/screenshots/widget-settings.png" alt="Settings with the Widgets group: four widgets on with their positions, System info dimmed, and a message saying Maximum of 4 widgets can be active at once"><br><sub><b>Widget settings</b>: switch widgets on and off and move them with Left / Right.</sub></td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/match-day.png" alt="Match day: the football card is green and counts down to Algeria v Togo's kick-off"><br><sub><b>Match day</b>: the football card counts down to kick-off.</sub></td>
+    <td width="50%"><img src="docs/screenshots/kickoff-banner.png" alt="A banner at the bottom: Les Fennecs kick off in 8 minutes, Algeria v Togo, AFCON qualifier"><br><sub><b>Kick-off reminder</b>: ten minutes before, a banner that never gets in the way.</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/football-hub.png" alt="The football page: chips for Algeria and Arsenal, Arsenal's next match and latest result, and the top five of the Premier League"><br><sub><b>Football page</b>: OK on the card for the next match, the latest result and the table.</sub></td>
+    <td width="50%"><img src="docs/screenshots/settings-football.png" alt="Settings, Football teams: Algeria and Arsenal followed, a search for alg listing MC Alger"><br><sub><b>Follow teams</b>: search for a club or country and add up to five beside Algeria.</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/forecast.png" alt="The forecast page: now, the next twelve hours with icons and chance of rain, and seven days with temperature bars"><br><sub><b>Forecast</b>: OK on the weather card for the next hours and days.</sub></td>
+    <td width="50%"><img src="docs/screenshots/headlines.png" alt="Four widgets with a headlines card showing a Russia story from RT"><br><sub><b>Headlines</b>: one story at a time, picked by topic.</sub></td>
   </tr>
 </table>
 
@@ -105,18 +120,34 @@ The `latest` release is rebuilt automatically every time `main` changes, so inst
 | Change how often the photo changes, or the weather unit | In settings, **Left** / **Right** on that row |
 | Turn widgets on or off | **Settings → Widgets**, **OK** on a widget (up to four at once) |
 | Reorder widgets | **Settings → Widgets**, **Left** / **Right** on a widget that's on |
+| See the forecast, the football page or a headline's summary | Go up to that widget, then **OK** (**Back** closes it) |
+| Follow more teams, or change match day | **Settings → Widgets → Football teams** |
+| Choose headline topics | **Settings → Widgets → Headlines** |
+| Hide the kick-off reminder | **Back** (it also goes by itself after 30 seconds) |
 | Free up memory, or open the TV's network, display, sound or update screens | **Settings → TV & system** |
 | Close settings | **Back** |
 
 Settings and favourites are saved on the TV and survive restarts and updates.
 
-### Weather
+### Weather and forecast
 
 The widget finds the TV's approximate location from its internet address with [GeoJS](https://www.geojs.io/) and gets the forecast from [Open-Meteo](https://open-meteo.com/), or from [MET Norway](https://api.met.no/) if Open-Meteo can't be reached. None of them needs an account or key. It refreshes every 30 minutes. Choose °C or °F in settings. Turn off both the Weather and the Sunrise & sunset widgets, and the launcher contacts none of these services. If the weather can't load, Settings shows why under the Weather widget's row. Sunrise and sunset are worked out on the TV from the same location.
 
-### Les Fennecs (Algeria)
+OK on the weather card opens the forecast: now (with "feels like", humidity, wind, UV, sunrise and sunset), the next twelve hours with the chance of rain, and seven days. MET Norway gives no "feels like", UV or chance of rain, so with it the page shows the expected rain in mm instead. The last reading is saved on the TV, so the card and the forecast show at once after a restart and while offline.
 
-The Algeria widget shows the men's national team's next fixture (competition, crests and kick-off in the TV's time zone) and the latest result, marked W, D or L. During a match it shows **LIVE** and the score. The data comes from [TheSportsDB](https://www.thesportsdb.com/)'s free API, with no account needed. If a TV can't reach TheSportsDB, it reads a copy that the **Fixtures mirror** workflow (`.github/workflows/fixtures.yml`) refreshes every 30 minutes on the `fixtures-data` branch. It refreshes every 30 minutes, and every 3 minutes around a match. The last good copy is saved on the TV, so the widget still has something to show when the TV is offline.
+### Football
+
+The football widget follows Algeria's men's team (always first) and up to five more teams you add under **Settings → Widgets → Football teams**: search for a club or a country. The card takes turns between them every 20 seconds, each with its next fixture (competition, crests and kick-off in the TV's time zone) and latest result, marked W, D or L. During a match it shows **LIVE** and the score. OK on the card opens the football page: the next match with its venue, the latest result, and the top of the league table where there is one.
+
+**Match day**: on the day a followed team plays, the card stays on that team and counts down to kick-off, and ten minutes before, a banner says so (it never takes focus: **Back** hides it, and it goes by itself after 30 seconds). Choose all teams, Algeria only, or off under **Football teams → Match day**.
+
+The data comes from [TheSportsDB](https://www.thesportsdb.com/)'s free API, with no account needed. The free data has one next match and one latest result per team, and only the top five of a table. Many TVs can't reach TheSportsDB (its Cloudflare protection turns some away), so the **Fixtures mirror** workflow (`.github/workflows/fixtures.yml`, `.github/scripts/mirror.py`) keeps copies on the `fixtures-data` branch for Algeria (every 30 minutes) and for about 120 clubs and national teams listed in `.github/mirror/teams.txt` (each every few hours, and every 30 minutes around its matches). Search shows which teams work on any network; others need the TV to reach TheSportsDB directly. To add a team for every network, add its name to `teams.txt`. The widget refreshes every 30 minutes, and every 3 minutes around a match. Each team's last good copy is saved on the TV.
+
+### Headlines
+
+The headlines widget shows one story at a time from [Al Jazeera English](https://www.aljazeera.com/) and [RT English](https://www.rt.com/), newest first, a new one every 20 seconds. OK opens its summary; **Left** / **Right** there reads the others. Neither site has feeds by topic, so the launcher picks stories itself, by section and by words in the headline and summary, for the topics on under **Settings → Widgets → Headlines**: Algeria, Russia and International politics by default, plus Africa & Middle East, Economy and Sport. If nothing matches, it shows the newest stories as top stories.
+
+Al Jazeera is read from its RSS feed, or from a copy the Fixtures mirror keeps on `fixtures-data` (headline, link, date and short summary only). RT is only ever read directly by the TV: it is banned from distribution in the EU and blocked in some other countries, so it is never copied to GitHub. Where it is blocked, Settings says "Not available on this network" and the widget carries on with Al Jazeera.
 
 ### Online photos
 
