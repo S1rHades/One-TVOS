@@ -196,7 +196,10 @@ private fun TeamChip(team: Team, selected: Boolean, onSelect: () -> Unit, modifi
             .padding(start = 8.dp, end = 16.dp, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Crest(Side(team.id, team.name, team.badge), 24.dp)
+        // A dark disc behind the crest, so a white crest (or its stand-in) shows on the white chip
+        Box(Modifier.size(28.dp).background(if (focused) Palette.Ink.copy(alpha = 0.85f) else Color.Transparent, CircleShape), contentAlignment = Alignment.Center) {
+            Crest(Side(team.id, team.name, team.badge), 24.dp)
+        }
         Spacer(Modifier.width(8.dp))
         Text(team.name, color = fg, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
     }
