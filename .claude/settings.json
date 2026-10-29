@@ -1,0 +1,10 @@
+{
+  "extraKnownMarketplaces": {
+    "lean-context": {
+      "source": { "source": "github", "repo": "S1rHades/lean-context" }
+    }
+  },
+  "enabledPlugins": {
+    "lean-context@lean-context": true
+  }
+}
