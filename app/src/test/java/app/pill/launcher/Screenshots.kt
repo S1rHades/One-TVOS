@@ -210,8 +210,30 @@ class Screenshots {
         show("aurora-sky", pins = favorites)
         // Default idle time is 2 minutes without a key press
         compose.mainClock.advanceTimeBy(125_000)
+        // Let the widgets finish gliding to the middle
+        compose.mainClock.advanceTimeBy(2_500)
         settle()
         compose.onRoot().captureRoboImage(File(out, "idle.png").path)
+    }
+
+    /** Two widgets stretch to fill the row; the weather card names the city. */
+    @Test
+    fun twoWidgets() {
+        show("misty-valley", pins = favorites, settings = LauncherSettings(weather = WeatherMode.Celsius, widgets = listOf(WidgetKind.Clock, WidgetKind.Weather)))
+        compose.onNodeWithText("Partly cloudy · Lisbon").assertIsDisplayed()
+        compose.onRoot().captureRoboImage(File(out, "two-widgets.png").path)
+    }
+
+    /** Settings opens on its list of categories; TV & system holds the shortcuts. */
+    @Test
+    fun settingsPages() {
+        show("pine-forest", pins = favorites)
+        compose.onNodeWithContentDescription("Settings").performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNodeWithText("TV & system").performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNodeWithText("Free up memory").assertIsDisplayed()
+        captureScreenRoboImage(File(out, "settings-system.png").path)
     }
 
     @Test
@@ -270,7 +292,8 @@ class Screenshots {
     fun widgets() {
         val four = listOf(WidgetKind.Clock, WidgetKind.Weather, WidgetKind.Fennecs, WidgetKind.System)
         show("mountain-lake", pins = favorites, settings = LauncherSettings(weather = WeatherMode.Celsius, widgets = four))
-        for (label in listOf("25° / 16°", "NEXT", "SYSTEM")) compose.onNodeWithText(label).assertIsDisplayed()
+        for (label in listOf("25° / 16°", "NEXT")) compose.onNodeWithText(label).assertIsDisplayed()
+        compose.onNodeWithText("SYSTEM", substring = true).assertIsDisplayed()
         compose.onRoot().captureRoboImage(File(out, "widgets.png").path)
     }
 
@@ -288,6 +311,8 @@ class Screenshots {
         val four = listOf(WidgetKind.Clock, WidgetKind.Weather, WidgetKind.Fennecs, WidgetKind.Daylight)
         show("aurora-sky", pins = favorites, settings = LauncherSettings(weather = WeatherMode.Celsius, widgets = four))
         compose.onNodeWithContentDescription("Settings").performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNodeWithText("Widgets").performSemanticsAction(SemanticsActions.OnClick)
         settle()
         compose.onNodeWithText("System info").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
         settle()

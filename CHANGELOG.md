@@ -3,6 +3,15 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 2.4 (October 2026)
+
+- **Wakes up awake**: turning the TV on now lands on the home screen, never the idle screen. The idle timer used to keep counting while the TV was off; it now restarts whenever the screen comes on or you come back from an app.
+- **Settings in pages**: settings open on a short list (Background, Widgets, Favorites row, Idle screen, Home & startup, TV & system), each with a one-line summary of its current setting. OK opens a category's own page; Back returns to the list.
+- **TV & system**: Free up memory (closes apps running in the background and says how much came free), plus shortcuts to the TV's Network, Display, Sound, Storage, System update, Date & time and About screens.
+- **Widgets fill the row**: cards share the full width in proportion, so two widgets stretch across it and four tighten into compact layouts, resizing smoothly when you add or remove one. Their contents are centred. The weather card always names the city.
+- **System widget**: free storage and memory, each with a bar (amber when running low), the connection with VPN, and the Android version.
+- **Idle screen**: the widgets glide to the middle of the screen and grow, then hold perfectly still. The constant slow wander (which looked like jitter) is gone. To spare plasma and OLED screens, they step a few dp to a new spot every 3 minutes instead.
+
 ## 2.3 (October 2026)
 
 - **Online nature photos**: the slideshow now shows a new set of 24 landscape photos every day: mountains, waterfalls, coasts and forests from Wikimedia Commons' Featured Pictures. A daily workflow resizes them for TV and publishes them on GitHub, which TVs that refused other photo sites can reach. Offline, the last set (kept on the TV) and the 12 built-in photos fill in. The photographer and licence show on the idle screen and in Settings. Turn it off under **Settings → Online nature photos** to use only the built-in set.

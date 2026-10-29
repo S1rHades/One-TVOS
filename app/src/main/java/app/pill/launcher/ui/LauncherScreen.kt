@@ -16,12 +16,7 @@ import androidx.compose.material3.LocalTextStyle
 import kotlinx.coroutines.launch
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -75,6 +70,10 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.composed
+import androidx.compose.animation.core.VectorConverter
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
@@ -134,6 +133,8 @@ fun LauncherScreen(
     onOpen: (AppEntry) -> Unit,
     onTogglePin: (AppEntry) -> Unit,
     onOpenSystemSettings: () -> Unit,
+    /** The TV & system shortcuts in settings; returns a message for the row (a result, or why it can't). */
+    onSystemAction: (SystemAction) -> String? = { null },
     /** Move a favourite [by] places along the row. */
     onMovePin: (AppEntry, by: Int) -> Unit = { _, _ -> },
     onUninstall: (AppEntry) -> Unit = {},
@@ -142,6 +143,8 @@ fun LauncherScreen(
     onOpenNetworkSettings: () -> Unit = {},
     /** Bumped each time Home is pressed while the launcher is already showing. */
     homePresses: Int = 0,
+    /** Bumped when the TV wakes or the launcher comes back to the front: always start awake. */
+    wakes: Int = 0,
     home: HomeStatus = HomeStatus(isDefault = true, redirectOn = false),
     /** Ask to become the home screen; returns a message if this TV can't. */
     onMakeDefault: () -> String? = { null },
@@ -229,6 +232,13 @@ fun LauncherScreen(
         focusFirstPage()
     }
 
+    // Waking the TV (or coming back from an app) starts awake, with a fresh idle timer:
+    // the timer keeps counting while the screen is off, so it would otherwise wake up idle
+    LaunchedEffect(wakes) {
+        idle = false
+        lastInput = SystemClock.uptimeMillis()
+    }
+
     // Idle: after idleMinutes without a key press, everything but the widgets fades
     // out. Each key press restarts the timer; panels open hold it off.
     LaunchedEffect(settings.idleMinutes, lastInput, panelOpen, searchOpen) {
@@ -238,6 +248,13 @@ fun LauncherScreen(
         // Back to the first page, with focus there too, so waking up lands somewhere visible
         focusFirstPage()
     }
+    // While idle the widgets glide to the middle of the screen and grow, then hold still
+    val idleFocus by animateFloatAsState(
+        if (idle) 1f else 0f,
+        tween(if (idle) 1800 else 600, easing = FastOutSlowInEasing),
+        label = "idleFocus",
+    )
+    val idleShift = rememberBurnInShift(idle && settings.idleAnimation)
     val idleFade by animateFloatAsState(
         if (idle) 1f else 0f,
         tween(if (idle) 1600 else 450, easing = FastOutSlowInEasing),
@@ -346,8 +363,7 @@ fun LauncherScreen(
                             Row(
                                 Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = Spacing.Tile)
-                                    .then(if (idle && settings.idleAnimation) Modifier.idleDrift() else Modifier),
+                                    .padding(horizontal = Spacing.Tile),
                                 verticalAlignment = Alignment.Top,
                             ) {
                                 WidgetRow(
@@ -358,7 +374,9 @@ fun LauncherScreen(
                                     fixtures = fixtures,
                                     fixturesError = fixturesError,
                                     animate = !idle,
-                                    modifier = Modifier.weight(1f),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .idlePresentation(focus = { idleFocus }, shift = { idleShift.value }),
                                 )
                                 Spacer(Modifier.width(16.dp))
                                 // Buttons fade with the apps while idle; the widgets stay
@@ -486,7 +504,14 @@ fun LauncherScreen(
                 SettingsPanel(
                     settings = settings,
                     onChange = onSettingsChange,
-                    onOpenSystemSettings = onOpenSystemSettings,
+                    onSystemAction = { action ->
+                        if (action == SystemAction.AllSettings) {
+                            onOpenSystemSettings()
+                            null
+                        } else {
+                            onSystemAction(action)
+                        }
+                    },
                     photoError = photoError,
                     weatherError = weatherError,
                     fixturesError = fixturesError,
@@ -603,16 +628,54 @@ private class Toast(val message: String)
 
 private class Refocus(val pkg: String?)
 
-/** A slow wander of a few dp, so static text does not sit on one spot of the screen while idle. */
+/**
+ * Idle presentation of the widget row: at [focus] 1 it sits centred on the screen,
+ * enlarged to about 86% of the screen's width (at most 1.4x), offset by [shift]. Read in
+ * the draw phase; the row's place is measured before the transform, so it never feeds back.
+ */
+private fun Modifier.idlePresentation(focus: () -> Float, shift: () -> Offset): Modifier = composed {
+    var bounds by remember { mutableStateOf(Rect.Zero) }
+    var screen by remember { mutableStateOf(IntSize.Zero) }
+    this
+        .onGloballyPositioned {
+            bounds = it.boundsInRoot()
+            screen = it.findRootCoordinates().size
+        }
+        .graphicsLayer {
+            val p = focus()
+            if (p == 0f || bounds.width == 0f || screen.width == 0) return@graphicsLayer
+            val grow = (screen.width * 0.86f / bounds.width).coerceIn(1f, 1.4f)
+            val scale = 1f + (grow - 1f) * p
+            scaleX = scale
+            scaleY = scale
+            val s = shift()
+            translationX = p * (screen.width / 2f - bounds.center.x + s.x)
+            translationY = p * (screen.height * 0.44f - bounds.center.y + s.y)
+        }
+}
+
+/**
+ * Guards plasma and OLED screens while idle without visible motion: every 3 minutes the
+ * widgets glide a few dp to a new spot over 4 seconds, then stay perfectly still.
+ */
 @Composable
-private fun Modifier.idleDrift(): Modifier {
-    val t = rememberInfiniteTransition(label = "idleDrift")
-    val x by t.animateFloat(-1f, 1f, infiniteRepeatable(tween(47_000, easing = LinearEasing), RepeatMode.Reverse), label = "driftX")
-    val y by t.animateFloat(-1f, 1f, infiniteRepeatable(tween(31_000, easing = LinearEasing), RepeatMode.Reverse), label = "driftY")
-    return graphicsLayer {
-        translationX = x * 14.dp.toPx()
-        translationY = y * 10.dp.toPx()
+private fun rememberBurnInShift(active: Boolean): State<Offset> {
+    val density = LocalDensity.current
+    val shift = remember { Animatable(Offset.Zero, Offset.VectorConverter) }
+    LaunchedEffect(active) {
+        if (!active) {
+            shift.snapTo(Offset.Zero)
+            return@LaunchedEffect
+        }
+        val range = with(density) { 14.dp.toPx() }
+        val spots = listOf(Offset(-1f, -0.6f), Offset(1f, 0.4f), Offset(-0.4f, 1f), Offset(0.6f, -1f), Offset(0f, 0f))
+        var i = 0
+        while (true) {
+            delay(3 * 60_000L)
+            shift.animateTo(spots[i++ % spots.size] * range, tween(4000, easing = FastOutSlowInEasing))
+        }
     }
+    return shift.asState()
 }
 
 @Composable

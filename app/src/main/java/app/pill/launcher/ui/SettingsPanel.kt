@@ -47,6 +47,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
@@ -91,7 +94,8 @@ private val RowShape = RoundedCornerShape(16.dp)
 fun SettingsPanel(
     settings: LauncherSettings,
     onChange: (LauncherSettings) -> Unit,
-    onOpenSystemSettings: () -> Unit,
+    /** Runs a TV & system shortcut; returns a message to show under its row (a result, or why it can't). */
+    onSystemAction: (SystemAction) -> String? = { null },
     onDismiss: () -> Unit,
     /** Why photos or weather last failed to load, shown under their rows; null when fine. */
     photoError: String? = null,
@@ -118,13 +122,22 @@ fun SettingsPanel(
             limitToastShown = false
         }
     }
-    val firstRow = remember { FocusRequester() }
+    // null: the list of categories; otherwise that category's page
+    var page by remember { mutableStateOf<SettingsPage?>(null) }
+    var lastPage by remember { mutableStateOf(SettingsPage.Background) }
+    val pageFirst = remember { FocusRequester() }
+    val categoryFocus = remember { SettingsPage.entries.associateWith { FocusRequester() } }
     val visible = remember { MutableTransitionState(false).apply { targetState = true } }
     val close = { visible.targetState = false }
 
-    LaunchedEffect(Unit) {
-        delay(150)
-        runCatching { firstRow.requestFocus() }
+    // Focus follows the page: its first row going in, the category it came from coming back
+    LaunchedEffect(page) {
+        delay(if (page == null && lastPage == SettingsPage.Background) 150 else 60)
+        val target = page?.let { lastPage = it; pageFirst } ?: categoryFocus.getValue(lastPage)
+        repeat(5) {
+            if (runCatching { target.requestFocus() }.isSuccess) return@LaunchedEffect
+            delay(50)
+        }
     }
 
     // Remove the dialog only once the slide-out has finished
@@ -136,7 +149,8 @@ fun SettingsPanel(
     val motion = tween<Float>(PANEL_MS, easing = FastOutSlowInEasing)
 
     Dialog(
-        onDismissRequest = close,
+        // Back on a page returns to the list of categories; on the list it closes the panel
+        onDismissRequest = { if (page != null) page = null else close() },
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         Box(Modifier.fillMaxSize()) {
@@ -157,14 +171,40 @@ fun SettingsPanel(
                         .padding(horizontal = 22.dp, vertical = 22.dp),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 8.dp)) {
-                        GearIcon(tint = Palette.TextPrimary, iconSize = 26.dp)
+                        if (page == null) {
+                            GearIcon(tint = Palette.TextPrimary, iconSize = 26.dp)
+                        } else {
+                            Text("‹", color = Palette.TextSecondary, fontSize = 30.sp, fontWeight = FontWeight.Medium)
+                        }
                         Spacer(Modifier.width(12.dp))
-                        Text("Settings", color = Palette.TextPrimary, fontSize = 28.sp, fontWeight = FontWeight.SemiBold)
+                        Text(page?.title ?: "Settings", color = Palette.TextPrimary, fontSize = 28.sp, fontWeight = FontWeight.SemiBold)
                     }
                     Spacer(Modifier.height(18.dp))
 
-                    Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-                        Group("Home screen") {
+                    // The category list, or one category's page sliding in over it
+                    AnimatedContent(
+                        targetState = page,
+                        transitionSpec = {
+                            val forward = targetState != null
+                            (slideInHorizontally(tween(240, easing = FastOutSlowInEasing)) { if (forward) it / 4 else -it / 4 } + fadeIn(tween(240))) togetherWith
+                                (slideOutHorizontally(tween(240, easing = FastOutSlowInEasing)) { if (forward) -it / 4 else it / 4 } + fadeOut(tween(160)))
+                        },
+                        modifier = Modifier.weight(1f),
+                        label = "settingsPage",
+                    ) { shown ->
+                        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                            when (shown) {
+                                null -> Group(null) {
+                                    for (category in SettingsPage.entries) {
+                                        SettingRow(
+                                            title = category.title,
+                                            subtitle = summaryOf(category, settings, home),
+                                            onClick = { page = category },
+                                            modifier = Modifier.focusRequester(categoryFocus.getValue(category)),
+                                        ) { focused -> Chevron(focused) }
+                                    }
+                                }
+                                SettingsPage.Background -> Group(null) {
                             SettingRow(
                                 title = "Photo slideshow",
                                 subtitle = when {
@@ -173,7 +213,7 @@ fun SettingsPanel(
                                     else -> "Keeps the current photo"
                                 },
                                 onClick = { onChange(settings.copy(slideshow = !settings.slideshow)) },
-                                modifier = Modifier.focusRequester(firstRow),
+                                modifier = Modifier.focusRequester(pageFirst),
                             ) { focused -> Switch(checked = settings.slideshow, focused = focused) }
 
                             SettingRow(
@@ -201,28 +241,14 @@ fun SettingsPanel(
                                 Stepper(formatInterval(settings.intervalSec), current > 0, current < options.lastIndex, focused)
                             }
 
-                            // Shown or hidden under Widgets; only the unit lives here
-                            val units = listOf(WeatherMode.Celsius, WeatherMode.Fahrenheit)
-                            val unit = units.indexOf(settings.weather).coerceAtLeast(0)
-                            SettingRow(
-                                title = "Temperature unit",
-                                subtitle = "For the weather widget",
-                                onClick = { onChange(settings.copy(weather = units[(unit + 1) % units.size])) },
-                                onStep = { by ->
-                                    val next = (unit + by).coerceIn(0, units.lastIndex)
-                                    if (next != unit) onChange(settings.copy(weather = units[next]))
-                                },
-                            ) { focused ->
-                                Stepper(weatherLabel(settings.weather), unit > 0, unit < units.lastIndex, focused)
-                            }
                             SettingRow(
                                 title = "Ambient light",
                                 subtitle = if (settings.ambientLight) "Tints the photo with the focused app's colour" else "Photo shown as it is",
                                 onClick = { onChange(settings.copy(ambientLight = !settings.ambientLight)) },
                             ) { focused -> Switch(checked = settings.ambientLight, focused = focused) }
-                        }
-
-                        Group("Widgets · ${settings.widgets.size} of $MaxWidgets on") {
+                                }
+                                SettingsPage.Widgets -> {
+                                    Group("${settings.widgets.size} of $MaxWidgets on · Left / Right moves one") {
                             // On widgets first, in header order, then the others
                             val ordered = settings.widgets + WidgetKind.entries.filter { it !in settings.widgets }
                             for (kind in ordered) {
@@ -240,6 +266,7 @@ fun SettingsPanel(
                                             else -> kind.description
                                         },
                                         dimmed = full,
+                                        modifier = if (kind == ordered.first()) Modifier.focusRequester(pageFirst) else Modifier,
                                         onClick = {
                                             if (full) limitToasts++ else onChange(settings.copy(widgets = settings.widgets.toggled(kind)))
                                         },
@@ -247,13 +274,30 @@ fun SettingsPanel(
                                     ) { focused -> Switch(checked = on, focused = focused) }
                                 }
                             }
-                        }
-
-                        Group("Favorites row") {
+                                    }
+                                    Group(null) {
+                            // Shown or hidden under Widgets; only the unit lives here
+                            val units = listOf(WeatherMode.Celsius, WeatherMode.Fahrenheit)
+                            val unit = units.indexOf(settings.weather).coerceAtLeast(0)
+                            SettingRow(
+                                title = "Temperature unit",
+                                subtitle = "For the weather widget",
+                                onClick = { onChange(settings.copy(weather = units[(unit + 1) % units.size])) },
+                                onStep = { by ->
+                                    val next = (unit + by).coerceIn(0, units.lastIndex)
+                                    if (next != unit) onChange(settings.copy(weather = units[next]))
+                                },
+                            ) { focused ->
+                                Stepper(weatherLabel(settings.weather), unit > 0, unit < units.lastIndex, focused)
+                            }
+                                    }
+                                }
+                                SettingsPage.Favorites -> Group(null) {
                             val layouts = FavoritesLayout.entries
                             val layoutIndex = layouts.indexOf(settings.favoritesLayout)
                             SettingRow(
                                 title = "Layout",
+                                modifier = Modifier.focusRequester(pageFirst),
                                 subtitle = when (settings.favoritesLayout) {
                                     FavoritesLayout.Scroll -> "One row that slides when you go past the edge"
                                     FavoritesLayout.Wrap -> "As many as fit across; the rest on rows below"
@@ -289,13 +333,13 @@ fun SettingsPanel(
                                 subtitle = if (settings.favoritesAnimation) "Smooth sliding and rearranging" else "Instant, no motion",
                                 onClick = { onChange(settings.copy(favoritesAnimation = !settings.favoritesAnimation)) },
                             ) { focused -> Switch(checked = settings.favoritesAnimation, focused = focused) }
-                        }
-
-                        Group("Idle screen") {
+                                }
+                                SettingsPage.Idle -> Group(null) {
                             val idleOptions = LauncherSettings.IdleOptions
                             val idleIndex = idleOptions.indexOf(settings.idleMinutes).coerceAtLeast(0)
                             SettingRow(
                                 title = "Go idle after",
+                                modifier = Modifier.focusRequester(pageFirst),
                                 subtitle = if (settings.idleMinutes == 0) {
                                     "Never: the apps always stay on screen"
                                 } else {
@@ -311,15 +355,15 @@ fun SettingsPanel(
                             }
                             SettingRow(
                                 title = "Idle animation",
-                                subtitle = if (settings.idleMinutes == 0) "Turn on the idle screen first" else "Slow photo zoom; the clock drifts to spare the screen",
+                                subtitle = if (settings.idleMinutes == 0) "Turn on the idle screen first" else "Slow photo zoom; widgets step a few dp every 3 min to spare the screen",
                                 enabled = settings.idleMinutes != 0,
                                 onClick = { onChange(settings.copy(idleAnimation = !settings.idleAnimation)) },
                             ) { focused -> Switch(checked = settings.idleAnimation, focused = focused) }
-                        }
-
-                        Group("Home & startup") {
+                                }
+                                SettingsPage.Home -> Group(null) {
                             SettingRow(
                                 title = "Open at startup",
+                                modifier = Modifier.focusRequester(pageFirst),
                                 subtitle = autostartNote ?: when {
                                     !settings.autostart -> "Show Pill Launcher when the TV turns on"
                                     home.canAutostart -> "Opens when the TV turns on"
@@ -361,14 +405,9 @@ fun SettingsPanel(
                                     onClick = { helperNote = onHomeHelper() },
                                 ) { focused -> if (home.redirectOn) Check(focused) else Chevron(focused) }
                             }
-                        }
-
-                        Group("Device") {
-                            SettingRow(
-                                title = "Android TV settings",
-                                subtitle = "Network, display, sound and more",
-                                onClick = onOpenSystemSettings,
-                            ) { focused -> Chevron(focused) }
+                                }
+                                SettingsPage.System -> SystemPage(onSystemAction, Modifier.focusRequester(pageFirst))
+                            }
                         }
                     }
 
@@ -400,15 +439,17 @@ private fun weatherLabel(mode: WeatherMode): String = when (mode) {
 
 /** A labelled block of rows on a faint card. */
 @Composable
-private fun Group(label: String, content: @Composable ColumnScope.() -> Unit) {
-    Text(
-        label.uppercase(),
-        color = Palette.TextTertiary,
-        fontSize = 13.sp,
-        fontWeight = FontWeight.SemiBold,
-        letterSpacing = 1.4.sp,
-        modifier = Modifier.padding(start = 12.dp, bottom = 8.dp),
-    )
+private fun Group(label: String?, content: @Composable ColumnScope.() -> Unit) {
+    if (label != null) {
+        Text(
+            label.uppercase(),
+            color = Palette.TextTertiary,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = 1.4.sp,
+            modifier = Modifier.padding(start = 12.dp, bottom = 8.dp),
+        )
+    }
     Column(
         Modifier
             .fillMaxWidth()
@@ -547,4 +588,61 @@ private fun Footer() {
         fontSize = 13.sp,
         modifier = Modifier.padding(start = 12.dp, top = 8.dp),
     )
+}
+
+/** The settings categories, each on its own page. */
+enum class SettingsPage(val title: String) {
+    Background("Background"),
+    Widgets("Widgets"),
+    Favorites("Favorites row"),
+    Idle("Idle screen"),
+    Home("Home & startup"),
+    System("TV & system"),
+}
+
+/** One line under each category, saying what it is set to now. */
+private fun summaryOf(page: SettingsPage, settings: LauncherSettings, home: HomeStatus): String = when (page) {
+    SettingsPage.Background -> listOf(
+        if (settings.onlinePhotos) "Online nature photos" else "Built-in photos",
+        if (settings.slideshow) "every ${formatInterval(settings.intervalSec)}" else "slideshow off",
+    ).joinToString(", ")
+    SettingsPage.Widgets -> settings.widgets.joinToString(", ") { it.title.substringBefore(" (") }.ifEmpty { "None" }
+    SettingsPage.Favorites -> "${if (settings.favoritesLayout == FavoritesLayout.Scroll) "Scroll" else "Wrap"}, " +
+        if (settings.favoritesStyle == FavoritesStyle.Banners) "banners" else "icons"
+    SettingsPage.Idle -> if (settings.idleMinutes == 0) "Off" else "After ${settings.idleMinutes} min"
+    SettingsPage.Home -> when {
+        home.isDefault -> "Pill Launcher is the home screen"
+        home.redirectOn -> "Home button helper on"
+        else -> "Not the home screen yet"
+    }
+    SettingsPage.System -> "Free up memory, network, display, sound, updates"
+}
+
+/** Shortcuts on the TV & system page: one action here, the rest open the TV's own screens. */
+enum class SystemAction(val title: String, val subtitle: String) {
+    FreeMemory("Free up memory", "Close apps running in the background"),
+    Network("Network & Wi-Fi", "Connection, Wi-Fi networks, VPN"),
+    Display("Display", "Resolution, picture, screen saver"),
+    Sound("Sound", "Audio output, volume, surround"),
+    Storage("Storage", "What's using space, clear app data"),
+    Update("System update", "Check for a firmware update"),
+    DateTime("Date & time", "Time zone and clock format"),
+    About("About this TV", "Model, Android version, security patch"),
+    AllSettings("All Android TV settings", "Everything else"),
+}
+
+@Composable
+private fun SystemPage(onAction: (SystemAction) -> String?, firstModifier: Modifier) {
+    // The last result or problem for each row, shown under it until the panel closes
+    val notes = remember { mutableStateMapOf<SystemAction, String>() }
+    Group(null) {
+        for (action in SystemAction.entries) {
+            SettingRow(
+                title = action.title,
+                subtitle = notes[action] ?: action.subtitle,
+                onClick = { onAction(action)?.let { notes[action] = it } ?: notes.remove(action) },
+                modifier = if (action == SystemAction.entries.first()) firstModifier else Modifier,
+            ) { focused -> Chevron(focused) }
+        }
+    }
 }
