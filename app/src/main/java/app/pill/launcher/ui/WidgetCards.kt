@@ -573,10 +573,15 @@ private fun SystemCard(compact: Boolean, modifier: Modifier) {
     WidgetCard(if (online) Color(0xFF38D9A9) else Color(0xFFFF8787), modifier) {
         Column(Modifier.align(Alignment.Center), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                // The icons say how it's connected (Wi-Fi strength or Ethernet, crossed out offline; a key for VPN)
                 WifiIcon(network, if (online) Color.White else Color(0xFFFF8787), 16.dp)
+                if (network.vpn) {
+                    Spacer(Modifier.width(4.dp))
+                    KeyIcon(Color(0xFF8CE99A), 16.dp)
+                }
                 Spacer(Modifier.width(7.dp))
                 CardLabel(
-                    "System · " + network.label + (if (network.vpn) " · VPN" else "") + if (compact) "" else " · Android ${android.os.Build.VERSION.RELEASE}",
+                    if (compact) "System" else "System · Android ${android.os.Build.VERSION.RELEASE}",
                     color = if (online) Palette.TextTertiary else Color(0xFFFF8787),
                 )
             }
