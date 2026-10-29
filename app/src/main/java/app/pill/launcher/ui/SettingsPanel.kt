@@ -71,6 +71,21 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import app.pill.launcher.FavoritesLayout
+import app.pill.launcher.Fixtures
+import app.pill.launcher.MatchDayMode
+import app.pill.launcher.MaxTeams
+import app.pill.launcher.News
+import app.pill.launcher.NewsSource
+import app.pill.launcher.NewsTopic
+import app.pill.launcher.TeamHit
+import app.pill.launcher.withAlgeriaFirst
+import androidx.compose.foundation.border
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.ImeAction
+import java.time.Instant
 import app.pill.launcher.FavoritesStyle
 import app.pill.launcher.HomeStatus
 import app.pill.launcher.LauncherSettings
@@ -100,7 +115,12 @@ fun SettingsPanel(
     /** Why photos or weather last failed to load, shown under their rows; null when fine. */
     photoError: String? = null,
     weatherError: String? = null,
-    fixturesError: String? = null,
+    /** The followed teams' latest fixtures, for each team's status line. */
+    football: List<Fixtures> = emptyList(),
+    /** The last headlines fetch, for each source's status line. */
+    news: News? = null,
+    /** Teams matching a search (off the main thread), for adding one. */
+    searchTeams: suspend (String) -> List<TeamHit> = { emptyList() },
     /** Credit for the online photo on screen. */
     photoCredit: String? = null,
     home: HomeStatus = HomeStatus(isDefault = true, redirectOn = false),
@@ -127,13 +147,21 @@ fun SettingsPanel(
     var lastPage by remember { mutableStateOf(SettingsPage.Background) }
     val pageFirst = remember { FocusRequester() }
     val categoryFocus = remember { SettingsPage.entries.associateWith { FocusRequester() } }
+    // Rows on a page that open a page of their own (Widgets → Football teams, Headlines)
     val visible = remember { MutableTransitionState(false).apply { targetState = true } }
     val close = { visible.targetState = false }
 
     // Focus follows the page: its first row going in, the category it came from coming back
     LaunchedEffect(page) {
         delay(if (page == null && lastPage == SettingsPage.Background) 150 else 60)
-        val target = page?.let { lastPage = it; pageFirst } ?: categoryFocus.getValue(lastPage)
+        val current = page
+        val target = when {
+            current == null -> categoryFocus.getValue(lastPage.root)
+            // Back from a page inside this one: the row that opened it
+            lastPage.parent == current -> categoryFocus.getValue(lastPage)
+            else -> pageFirst
+        }
+        if (current != null) lastPage = current
         repeat(5) {
             if (runCatching { target.requestFocus() }.isSuccess) return@LaunchedEffect
             delay(50)
@@ -150,7 +178,7 @@ fun SettingsPanel(
 
     Dialog(
         // Back on a page returns to the list of categories; on the list it closes the panel
-        onDismissRequest = { if (page != null) page = null else close() },
+        onDismissRequest = { if (page != null) page = page?.parent else close() },
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         Box(Modifier.fillMaxSize()) {
@@ -195,7 +223,7 @@ fun SettingsPanel(
                         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
                             when (shown) {
                                 null -> Group(null) {
-                                    for (category in SettingsPage.entries) {
+                                    for (category in SettingsPage.entries.filter { it.parent == null }) {
                                         SettingRow(
                                             title = category.title,
                                             subtitle = summaryOf(category, settings, home),
@@ -260,7 +288,8 @@ fun SettingsPanel(
                                         title = kind.title,
                                         subtitle = when {
                                             on && kind == WidgetKind.Weather && weatherError != null -> "Can't get the weather: $weatherError"
-                                            on && kind == WidgetKind.Fennecs && fixturesError != null -> "Can't get fixtures: $fixturesError"
+                                            on && kind == WidgetKind.Fennecs && football.firstOrNull()?.error != null -> "Can't get fixtures: ${football.first().error}"
+                                            on && kind == WidgetKind.Headlines && news != null && news.headlines.isEmpty() -> "Can't get headlines · see Headlines below"
                                             on && settings.widgets.size > 1 -> "Position ${position + 1} of ${settings.widgets.size} · Left / Right to move"
                                             full -> "Turn another widget off first"
                                             else -> kind.description
@@ -274,6 +303,20 @@ fun SettingsPanel(
                                     ) { focused -> Switch(checked = on, focused = focused) }
                                 }
                             }
+                                    }
+                                    Group(null) {
+                                        SettingRow(
+                                            title = SettingsPage.Football.title,
+                                            subtitle = settings.teams.joinToString(", ") { it.name } + " · match day: " + settings.matchDay.title.lowercase(),
+                                            onClick = { page = SettingsPage.Football },
+                                            modifier = Modifier.focusRequester(categoryFocus.getValue(SettingsPage.Football)),
+                                        ) { focused -> Chevron(focused) }
+                                        SettingRow(
+                                            title = SettingsPage.News.title,
+                                            subtitle = NewsTopic.entries.filter { it in settings.newsTopics }.joinToString(", ") { it.title },
+                                            onClick = { page = SettingsPage.News },
+                                            modifier = Modifier.focusRequester(categoryFocus.getValue(SettingsPage.News)),
+                                        ) { focused -> Chevron(focused) }
                                     }
                                     Group(null) {
                             // Shown or hidden under Widgets; only the unit lives here
@@ -407,6 +450,8 @@ fun SettingsPanel(
                             }
                                 }
                                 SettingsPage.System -> SystemPage(onSystemAction, Modifier.focusRequester(pageFirst))
+                                SettingsPage.Football -> FootballPage(settings, onChange, football, searchTeams, Modifier.focusRequester(pageFirst))
+                                SettingsPage.News -> NewsPage(settings, onChange, news, Modifier.focusRequester(pageFirst))
                             }
                         }
                     }
@@ -590,14 +635,20 @@ private fun Footer() {
     )
 }
 
-/** The settings categories, each on its own page. */
-enum class SettingsPage(val title: String) {
+/** The settings categories, each on its own page; a page with a [parent] opens from that page. */
+enum class SettingsPage(val title: String, val parent: SettingsPage? = null) {
     Background("Background"),
     Widgets("Widgets"),
     Favorites("Favorites row"),
     Idle("Idle screen"),
     Home("Home & startup"),
     System("TV & system"),
+    Football("Football teams", Widgets),
+    News("Headlines", Widgets),
+    ;
+
+    /** The category this page is under, in the list. */
+    val root: SettingsPage get() = parent?.root ?: this
 }
 
 /** One line under each category, saying what it is set to now. */
@@ -616,6 +667,8 @@ private fun summaryOf(page: SettingsPage, settings: LauncherSettings, home: Home
         else -> "Not the home screen yet"
     }
     SettingsPage.System -> "Free up memory, network, display, sound, updates"
+    SettingsPage.Football -> settings.teams.joinToString(", ") { it.name }
+    SettingsPage.News -> settings.newsTopics.joinToString(", ") { it.title }
 }
 
 /** Shortcuts on the TV & system page: one action here, the rest open the TV's own screens. */
@@ -645,4 +698,186 @@ private fun SystemPage(onAction: (SystemAction) -> String?, firstModifier: Modif
             ) { focused -> Chevron(focused) }
         }
     }
+}
+
+/**
+ * The teams the football card follows: Algeria (always first) and up to five more, which
+ * Left / Right reorders and OK removes. Below, a search to add one. A team the GitHub copy
+ * keeps fixtures for works on any network; others need the TV to reach TheSportsDB.
+ */
+@Composable
+private fun FootballPage(
+    settings: LauncherSettings,
+    onChange: (LauncherSettings) -> Unit,
+    football: List<Fixtures>,
+    searchTeams: suspend (String) -> List<TeamHit>,
+    firstModifier: Modifier,
+) {
+    val teams = settings.teams
+    Group("Following · ${teams.size} of $MaxTeams · Left / Right moves") {
+        for ((i, team) in teams.withIndex()) {
+            key(team.id) {
+                val f = football.firstOrNull { it.team.id == team.id }
+                val status = when {
+                    f == null -> "Loads with the next refresh"
+                    f.error != null && f.fetchedAt == Instant.EPOCH -> "Can't get fixtures: ${f.error}"
+                    f.error != null -> "Offline · showing the saved copy"
+                    f.viaMirror -> "Updated from the GitHub copy"
+                    else -> "Updated from TheSportsDB"
+                }
+                SettingRow(
+                    title = team.name,
+                    subtitle = if (team.isAlgeria) "Always first · $status" else "$status · OK removes",
+                    modifier = if (i == 0) firstModifier else Modifier,
+                    onClick = { if (!team.isAlgeria) onChange(settings.copy(teams = teams - team)) },
+                    onStep = if (team.isAlgeria) null else { by ->
+                        val to = (i + by).coerceIn(1, teams.lastIndex)
+                        if (to != i) onChange(settings.copy(teams = teams.toMutableList().apply { add(to, removeAt(i)) }))
+                    },
+                ) { focused -> if (team.isAlgeria) Check(focused) else Mark("✕", focused) }
+            }
+        }
+    }
+
+    var query by remember { mutableStateOf("") }
+    // null while a search is running
+    var hits by remember { mutableStateOf<List<TeamHit>?>(emptyList()) }
+    LaunchedEffect(query) {
+        if (query.isBlank()) {
+            hits = emptyList()
+            return@LaunchedEffect
+        }
+        hits = null
+        delay(450) // wait for typing to pause
+        hits = searchTeams(query)
+    }
+    Group("Add a team") {
+        TeamSearchField(query, { query = it })
+        val found = hits
+        when {
+            query.isBlank() -> Note("A club or a country, e.g. MC Alger, Arsenal, Morocco")
+            found == null -> Note("Searching…")
+            found.isEmpty() -> Note("No teams found for “${query.trim()}”")
+            else -> for (hit in found) {
+                key(hit.team.id) {
+                    val following = teams.any { it.id == hit.team.id }
+                    val full = teams.size >= MaxTeams
+                    SettingRow(
+                        title = hit.team.name,
+                        subtitle = listOfNotNull(
+                            hit.team.league,
+                            hit.team.country,
+                            when {
+                                following -> "following"
+                                full -> "remove a team first"
+                                hit.mirrored -> "works on any network"
+                                else -> "needs a direct connection to TheSportsDB"
+                            },
+                        ).joinToString(" · "),
+                        dimmed = following || full,
+                        onClick = { if (!following && !full) onChange(settings.copy(teams = withAlgeriaFirst(teams + hit.team))) },
+                    ) { focused -> if (following) Check(focused) else Mark("+", focused) }
+                }
+            }
+        }
+    }
+
+    Group(null) {
+        val modes = MatchDayMode.entries
+        val current = modes.indexOf(settings.matchDay)
+        SettingRow(
+            title = "Match day",
+            subtitle = if (settings.matchDay == MatchDayMode.Off) "No countdown or kick-off banner" else "A countdown on the card that day, and a banner 10 minutes before kick-off",
+            onClick = { onChange(settings.copy(matchDay = modes[(current + 1) % modes.size])) },
+            onStep = { by ->
+                val next = (current + by).coerceIn(0, modes.lastIndex)
+                if (next != current) onChange(settings.copy(matchDay = modes[next]))
+            },
+        ) { focused -> Stepper(settings.matchDay.title, current > 0, current < modes.lastIndex, focused) }
+    }
+}
+
+/** What the headlines widget picks stories about, and how each source is doing. */
+@Composable
+private fun NewsPage(settings: LauncherSettings, onChange: (LauncherSettings) -> Unit, news: News?, firstModifier: Modifier) {
+    Group("Topics") {
+        for ((i, topic) in NewsTopic.entries.withIndex()) {
+            val on = topic in settings.newsTopics
+            SettingRow(
+                title = topic.title,
+                subtitle = when (topic) {
+                    NewsTopic.Algeria -> "Stories that mention Algeria"
+                    NewsTopic.Russia -> "Russia, the Kremlin, RT's Russia section"
+                    NewsTopic.World -> "Diplomacy, elections, conflicts, the UN"
+                    NewsTopic.AfricaMiddleEast -> "North Africa, the Sahel, the Gulf, the Levant"
+                    NewsTopic.Economy -> "Markets, trade, energy, currencies"
+                    NewsTopic.Sport -> "Football and other sport"
+                } + if (on && settings.newsTopics.size == 1) " · keep at least one" else "",
+                modifier = if (i == 0) firstModifier else Modifier,
+                // At least one topic stays on; with none the card would only show top stories
+                onClick = { if (!on) onChange(settings.copy(newsTopics = settings.newsTopics + topic)) else if (settings.newsTopics.size > 1) onChange(settings.copy(newsTopics = settings.newsTopics - topic)) },
+            ) { focused -> Switch(checked = on, focused = focused) }
+        }
+    }
+    Group("Sources") {
+        for (source in NewsSource.entries) {
+            val count = news?.headlines?.get(source)?.size
+            val error = news?.errors?.get(source)
+            SettingRow(
+                title = source.title + " English",
+                subtitle = when {
+                    news == null -> "Loading…"
+                    error != null && count != null -> "Offline · showing $count saved stories"
+                    error != null -> if (source == NewsSource.RT) "Not available on this network" else "Can't load: $error"
+                    else -> "$count stories"
+                } + if (source == NewsSource.RT) " · read directly only, never through the GitHub copy" else "",
+                onClick = {},
+            ) { focused -> if (error == null && count != null) Check(focused) else Mark("–", focused) }
+        }
+    }
+}
+
+@Composable
+private fun Mark(symbol: String, focused: Boolean) {
+    Text(symbol, color = if (focused) Palette.Ink else Palette.TextTertiary, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+}
+
+@Composable
+private fun Note(text: String) {
+    Text(text, color = Palette.TextTertiary, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp))
+}
+
+/** Typing a team's name: OK opens the TV keyboard. */
+@Composable
+private fun TeamSearchField(value: String, onChange: (String) -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    val border by animateColorAsState(if (focused) Palette.Focus else Palette.Hairline, label = "teamFieldBorder")
+    BasicTextField(
+        value = value,
+        onValueChange = onChange,
+        singleLine = true,
+        textStyle = TextStyle(fontFamily = Flex, color = Palette.TextPrimary, fontSize = 19.sp),
+        cursorBrush = SolidColor(Palette.Focus),
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        modifier = Modifier
+            .fillMaxWidth()
+            .onFocusChanged { focused = it.isFocused },
+        decorationBox = { inner ->
+            Row(
+                Modifier
+                    .clip(RowShape)
+                    .background(Color(0x14FFFFFF))
+                    .border(2.dp, border, RowShape)
+                    .padding(horizontal = 18.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                SearchIcon(tint = Palette.TextSecondary, iconSize = 20.dp)
+                Spacer(Modifier.width(12.dp))
+                Box(Modifier.weight(1f)) {
+                    if (value.isEmpty()) Text("Search teams", color = Palette.TextTertiary, fontSize = 19.sp)
+                    inner()
+                }
+            }
+        },
+    )
 }

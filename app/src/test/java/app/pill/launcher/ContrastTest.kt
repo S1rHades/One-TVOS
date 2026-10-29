@@ -38,6 +38,13 @@ class ContrastTest {
         Role("tertiary", Palette.TextTertiary, 4.5),
     )
 
+    /** Coloured text that only sits on glass: match-day green, headline pink, rain blue. */
+    private val accents = listOf(
+        Role("match day", Color(0xFF8CE99A), 4.5),
+        Role("headlines", Color(0xFFFFC9C9), 4.5),
+        Role("rain", Color(0xFFA5D8FF), 4.5),
+    )
+
     @Test
     fun headerTextOverPhotos() {
         // Clock, date and weather: 4-62% across, 5-22% down the screen
@@ -53,10 +60,10 @@ class ContrastTest {
     @Test
     fun textOnGlass() {
         // Glass can sit anywhere, over the blurred photo with no scrim
-        check("glass") { photo -> brightest(photo, 0f, 0f, 1f, 1f, grid = 24) { GlassTint.alpha to GlassTint.copy(alpha = 1f) } }
+        check("glass", roles + accents) { photo -> brightest(photo, 0f, 0f, 1f, 1f, grid = 24) { GlassTint.alpha to GlassTint.copy(alpha = 1f) } }
     }
 
-    private fun check(surface: String, background: (Bitmap) -> FloatArray) {
+    private fun check(surface: String, roles: List<Role> = this.roles, background: (Bitmap) -> FloatArray) {
         assertTrue("no photos found in src/main/assets/photos", photos.isNotEmpty())
         val failures = mutableListOf<String>()
         val worst = mutableMapOf<String, Double>()

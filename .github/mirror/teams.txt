@@ -1,0 +1,127 @@
+# Teams the fixtures mirror keeps copies for, one per line as TheSportsDB names them
+# (".github/scripts/mirror.py" looks each one up once). Algeria is always included.
+# A team here works on any network; others need the TV to reach TheSportsDB itself.
+
+# Algeria's league
+MC Alger
+CR Belouizdad
+JS Kabylie
+USM Alger
+ES Sétif
+CS Constantine
+MC Oran
+JS Saoura
+Paradou AC
+ASO Chlef
+Olympique Akbou
+US Biskra
+USM Khenchela
+MB Rouissat
+ES Ben Aknoun
+JS El Biar
+
+# North Africa and the Gulf
+Al Ahly
+Zamalek
+Pyramids
+Wydad Casablanca
+Raja Casablanca
+RS Berkane
+Esperance de Tunis
+Club Africain
+Etoile du Sahel
+Al Hilal
+Al Nassr
+Al Ittihad
+Al Sadd
+
+# Europe and beyond
+Real Madrid
+Barcelona
+Atletico Madrid
+Sevilla
+Real Betis
+Athletic Bilbao
+Manchester City
+Manchester United
+Liverpool
+Arsenal
+Chelsea
+Tottenham Hotspur
+Newcastle United
+Aston Villa
+Bayern Munich
+Borussia Dortmund
+Bayer Leverkusen
+Juventus
+Inter Milan
+AC Milan
+Napoli
+Roma
+Paris SG
+Marseille
+Lyon
+Monaco
+Lille
+Nice
+Benfica
+Porto
+Sporting CP
+Ajax
+PSV Eindhoven
+Feyenoord
+Celtic
+Galatasaray
+Fenerbahce
+Inter Miami
+
+# National teams
+Morocco
+Tunisia
+Egypt
+Libya
+Mauritania
+Senegal
+Nigeria
+Cameroon
+Ivory Coast
+Ghana
+Mali
+Burkina Faso
+Guinea
+South Africa
+DR Congo
+Cape Verde
+Togo
+Benin
+Niger
+Equatorial Guinea
+Liberia
+Gabon
+Angola
+Zambia
+Sudan
+France
+Spain
+Portugal
+England
+Germany
+Italy
+Netherlands
+Belgium
+Croatia
+Switzerland
+Turkey
+Brazil
+Argentina
+Uruguay
+Colombia
+United States
+Mexico
+Japan
+South Korea
+Saudi Arabia
+Qatar
+Iraq
+Jordan
+Palestine

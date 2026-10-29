@@ -94,6 +94,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.pill.launcher.AppEntry
 import app.pill.launcher.Fixtures
+import app.pill.launcher.LeagueTable
+import app.pill.launcher.MatchDayMode
+import app.pill.launcher.News
+import app.pill.launcher.Team
+import app.pill.launcher.TeamHit
+import app.pill.launcher.WidgetKind
+import app.pill.launcher.dueBanner
+import app.pill.launcher.pickHeadlines
+import androidx.compose.runtime.produceState
+import java.time.Instant
 import app.pill.launcher.Photo
 import app.pill.launcher.FavoritesLayout
 import app.pill.launcher.HomeStatus
@@ -121,10 +131,14 @@ fun LauncherScreen(
     weather: Weather?,
     /** Why the last weather fetch failed, shown in settings; null when it works. */
     weatherError: String? = null,
-    /** Algeria's next and latest match, for the Les Fennecs widget. */
-    fixtures: Fixtures? = null,
-    /** Why the last fixtures fetch failed; null when it works. */
-    fixturesError: String? = null,
+    /** The followed teams' fixtures, in order (Algeria first); empty until loaded. */
+    football: List<Fixtures> = emptyList(),
+    /** Headlines from both sources, and why a source failed; null until the first fetch. */
+    news: News? = null,
+    /** The top of a league's table for a season, for the football page; null when there is none. */
+    loadTable: suspend (leagueId: String, season: String) -> LeagueTable? = { _, _ -> null },
+    /** Teams matching a search, for Settings → Football. */
+    searchTeams: suspend (String) -> List<TeamHit> = { emptyList() },
     /** Today's online nature photos; empty until loaded, or when unavailable. */
     onlinePhotos: List<Photo> = emptyList(),
     pins: List<String>,
@@ -173,6 +187,14 @@ fun LauncherScreen(
     var menu by remember { mutableStateOf<MenuRequest?>(null) }
     var moving by remember { mutableStateOf<String?>(null) }
     var lastInput by remember { mutableLongStateOf(SystemClock.uptimeMillis()) }
+    // Pages opened from the widgets: the forecast, a team on the football page, a headline
+    var forecastOpen by remember { mutableStateOf(false) }
+    var hubTeam by remember { mutableStateOf<Team?>(null) }
+    var headlineAt by remember { mutableStateOf<Int?>(null) }
+    val pageOpen = forecastOpen || hubTeam != null || headlineAt != null
+    // Kick-off banners already seen (by match), so each shows once
+    var bannersShown by remember { mutableStateOf(setOf<String>()) }
+    val headlines = remember(news, settings.newsTopics) { news?.let { pickHeadlines(it, settings.newsTopics) }.orEmpty() }
 
     val pillFocus = remember { FocusRequester() }
     val favoriteFocus = remember { HashMap<String, FocusRequester>() }
@@ -228,6 +250,9 @@ fun LauncherScreen(
         if (homePresses == 0) return@LaunchedEffect
         panelOpen = false
         searchOpen = false
+        forecastOpen = false
+        hubTeam = null
+        headlineAt = null
         idle = false
         focusFirstPage()
     }
@@ -241,8 +266,8 @@ fun LauncherScreen(
 
     // Idle: after idleMinutes without a key press, everything but the widgets fades
     // out. Each key press restarts the timer; panels open hold it off.
-    LaunchedEffect(settings.idleMinutes, lastInput, panelOpen, searchOpen) {
-        if (settings.idleMinutes == 0 || panelOpen || searchOpen) return@LaunchedEffect
+    LaunchedEffect(settings.idleMinutes, lastInput, panelOpen, searchOpen, pageOpen) {
+        if (settings.idleMinutes == 0 || panelOpen || searchOpen || pageOpen) return@LaunchedEffect
         delay(settings.idleMinutes * 60_000L)
         idle = true
         // Back to the first page, with focus there too, so waking up lands somewhere visible
@@ -264,6 +289,20 @@ fun LauncherScreen(
     // Back in All apps returns to the first page (on the first page, Back does nothing)
     val scrolled by remember { derivedStateOf { scroll.value > 0 } }
     BackHandler(enabled = scrolled && !panelOpen) { scope.launch { focusFirstPage() } }
+
+    // A followed team about to kick off: a banner that Back hides (checked every 15 seconds)
+    val bannerNow by produceState(Instant.now(), football) {
+        while (true) {
+            value = Instant.now()
+            delay(15_000)
+        }
+    }
+    val banner = if (WidgetKind.Fennecs in settings.widgets && settings.matchDay != MatchDayMode.Off) {
+        dueBanner(football, settings.matchDay, bannerNow, bannersShown)
+    } else {
+        null
+    }
+    BackHandler(enabled = banner != null && !panelOpen) { banner?.let { bannersShown = bannersShown + it.second.id } }
 
     // Return focus to the pill when the settings panel closes
     LaunchedEffect(panelOpen) {
@@ -371,12 +410,17 @@ fun LauncherScreen(
                                     weather = weather,
                                     weatherError = weatherError,
                                     mode = settings.weather,
-                                    fixtures = fixtures,
-                                    fixturesError = fixturesError,
+                                    football = football,
+                                    matchDay = settings.matchDay,
+                                    headlines = headlines,
+                                    headlinesStatus = if (news != null && headlines.isEmpty()) "Can't reach the news sources · see Settings" else null,
                                     animate = !idle,
                                     modifier = Modifier
                                         .weight(1f)
                                         .idlePresentation(focus = { idleFocus }, shift = { idleShift.value }),
+                                    onOpenWeather = { forecastOpen = true },
+                                    onOpenFootball = { hubTeam = it },
+                                    onOpenHeadline = { headlineAt = it },
                                 )
                                 Spacer(Modifier.width(16.dp))
                                 // Buttons fade with the apps while idle; the widgets stay
@@ -491,9 +535,21 @@ fun LauncherScreen(
             }
 
             AnimatedVisibility(
+                visible = banner != null,
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 30.dp, start = Spacing.ScreenH, end = Spacing.ScreenH),
+                enter = fadeIn() + slideInVertically { it / 2 },
+                exit = fadeOut() + slideOutVertically { it / 2 },
+            ) {
+                // Keeps showing the last banner while it slides away
+                var shown by remember { mutableStateOf(banner) }
+                if (banner != null) shown = banner
+                shown?.let { (team, match) -> KickoffBanner(team, match, onDismiss = { bannersShown = bannersShown + match.id }) }
+            }
+
+            AnimatedVisibility(
                 visible = toastVisible,
-                // Bottom centre: clear of the widgets on the first page
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 36.dp),
+                // Bottom centre: clear of the widgets on the first page, above a kick-off banner
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = if (banner != null) 112.dp else 36.dp),
                 enter = fadeIn() + slideInVertically { it / 2 },
                 exit = fadeOut() + slideOutVertically { it / 2 },
             ) {
@@ -514,7 +570,9 @@ fun LauncherScreen(
                     },
                     photoError = photoError,
                     weatherError = weatherError,
-                    fixturesError = fixturesError,
+                    football = football,
+                    news = news,
+                    searchTeams = searchTeams,
                     photoCredit = photoCredit,
                     home = home,
                     onMakeDefault = onMakeDefault,
@@ -544,6 +602,16 @@ fun LauncherScreen(
                     },
                     onDismiss = { menu = null },
                 )
+            }
+
+            if (forecastOpen && weather != null) {
+                ForecastPage(weather, settings.weather, onDismiss = { forecastOpen = false })
+            }
+            hubTeam?.let { team ->
+                FootballHub(football, team, loadTable, onDismiss = { hubTeam = null })
+            }
+            headlineAt?.let { start ->
+                HeadlinePage(headlines, start, onDismiss = { headlineAt = null })
             }
 
             if (searchOpen) {

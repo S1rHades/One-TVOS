@@ -3,6 +3,7 @@ package app.pill.launcher.ui
 import android.os.Environment
 import android.os.StatFs
 import android.text.format.DateFormat
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -17,6 +18,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
@@ -40,6 +42,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -51,6 +55,10 @@ import android.content.Context
 import android.app.ActivityManager
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -76,7 +84,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.pill.launcher.Fixtures
 import app.pill.launcher.Match
+import app.pill.launcher.MatchDayMode
+import app.pill.launcher.MatchPhase
+import app.pill.launcher.NewsTopic
+import app.pill.launcher.PickedHeadline
 import app.pill.launcher.Side
+import app.pill.launcher.Team
+import app.pill.launcher.cardTeams
+import app.pill.launcher.matchDayApplies
+import app.pill.launcher.matchPhase
 import app.pill.launcher.Sky
 import app.pill.launcher.Weather
 import app.pill.launcher.WeatherMode
@@ -113,6 +129,7 @@ private fun naturalWidth(kind: WidgetKind, compact: Boolean): Dp = when (kind) {
     WidgetKind.Fennecs -> if (compact) 204.dp else 270.dp
     WidgetKind.Daylight -> if (compact) 146.dp else 200.dp
     WidgetKind.System -> if (compact) 176.dp else 220.dp
+    WidgetKind.Headlines -> if (compact) 176.dp else 280.dp
 }
 
 private val AlgeriaGreen = Color(0xFF006633)
@@ -130,10 +147,18 @@ fun WidgetRow(
     weather: Weather?,
     weatherError: String?,
     mode: WeatherMode,
-    fixtures: Fixtures?,
-    fixturesError: String?,
+    /** The followed teams' fixtures, in order (Algeria first). */
+    football: List<Fixtures>,
+    matchDay: MatchDayMode,
+    /** The headlines picked for the card, and what to say while there are none. */
+    headlines: List<PickedHeadline>,
+    headlinesStatus: String?,
     animate: Boolean,
     modifier: Modifier = Modifier,
+    /** OK on a card opens its page. Cards without one aren't focusable. */
+    onOpenWeather: (() -> Unit)? = null,
+    onOpenFootball: ((Team) -> Unit)? = null,
+    onOpenHeadline: ((Int) -> Unit)? = null,
 ) {
     BoxWithConstraints(modifier) {
         val gaps = Gap * (widgets.size - 1).coerceAtLeast(0)
@@ -162,10 +187,11 @@ fun WidgetRow(
                     .width(animateDpAsState(natural(kind, compact) * share, tween(450, easing = FastOutSlowInEasing), label = "widgetWidth").value)
                 when (kind) {
                     WidgetKind.Clock -> ClockCard(compact, item)
-                    WidgetKind.Weather -> WeatherCard(weather, weatherError, mode, compact, animate, item)
-                    WidgetKind.Fennecs -> FennecsCard(fixtures, fixturesError, compact, item)
+                    WidgetKind.Weather -> WeatherCard(weather, weatherError, mode, compact, animate, item, onOpenWeather.takeIf { weather?.forecast != null })
+                    WidgetKind.Fennecs -> FootballCard(football, matchDay, compact, item, onOpenFootball)
                     WidgetKind.Daylight -> DaylightCard(weather, compact, item)
                     WidgetKind.System -> SystemCard(compact, item)
+                    WidgetKind.Headlines -> HeadlinesCard(headlines, headlinesStatus, compact, item, onOpenHeadline)
                 }
             }
         }
@@ -175,13 +201,25 @@ fun WidgetRow(
 /**
  * Frosted glass with a soft wash of [accent] from the top left, a hairline edge, and a
  * small lift under a pointer. Settles in with a slight rise and scale when it appears.
+ * With [onClick] it takes focus like a tile: it grows a little and gets a white edge,
+ * and OK opens its page.
  */
 @Composable
-private fun WidgetCard(accent: Color, modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
+private fun WidgetCard(
+    accent: Color,
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
+    /** How strong the wash is; brighter on a match day. */
+    wash: Float = 0.2f,
+    content: @Composable BoxScope.() -> Unit,
+) {
     val interaction = remember { MutableInteractionSource() }
     val hovered by interaction.collectIsHoveredAsState()
-    val lift by animateFloatAsState(if (hovered) 1f else 0f, FocusSpring, label = "widgetLift")
-    val wash by animateColorAsState(accent, tween(900), label = "widgetWash")
+    var focused by remember { mutableStateOf(false) }
+    val lift by animateFloatAsState(if (hovered || focused) 1f else 0f, FocusSpring, label = "widgetLift")
+    val focusLift by animateFloatAsState(if (focused) 1f else 0f, FocusSpring, label = "widgetFocus")
+    val washColor by animateColorAsState(accent, tween(900), label = "widgetWash")
+    val washAlpha by animateFloatAsState(wash, tween(900), label = "widgetWashAlpha")
     val appear = remember { Animatable(0f) }
     LaunchedEffect(Unit) { appear.animateTo(1f, tween(520, easing = FastOutSlowInEasing)) }
     val rise = with(LocalDensity.current) { 10.dp.toPx() }
@@ -190,15 +228,19 @@ private fun WidgetCard(accent: Color, modifier: Modifier = Modifier, content: @C
         modifier
             .height(WidgetHeight)
             .graphicsLayer {
-                val s = 0.95f + 0.05f * appear.value + 0.025f * lift
+                val s = 0.95f + 0.05f * appear.value + 0.025f * lift + 0.02f * focusLift
                 scaleX = s
                 scaleY = s
                 translationY = (1f - appear.value) * rise
             }
             .hoverable(interaction)
+            .then(
+                if (onClick == null) Modifier
+                else Modifier.onFocusChanged { focused = it.isFocused }.clickable(interactionSource = interaction, indication = null, onClick = onClick),
+            )
             .glass(CardShape)
-            .background(Brush.linearGradient(listOf(wash.copy(alpha = 0.2f + 0.08f * lift), Color.Transparent), start = Offset.Zero, end = Offset(520f, 360f)))
-            .border(1.5.dp, Color.White.copy(alpha = 0.32f * lift), CardShape)
+            .background(Brush.linearGradient(listOf(washColor.copy(alpha = washAlpha + 0.08f * lift), Color.Transparent), start = Offset.Zero, end = Offset(520f, 360f)))
+            .border((1.5f + 1f * focusLift).dp, Color.White.copy(alpha = 0.32f * lift + 0.6f * focusLift), CardShape)
             .padding(horizontal = 20.dp, vertical = 14.dp),
         content = content,
     )
@@ -259,8 +301,8 @@ private fun ClockCard(compact: Boolean, modifier: Modifier) {
 // ---- Weather -----------------------------------------------------------------------
 
 @Composable
-private fun WeatherCard(weather: Weather?, error: String?, mode: WeatherMode, compact: Boolean, animate: Boolean, modifier: Modifier) {
-    WidgetCard(skyAccent(weather), modifier) {
+private fun WeatherCard(weather: Weather?, error: String?, mode: WeatherMode, compact: Boolean, animate: Boolean, modifier: Modifier, onClick: (() -> Unit)?) {
+    WidgetCard(skyAccent(weather), modifier, onClick = onClick) {
         if (weather == null) {
             Column(Modifier.align(Alignment.Center)) {
                 CardLabel("Weather")
@@ -287,57 +329,143 @@ private fun skyAccent(weather: Weather?): Color = when {
     }
 }
 
-// ---- Algeria (Les Fennecs) ---------------------------------------------------------
+// ---- Football ----------------------------------------------------------------------
 
 /**
- * Algeria's next fixture (competition, teams with crests, local kick-off time) and the
- * latest result with W / D / L. A match being played shows its score and a pulsing LIVE.
- * Without data it says so; a saved copy is marked when it's old.
+ * The followed teams' fixtures, one team at a time: every 20 seconds the card moves to the
+ * next team. Each shows its next fixture (competition, teams with crests, local kick-off
+ * time) and its latest result with W / D / L. On a match day the card stays on the teams
+ * playing that day and counts down to kick-off; a match being played shows its score and
+ * a pulsing LIVE. Without data it says so; a saved copy is marked when it's old.
  */
 @Composable
-private fun FennecsCard(fixtures: Fixtures?, error: String?, compact: Boolean, modifier: Modifier) {
-    val now = Instant.now()
-    val live = listOfNotNull(fixtures?.last, fixtures?.next).firstOrNull { it.isLive(now) }
-    val upcoming = fixtures?.next?.takeIf { it != live }
-    WidgetCard(if (live != null) AlgeriaRed else AlgeriaGreen, modifier) {
-        Column(Modifier.align(Alignment.Center), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            when {
-                live != null -> {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        LiveDot()
-                        Spacer(Modifier.width(6.dp))
-                        CardLabel(if (compact) "Live" else "Live · " + shortCompetition(live.competition), color = Color(0xFFFF8A9B))
-                    }
-                    Teams(live, compact, showScore = true)
-                    Text("Les Fennecs are playing now", style = lineStyle(14.sp, Palette.TextTertiary), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                upcoming != null -> {
-                    CardLabel(if (compact) "Next" else "Next · ${shortCompetition(upcoming.competition)}")
-                    Teams(upcoming, compact, showScore = false)
-                    Text(kickoffText(upcoming.kickoff, compact), style = lineStyle(15.sp, Palette.TextPrimary, 560), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                else -> {
-                    CardLabel("Les Fennecs")
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        AlgeriaFlag(26.dp)
-                        Spacer(Modifier.width(10.dp))
-                        Text(
-                            when {
-                                fixtures != null -> "No match scheduled yet"
-                                error != null -> "Can't reach match data · see Settings"
-                                else -> "Loading fixtures…"
-                            },
-                            style = lineStyle(15.sp, Palette.TextPrimary),
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
+private fun FootballCard(football: List<Fixtures>, matchDay: MatchDayMode, compact: Boolean, modifier: Modifier, onClick: ((Team) -> Unit)?) {
+    val zone = ZoneId.systemDefault()
+    // Ticks every second while a countdown is on screen, otherwise twice a minute
+    val now by produceState(Instant.now(), football, matchDay) {
+        while (true) {
+            value = Instant.now()
+            val counting = football.any { f ->
+                matchDayApplies(f.team, matchDay) && matchPhase(f, value, zone).let { it == MatchPhase.Today || it == MatchPhase.Soon }
+            }
+            delay(if (counting) 1000L - System.currentTimeMillis() % 1000L else 30_000L)
+        }
+    }
+    val shown = cardTeams(football, matchDay, now, zone)
+    var turn by remember { mutableIntStateOf(0) }
+    LaunchedEffect(shown.size) {
+        while (shown.size > 1) {
+            delay(20_000)
+            turn++
+        }
+    }
+    val current = shown.getOrNull(turn % shown.size.coerceAtLeast(1))
+    val phase = current?.takeIf { matchDayApplies(it.team, matchDay) }?.let { matchPhase(it, now, zone) } ?: MatchPhase.None
+    val countdown = phase == MatchPhase.Today || phase == MatchPhase.Soon
+    WidgetCard(
+        accent = if (phase == MatchPhase.Live) AlgeriaRed else AlgeriaGreen,
+        modifier = modifier,
+        onClick = current?.let { c -> onClick?.let { open -> { open(c.team) } } },
+        wash = if (countdown || phase == MatchPhase.Live) 0.42f else 0.2f,
+    ) {
+        Crossfade(current, animationSpec = tween(600), label = "footballTeam", modifier = Modifier.align(Alignment.Center)) { f ->
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
+                if (f == null) {
+                    Text("Loading fixtures…", style = lineStyle(15.sp, Palette.TextPrimary))
+                } else {
+                    TeamFixtures(f, if (f.team.id == current?.team?.id) phase else MatchPhase.None, now, compact)
                 }
             }
-            fixtures?.last?.takeIf { it != live && it.outcome != null }?.let { LastResult(it, compact) }
-            if (fixtures?.fromCache == true && Duration.between(fixtures.fetchedAt, now) > Duration.ofHours(6)) {
-                Text("Offline · saved " + savedText(fixtures.fetchedAt), style = lineStyle(12.sp, Palette.TextTertiary), maxLines = 1)
+        }
+        if (shown.size > 1) PageDots(shown.size, turn % shown.size, Modifier.align(Alignment.TopEnd))
+    }
+}
+
+@Composable
+private fun TeamFixtures(f: Fixtures, phase: MatchPhase, now: Instant, compact: Boolean) {
+    val live = listOfNotNull(f.last, f.next).firstOrNull { it.isLive(now) }
+    val upcoming = f.next?.takeIf { it != live }
+    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        when {
+            live != null -> {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    LiveDot()
+                    Spacer(Modifier.width(6.dp))
+                    CardLabel(if (compact) "Live" else "Live · " + shortCompetition(live.competition), color = Color(0xFFFF8A9B))
+                }
+                Teams(live, compact, showScore = true)
+                Text(
+                    (if (f.team.isAlgeria) "Les Fennecs" else f.team.name) + " are playing now",
+                    style = lineStyle(14.sp, Palette.TextTertiary),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
+            upcoming != null && (phase == MatchPhase.Today || phase == MatchPhase.Soon) -> MatchDayCountdown(upcoming, now, compact)
+            upcoming != null -> {
+                CardLabel(if (compact) "Next" else "Next · ${shortCompetition(upcoming.competition)}")
+                Teams(upcoming, compact, showScore = false)
+                Text(kickoffText(upcoming.kickoff, compact), style = lineStyle(15.sp, Palette.TextPrimary, 560), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            else -> {
+                CardLabel(if (f.team.isAlgeria) "Les Fennecs" else f.team.name)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Crest(Side(f.team.id, f.team.name, f.team.badge), 26.dp)
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        when {
+                            f.fetchedAt != Instant.EPOCH -> "No match scheduled yet"
+                            f.error != null -> "Can't reach match data · see Settings"
+                            else -> "Loading fixtures…"
+                        },
+                        style = lineStyle(15.sp, Palette.TextPrimary),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+        if (phase != MatchPhase.Today && phase != MatchPhase.Soon) {
+            f.last?.takeIf { it != live && it.outcome != null }?.let { LastResult(it, compact) }
+        }
+        if (f.fromCache && f.fetchedAt != Instant.EPOCH && Duration.between(f.fetchedAt, now) > Duration.ofHours(6)) {
+            Text("Offline · saved " + savedText(f.fetchedAt), style = lineStyle(12.sp, Palette.TextTertiary), maxLines = 1)
+        }
+    }
+}
+
+/** Match day: "Kick-off in", the time left counting down each second, and who plays when. */
+@Composable
+private fun MatchDayCountdown(match: Match, now: Instant, compact: Boolean) {
+    val left = Duration.between(now, match.kickoff ?: now).coerceAtLeast(Duration.ZERO)
+    val h = left.toHours()
+    val m = left.toMinutes() % 60
+    val sec = left.seconds % 60
+    val time = if (h > 0) String.format(Locale.ROOT, "%d:%02d:%02d", h, m, sec) else String.format(Locale.ROOT, "%d:%02d", m, sec)
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(7.dp).background(Color(0xFF8CE99A), CircleShape))
+        Spacer(Modifier.width(6.dp))
+        CardLabel(if (compact) "Kick-off in" else "Match day · kick-off in", color = Color(0xFF8CE99A))
+    }
+    Text(
+        time,
+        style = TextStyle(fontFamily = FlexDisplay, color = Color.White, fontSize = if (compact) 30.sp else 34.sp, fontWeight = FontWeight(300), fontFeatureSettings = "tnum"),
+        maxLines = 1,
+    )
+    Text(
+        "${shortCode(match.home.name)} v ${shortCode(match.away.name)} · " + kickoffText(match.kickoff, compact).substringAfter(" · "),
+        style = lineStyle(14.sp, Palette.TextPrimary, 600),
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
+}
+
+/** Which of [count] pages is showing, as small dots. */
+@Composable
+private fun PageDots(count: Int, current: Int, modifier: Modifier = Modifier) {
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        repeat(count) { i ->
+            Box(Modifier.size(5.dp).background(Color.White.copy(alpha = if (i == current) 0.85f else 0.28f), CircleShape))
         }
     }
 }
@@ -381,7 +509,7 @@ private fun LastResult(match: Match, compact: Boolean) {
         Spacer(Modifier.width(7.dp))
         val opponent = if (compact) shortCode(match.opponent.name) else match.opponent.name
         Text(
-            "${if (compact) "" else "Last  "}${match.algeriaScore}–${match.opponentScore} v $opponent",
+            "${if (compact) "" else "Last  "}${match.ourScore}–${match.opponentScore} v $opponent",
             style = lineStyle(14.sp, Palette.TextTertiary),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -399,7 +527,7 @@ private fun LiveDot() {
 
 /** "Today · 18:00", "Tomorrow · 18:00" or "Wed 11 Nov · 18:00", in the TV's time zone. */
 @Composable
-private fun kickoffText(kickoff: Instant?, compact: Boolean): String {
+fun kickoffText(kickoff: Instant?, compact: Boolean): String {
     if (kickoff == null) return "Date to be confirmed"
     val context = LocalContext.current
     val locale = Locale.getDefault()
@@ -420,7 +548,7 @@ private fun savedText(at: Instant): String =
 
 /** The team's crest from the feed; until it loads (or offline), a flag or initials. */
 @Composable
-private fun Crest(side: Side, size: Dp) {
+fun Crest(side: Side, size: Dp) {
     var loaded by remember(side.badge) { mutableStateOf(false) }
     Box(Modifier.size(size), contentAlignment = Alignment.Center) {
         if (!loaded) {
@@ -473,6 +601,87 @@ private fun star(center: Offset, radius: Float): Path = Path().apply {
         if (i == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y)
     }
     close()
+}
+
+// ---- Headlines ---------------------------------------------------------------------
+
+/**
+ * One headline at a time from the picked list, a new one every 20 seconds, with its topic
+ * and source above it and its age below. A thin line along the bottom fills up until the
+ * next one. OK opens the story's summary.
+ */
+@Composable
+private fun HeadlinesCard(picked: List<PickedHeadline>, status: String?, compact: Boolean, modifier: Modifier, onClick: ((Int) -> Unit)?) {
+    var index by remember(picked) { mutableIntStateOf(0) }
+    LaunchedEffect(picked) {
+        while (picked.size > 1) {
+            delay(20_000)
+            index = (index + 1) % picked.size
+        }
+    }
+    val item = picked.getOrNull(index)
+    WidgetCard(Color(0xFFFF8787), modifier, onClick = item?.let { onClick?.let { open -> { open(index) } } }) {
+        if (item == null) {
+            Column(Modifier.align(Alignment.CenterStart)) {
+                CardLabel("Headlines")
+                Spacer(Modifier.height(6.dp))
+                Text(status ?: "Loading headlines…", style = lineStyle(15.sp), maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
+        } else {
+            Crossfade(item, animationSpec = tween(500), label = "headline", modifier = Modifier.align(Alignment.CenterStart)) { shown ->
+                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    val topic = shown.topic?.let { if (compact && it == NewsTopic.World) "World" else it.title } ?: "Top stories"
+                    CardLabel(if (compact) topic else "$topic · ${shown.headline.source.title}", color = Color(0xFFFFC9C9))
+                    Text(
+                        shown.headline.title,
+                        style = lineStyle(if (compact) 15.sp else 16.sp, Palette.TextPrimary, 600).copy(lineHeight = if (compact) 18.sp else 20.sp),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        listOfNotNull(
+                            if (compact) shown.headline.source.title else null,
+                            shown.headline.published?.let { ageText(it) },
+                            if (!compact && picked.size > 1) "${picked.indexOf(shown) + 1} of ${picked.size}" else null,
+                        ).joinToString(" · "),
+                        style = lineStyle(12.sp, Palette.TextTertiary),
+                        maxLines = 1,
+                    )
+                }
+            }
+            if (picked.size > 1) {
+                // Restarts with each headline; an infinite transition, so it never holds anything up
+                key(index) {
+                    val progress by rememberInfiniteTransition(label = "headlineTimer").animateFloat(
+                        0f, 1f, infiniteRepeatable(tween(20_000, easing = LinearEasing), RepeatMode.Restart), label = "headlineProgress",
+                    )
+                    Box(
+                        Modifier
+                            .align(Alignment.BottomStart)
+                            .fillMaxWidth()
+                            .height(2.dp)
+                            .graphicsLayer {
+                                scaleX = progress
+                                transformOrigin = TransformOrigin(0f, 0.5f)
+                            }
+                            .background(Color.White.copy(alpha = 0.5f), CircleShape),
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** "Just now", "12 min ago", "3 h ago", "2 days ago". */
+fun ageText(at: Instant, now: Instant = Instant.now()): String {
+    val d = Duration.between(at, now)
+    return when {
+        d.toMinutes() < 1 -> "Just now"
+        d.toMinutes() < 60 -> "${d.toMinutes()} min ago"
+        d.toHours() < 24 -> "${d.toHours()} h ago"
+        d.toDays() == 1L -> "Yesterday"
+        else -> "${d.toDays()} days ago"
+    }
 }
 
 // ---- Sunrise & sunset --------------------------------------------------------------

@@ -40,7 +40,7 @@ jobs:
           done
 
       - name: Render screenshots
-        run: gradle :app:testDebugUnitTest --tests '*Screenshots*' --tests '*ContrastTest*' --no-daemon
+        run: gradle :app:testDebugUnitTest --tests '*Screenshots*' --tests '*ContrastTest*' --tests '*DataTest*' --no-daemon
 
       - name: Upload test report
         if: failure()

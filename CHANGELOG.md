@@ -3,6 +3,16 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 2.5 (October 2026)
+
+- **Football for any team**: the Algeria widget is now the football widget. Algeria stays first; add up to five more clubs or national teams under **Settings → Widgets → Football teams**, by searching. The card takes turns between them every 20 seconds. The fixtures mirror now keeps copies for about 120 teams (`.github/mirror/teams.txt`), so they load on TVs that can't reach TheSportsDB; search says which ones need a direct connection.
+- **Match day**: on the day a followed team plays, the card turns green and counts down to kick-off, and ten minutes before, a banner says who's about to kick off. It's information only: it never takes focus, **Back** hides it, and it goes by itself after 30 seconds. All teams, Algeria only, or off.
+- **Football page**: OK on the football card opens the next match (with venue and countdown), the latest result and the top five of the league table, for each followed team.
+- **Forecast**: OK on the weather card opens the forecast: now (feels like, humidity, wind, UV, sunrise and sunset), the next twelve hours and seven days. The last reading is saved, so the weather shows at once after a restart.
+- **Headlines widget**: Al Jazeera English and RT English, one story at a time, picked by topic (Algeria, Russia and International politics by default; Africa & Middle East, Economy and Sport too). OK opens the summary. Al Jazeera falls back to a GitHub copy; RT is read directly only and never copied, and where it's blocked the widget carries on with Al Jazeera.
+- Widgets with a page take focus like apps (a white edge and a slight lift) when you go up to them.
+- The build now also checks the football, weather and headline parsers against saved real answers from each service.
+
 ## 2.4 (October 2026)
 
 - **Wakes up awake**: turning the TV on now lands on the home screen, never the idle screen. The idle timer used to keep counting while the TV was off; it now restarts whenever the screen comes on or you come back from an app.
