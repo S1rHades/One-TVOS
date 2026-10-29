@@ -1,15 +1,17 @@
 name: Fixtures mirror
 
-# Copies Algeria's fixtures from TheSportsDB to the fixtures-data branch every 30 minutes.
-# The launcher reads this copy (from raw.githubusercontent.com) when a TV can't reach
-# TheSportsDB itself, e.g. when its Cloudflare protection turns older TVs away.
+# Keeps copies of the football fixtures (Algeria and the teams in .github/mirror/teams.txt),
+# league tables and Al Jazeera's headlines on the fixtures-data branch, every 30 minutes.
+# The launcher reads them (from raw.githubusercontent.com) when a TV can't reach the
+# sources itself, e.g. when TheSportsDB's Cloudflare protection turns older TVs away.
+# See .github/scripts/mirror.py.
 on:
   schedule:
     - cron: "7,37 * * * *"
   workflow_dispatch:
   push:
     branches: [main]
-    paths: [.github/workflows/fixtures.yml]
+    paths: [.github/workflows/fixtures.yml, .github/scripts/mirror.py, .github/mirror/teams.txt]
 
 permissions:
   contents: write
@@ -21,19 +23,20 @@ concurrency:
 jobs:
   mirror:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github
+
       - name: Fetch
         run: |
-          api=https://www.thesportsdb.com/api/v1/json/123
-          get() { for i in 1 2 3; do curl -fsS --max-time 20 "$1" && return 0; sleep 10; done; return 1; }
-          get "$api/eventsnext.php?id=134516" > next.json
-          get "$api/eventslast.php?id=134516" > last.json
-          # Publish only real answers, so a bad fetch never replaces a good copy
-          jq -e '.events | length > 0' next.json > /dev/null || jq -e '.results | length > 0' last.json > /dev/null
-          mkdir -p out
-          jq -n --slurpfile next next.json --slurpfile last last.json \
-            '{next: $next[0], last: $last[0], updated: (now | todate)}' > out/fixtures.json
-          jq -c '{updated, next: (.next.events[0].strEvent // null), last: (.last.results[0].strEvent // null)}' out/fixtures.json
+          # Start from the published copy, so a team or table not refreshed this run keeps its file
+          git clone -q --depth 1 -b fixtures-data "https://github.com/${{ github.repository }}.git" out || mkdir -p out
+          rm -rf out/.git
+          python3 .github/scripts/mirror.py out .github/mirror/teams.txt
+          # Never publish without Algeria's fixtures, which every version of the launcher reads
+          jq -e '(.next.events | length > 0) or (.last.results | length > 0)' out/fixtures.json > /dev/null
 
       - name: Publish
         working-directory: out
@@ -41,7 +44,7 @@ jobs:
           git init -q -b fixtures-data
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add fixtures.json
-          git commit -qm "Fixtures $(date -u +%FT%TZ)"
+          git add -A
+          git commit -qm "Mirror $(date -u +%FT%TZ)"
           # One commit only: the branch holds the latest copy, not a history
           git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" fixtures-data

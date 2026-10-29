@@ -116,6 +116,50 @@ class Screenshots {
 
     private val favorites = listOf("Cinema", "Live TV", "Music", "Photos", "Podcasts").map(::pkg)
 
+    private fun data(name: String): String = javaClass.classLoader!!.getResource("data/$name")!!.readText()
+
+    private val arsenal = Team("133604", "Arsenal", league = "English Premier League", country = "England")
+
+    /** Algeria with a match [inMinutes] from now (today), and Arsenal from the saved answers. */
+    private fun matchDay(inMinutes: Long): List<Fixtures> {
+        val kickoff = java.time.LocalDateTime.now(java.time.ZoneOffset.UTC).plusMinutes(inMinutes).withSecond(0).withNano(0)
+        val next = """{"events":[{"idEvent":"77","strHomeTeam":"Algeria","idHomeTeam":"134516","strAwayTeam":"Togo","idAwayTeam":"136484",""" +
+            """"strLeague":"African Cup of Nations Qualifying","idLeague":"5520","strSeason":"2027","strTimestamp":"$kickoff:00","strStatus":"NS","strVenue":"Stade Nelson-Mandela"}]}"""
+        return listOf(
+            parseFixtures(next, data("last-algeria.json"), java.time.Instant.now()),
+            parseFixtures(data("next-arsenal.json"), data("last-arsenal.json"), java.time.Instant.now(), arsenal),
+        )
+    }
+
+    /** A forecast around now, so the hours and days are always current. */
+    private val forecastWeather = run {
+        val now = java.time.LocalDateTime.now().withMinute(0).withSecond(0).withNano(0)
+        val today = java.time.LocalDate.now()
+        val codes = listOf(2, 2, 1, 0, 0, 0, 2, 3, 61, 61, 3, 2)
+        weather.copy(
+            forecast = Forecast(
+                feelsLikeC = 21.2, humidity = 64, windKmh = 14.0, windFromDeg = 315.0, uvIndex = 3.0,
+                hours = (0 until 12).map { i ->
+                    HourForecast(now.plusHours(i.toLong()), 22.0 + 3 * Math.sin(i / 3.0), codes[i], true, if (codes[i] == 61) 70 else 5 * (i % 3), null)
+                },
+                days = (0 until 7).map { i ->
+                    DayForecast(today.plusDays(i.toLong()), listOf(2, 61, 0, 0, 2, 61, 2)[i], 25.0 - (i % 3), 16.0 - (i % 2), listOf(10, 70, 0, 0, 20, 60, 10)[i], null)
+                },
+                source = "Open-Meteo",
+                fetchedAt = java.time.Instant.now().minusSeconds(600),
+            ),
+        )
+    }
+
+    private val news = News(
+        mapOf(
+            NewsSource.AlJazeera to parseRss(data("aljazeera.xml"), NewsSource.AlJazeera),
+            NewsSource.RT to parseRss(data("rt-russia.xml"), NewsSource.RT),
+        ),
+        emptyMap(),
+        java.time.Instant.now(),
+    )
+
     /** The pins as the screen last changed them. */
     private var currentPins: List<String> = emptyList()
 
@@ -334,12 +378,87 @@ class Screenshots {
         captureScreenRoboImage(File(out, "settings.png").path)
     }
 
+    /** Match day: the football card counts down to kick-off and stays on the team that plays. */
+    @Test
+    fun matchDayCard() {
+        show("mountain-lake", pins = favorites, football = matchDay(inMinutes = 135))
+        compose.onNodeWithText("MATCH DAY · KICK-OFF IN").assertIsDisplayed()
+        compose.onRoot().captureRoboImage(File(out, "match-day.png").path)
+    }
+
+    /** Ten minutes before kick-off, a banner that never takes focus: OK still opens the focused app. */
+    @Test
+    fun kickoffBanner() {
+        show("aurora-sky", pins = favorites, football = matchDay(inMinutes = 8))
+        compose.onNodeWithText("Les Fennecs kick off in", substring = true).assertIsDisplayed()
+        compose.onNode(isFocused()).assertExists()
+        assertTrue("focus stays on the favourites", compose.onNode(isFocused()).fetchSemanticsNode().boundsInRoot.top > 200f)
+        compose.onRoot().captureRoboImage(File(out, "kickoff-banner.png").path)
+    }
+
+    /** OK on the football card opens the football page; Right moves to the next team. */
+    @Test
+    fun footballHub() {
+        show("canyon-river", pins = favorites, football = matchDay(inMinutes = 60 * 24 * 3))
+        compose.onNodeWithText("NEXT", substring = true).performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNodeWithText("LATEST RESULT").assertIsDisplayed()
+        compose.onNodeWithText("LATEST RESULT").performKeyInput { pressKey(Key.DirectionRight) }
+        settle()
+        compose.onNodeWithText("Manchester City").assertIsDisplayed()
+        captureScreenRoboImage(File(out, "football-hub.png").path)
+    }
+
+    /** OK on the weather card opens the forecast. */
+    @Test
+    fun forecast() {
+        show("misty-valley", pins = favorites, weather = forecastWeather)
+        compose.onNodeWithText("Lisbon", substring = true).performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNodeWithText("Feels like", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("Tomorrow").assertIsDisplayed()
+        captureScreenRoboImage(File(out, "forecast.png").path)
+    }
+
+    /** The headlines card among four widgets, then a story's summary. */
+    @Test
+    fun headlines() {
+        val four = listOf(WidgetKind.Clock, WidgetKind.Weather, WidgetKind.Fennecs, WidgetKind.Headlines)
+        show("pine-forest", pins = favorites, news = news, settings = LauncherSettings(weather = WeatherMode.Celsius, widgets = four, newsTopics = setOf(NewsTopic.Russia)))
+        compose.onNodeWithText("RUSSIA", substring = true).assertIsDisplayed()
+        compose.onRoot().captureRoboImage(File(out, "headlines.png").path)
+        compose.onNodeWithText("RUSSIA", substring = true).performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNodeWithText("Left / Right for more", substring = true).assertIsDisplayed()
+        captureScreenRoboImage(File(out, "headline-page.png").path)
+    }
+
+    /** Settings → Widgets → Football teams: the followed teams and a search to add one. */
+    @Test
+    fun footballSettings() {
+        show("aurora-sky", pins = favorites, football = matchDay(inMinutes = 60 * 24 * 3), settings = LauncherSettings(weather = WeatherMode.Celsius, teams = listOf(Algeria, arsenal)))
+        compose.onNodeWithContentDescription("Settings").performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNodeWithText("Widgets").performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNodeWithText("Football teams").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNode(hasSetTextAction()).performTextInput("alg")
+        compose.mainClock.advanceTimeBy(600)
+        settle()
+        compose.onNodeWithText("MC Alger").assertExists()
+        captureScreenRoboImage(File(out, "settings-football.png").path)
+    }
+
     /** Shows the home screen over [photo] and lets focus, images and animations settle. */
     private fun show(
         photo: String,
         pins: List<String>,
         settings: LauncherSettings = LauncherSettings(weather = WeatherMode.Celsius),
         home: HomeStatus = HomeStatus(isDefault = true, redirectOn = false),
+        football: List<Fixtures> = listOf(fixtures),
+        weather: Weather = this.weather,
+        news: News? = null,
     ) {
         check(fixtures.next != null && fixtures.last?.outcome == 'W') { "fixtures didn't parse: $fixtures" }
         currentPins = pins
@@ -350,7 +469,10 @@ class Screenshots {
             LauncherScreen(
                 apps = apps,
                 weather = weather,
-                fixtures = fixtures,
+                football = football,
+                news = news,
+                loadTable = { league, _ -> if (league == "4328") parseTable(data("table-epl.json")) else null },
+                searchTeams = { q -> searchTeams(listOf(Algeria, arsenal, Team("139283", "MC Alger", league = "Algerian Ligue 1", country = "Algeria"), Team("1", "Algeria U23", country = "Algeria")), q).map { TeamHit(it, it.id != "1") } },
                 pins = pinned,
                 settings = current,
                 onSettingsChange = { current = it },

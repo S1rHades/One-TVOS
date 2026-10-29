@@ -46,14 +46,21 @@ class MainActivity : ComponentActivity() {
         }
     }
     private lateinit var store: SettingsStore
-    private lateinit var fixturesSource: FixturesSource
+    private lateinit var footballSource: FootballSource
+    private lateinit var weatherSource: WeatherSource
+    private lateinit var newsFeed: NewsFeed
     private lateinit var photoFeed: PhotoFeed
+
+    /** Set after TheSportsDB's search fails once, so later searches use the GitHub list alone. */
+    @Volatile private var directSearchFailed = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         store = SettingsStore(this)
         ContextCompat.registerReceiver(this, screenOn, IntentFilter(Intent.ACTION_SCREEN_ON), ContextCompat.RECEIVER_NOT_EXPORTED)
-        fixturesSource = FixturesSource(this)
+        footballSource = FootballSource(this)
+        weatherSource = WeatherSource(this)
+        newsFeed = NewsFeed(this)
         photoFeed = PhotoFeed(this)
 
         setContent {
@@ -63,41 +70,59 @@ class MainActivity : ComponentActivity() {
             }
             var pins by remember { mutableStateOf(store.readPins()) }
             var settings by remember { mutableStateOf(store.load()) }
-            // Refreshed every 30 minutes while a widget needs it; the last reading stays up if a refresh fails.
-            // Sunrise and sunset need only the location that comes with it.
+            // Refreshed every 30 minutes while a widget needs it; the last reading stays up if a refresh fails,
+            // and the saved one shows at once after a restart. Sunrise and sunset need only the location.
             val weatherOn = WidgetKind.Weather in settings.widgets || WidgetKind.Daylight in settings.widgets
             var weatherError by remember { mutableStateOf<String?>(null) }
-            val weather by produceState<Weather?>(null, weatherOn) {
+            val savedWeather = remember { weatherSource.cached() }
+            val weather by produceState(savedWeather, weatherOn) {
                 var failures = 0
                 while (weatherOn) {
-                    val result = withContext(Dispatchers.IO) { fetchWeather() }
+                    val result = withContext(Dispatchers.IO) { weatherSource.fetch() }
                     result.onSuccess { value = it; weatherError = null; failures = 0 }
                     result.onFailure { weatherError = describe(it); failures++ }
                     delay(if (result.isSuccess) REFRESH_MS else RetryDelaysMs[(failures - 1).coerceAtMost(RetryDelaysMs.lastIndex)])
                 }
             }
 
-            // Algeria's fixtures: the saved copy at once, then fresh ones every 30 minutes, every 3 around a match
-            val fennecsOn = WidgetKind.Fennecs in settings.widgets
-            var fixturesError by remember { mutableStateOf<String?>(null) }
-            val savedFixtures = remember { fixturesSource.cached() }
-            val fixtures by produceState(savedFixtures, fennecsOn) {
+            // The followed teams' fixtures: the saved copies at once, then fresh ones every 30 minutes,
+            // every 3 around a match. A team's own failure keeps its saved copy, marked.
+            val footballOn = WidgetKind.Fennecs in settings.widgets
+            val teams = settings.teams
+            val savedFootball = remember { teams.map { footballSource.cached(it) ?: Fixtures(it, null, null, Instant.EPOCH, fromCache = true) } }
+            val football by produceState(savedFootball, footballOn, teams) {
+                // A team added or removed shows (or goes) at once, before the fetch
+                value = teams.map { t -> value.firstOrNull { it.team.id == t.id } ?: footballSource.cached(t) ?: Fixtures(t, null, null, Instant.EPOCH, fromCache = true) }
                 var failures = 0
-                while (fennecsOn) {
-                    val result = withContext(Dispatchers.IO) { fixturesSource.fetch() }
-                    result.onSuccess { value = it; fixturesError = null; failures = 0 }
-                    result.onFailure { fixturesError = it.message ?: it::class.java.simpleName; failures++; value = value?.copy(fromCache = true) }
-                    val soon = value?.let { f ->
-                        val now = Instant.now()
+                while (footballOn) {
+                    val list = withContext(Dispatchers.IO) { footballSource.fetch(teams) }
+                    value = list
+                    val failed = list.all { it.error != null }
+                    failures = if (failed) failures + 1 else 0
+                    val now = Instant.now()
+                    val soon = list.any { f ->
                         f.next?.kickoff?.let { Duration.between(now, it).abs() < Duration.ofHours(3) } == true || f.last?.isLive(now) == true
-                    } == true
+                    }
                     delay(
                         when {
-                            result.isFailure -> RetryDelaysMs[(failures - 1).coerceAtMost(RetryDelaysMs.lastIndex)]
+                            failed -> RetryDelaysMs[(failures - 1).coerceAtMost(RetryDelaysMs.lastIndex)]
                             soon -> LIVE_REFRESH_MS
                             else -> REFRESH_MS
                         },
                     )
+                }
+            }
+
+            // Headlines from both sources every 30 minutes while the widget is on; the saved ones at once
+            val newsOn = WidgetKind.Headlines in settings.widgets
+            val savedNews = remember { newsFeed.cached() }
+            val news by produceState(savedNews, newsOn) {
+                var failures = 0
+                while (newsOn) {
+                    val fresh = withContext(Dispatchers.IO) { newsFeed.fetch() }
+                    value = fresh
+                    failures = if (fresh.errors.size == NewsSource.entries.size) failures + 1 else 0
+                    delay(if (failures == 0) REFRESH_MS else RetryDelaysMs[(failures - 1).coerceAtMost(RetryDelaysMs.lastIndex)])
                 }
             }
 
@@ -124,9 +149,11 @@ class MainActivity : ComponentActivity() {
                 apps = apps,
                 weather = weather.takeIf { weatherOn },
                 weatherError = weatherError.takeIf { weatherOn },
-                fixtures = fixtures,
+                football = football,
+                news = news.takeIf { newsOn },
+                loadTable = { league, season -> withContext(Dispatchers.IO) { footballSource.table(league, season) } },
+                searchTeams = { query -> withContext(Dispatchers.IO) { findTeams(query) } },
                 onlinePhotos = onlinePhotos,
-                fixturesError = fixturesError.takeIf { fennecsOn },
                 pins = pins,
                 settings = settings,
                 onSettingsChange = {
@@ -201,6 +228,19 @@ class MainActivity : ComponentActivity() {
     }
 
     /** The TV's own search screen (Google TV / Android TV search, or the assistant), if any. */
+    /**
+     * Teams for Settings → Football: from the GitHub copy's list (works on any network) and,
+     * when the TV can reach it, TheSportsDB's own search for everything else.
+     */
+    private fun findTeams(query: String): List<TeamHit> {
+        val index = footballSource.mirroredTeams()
+        val mirrored = index.mapTo(HashSet()) { it.id }
+        val direct = if (directSearchFailed) emptyList() else footballSource.searchDirect(query)
+            .onFailure { directSearchFailed = true }
+            .getOrDefault(emptyList())
+        return (searchTeams(index, query) + direct).distinctBy { it.id }.take(8).map { TeamHit(it, it.id in mirrored) }
+    }
+
     private fun systemSearchIntent(): Intent? =
         listOf(Intent("android.search.action.GLOBAL_SEARCH"), Intent(Intent.ACTION_ASSIST))
             .map { it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }

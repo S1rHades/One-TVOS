@@ -34,6 +34,12 @@ data class LauncherSettings(
     val homePromptDismissed: Boolean = false,
     /** A daily set of nature photos from the internet, rather than only the built-in ones. */
     val onlinePhotos: Boolean = true,
+    /** Teams the football card follows, in order; Algeria is always first. */
+    val teams: List<Team> = listOf(Algeria),
+    /** Which teams get the match-day countdown and the kick-off banner. */
+    val matchDay: MatchDayMode = MatchDayMode.All,
+    /** What the headlines widget picks stories about. */
+    val newsTopics: Set<NewsTopic> = NewsTopic.Defaults,
 ) {
     companion object {
         val IntervalOptions = listOf(10, 20, 30, 60)
@@ -71,6 +77,13 @@ class SettingsStore(context: Context) {
             ?: if (prefs.getString("weather", null) == WeatherMode.Off.name) DefaultWidgets - WidgetKind.Weather else DefaultWidgets,
         homePromptDismissed = prefs.getBoolean("homePromptDismissed", false),
         onlinePhotos = prefs.getBoolean("onlinePhotos", true),
+        teams = teamsFromJson(prefs.getString("teams", null)),
+        matchDay = prefs.getString("matchDay", null)
+            ?.let { name -> MatchDayMode.entries.firstOrNull { it.name == name } }
+            ?: MatchDayMode.All,
+        newsTopics = prefs.getString("newsTopics", null)
+            ?.let { stored -> stored.split(",").mapNotNull { name -> NewsTopic.entries.firstOrNull { it.name == name } }.toSet() }
+            ?: NewsTopic.Defaults,
     ).let { if (it.weather == WeatherMode.Off) it.copy(weather = defaultWeatherMode()) else it }
 
     fun save(settings: LauncherSettings) {
@@ -88,6 +101,9 @@ class SettingsStore(context: Context) {
             .putString("widgets", settings.widgets.toStored())
             .putBoolean("homePromptDismissed", settings.homePromptDismissed)
             .putBoolean("onlinePhotos", settings.onlinePhotos)
+            .putString("teams", teamsToJson(settings.teams))
+            .putString("matchDay", settings.matchDay.name)
+            .putString("newsTopics", settings.newsTopics.joinToString(",") { it.name })
             .apply()
     }
 
