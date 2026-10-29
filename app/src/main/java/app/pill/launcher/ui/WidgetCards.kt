@@ -46,6 +46,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.fillMaxWidth
+import android.content.Context
+import android.app.ActivityManager
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -105,19 +109,20 @@ private val Gap = 14.dp
 /** Widths each card is designed for, roomy and compact. The row scales them to fit. */
 private fun naturalWidth(kind: WidgetKind, compact: Boolean): Dp = when (kind) {
     WidgetKind.Clock -> if (compact) 146.dp else 220.dp
-    WidgetKind.Weather -> if (compact) 156.dp else 215.dp
+    WidgetKind.Weather -> if (compact) 160.dp else 240.dp
     WidgetKind.Fennecs -> if (compact) 204.dp else 270.dp
     WidgetKind.Daylight -> if (compact) 146.dp else 200.dp
-    WidgetKind.System -> if (compact) 156.dp else 190.dp
+    WidgetKind.System -> if (compact) 176.dp else 220.dp
 }
 
 private val AlgeriaGreen = Color(0xFF006633)
 private val AlgeriaRed = Color(0xFFD21034)
 
 /**
- * The header's widgets, in the user's order. Cards fade in and out as they are turned on
- * and off and glide to their new place when reordered. When the full-size cards don't
- * fit, all switch to compact layouts, then shrink evenly.
+ * The header's widgets, in the user's order, filling the row: each card gets a share of
+ * the width in proportion to its design width, so two cards stretch and four tighten
+ * (switching to compact layouts). Cards fade in and out as they are turned on and off,
+ * glide to their new place when reordered, and resize smoothly.
  */
 @Composable
 fun WidgetRow(
@@ -139,10 +144,9 @@ fun WidgetRow(
         // Four cards, or full-size ones that don't fit, use the compact layouts
         val compact = widgets.size >= 4 || full + gaps > maxWidth
         val needed = widgets.fold(0.dp) { sum, kind -> sum + natural(kind, compact) }
-        // Share out the room: compact cards grow into spare space (up to full size), and all shrink evenly if short
-        val scale = if (needed == 0.dp) 1f else (maxWidth - gaps) / needed
-        fun cap(kind: WidgetKind) =
-            if (compact) minOf(natural(kind, false), natural(kind, true) * scale) else natural(kind, false) * scale.coerceAtMost(1f)
+        // Every card stretches by the same factor, so the row always fills its width: two cards
+        // share it between them, four squeeze into their compact layouts
+        val share = if (needed == 0.dp) 1f else (maxWidth - gaps) / needed
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(Gap),
             userScrollEnabled = false,
@@ -155,7 +159,7 @@ fun WidgetRow(
                         placementSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow, visibilityThreshold = IntOffset(1, 1)),
                         fadeOutSpec = tween(220),
                     )
-                    .widthIn(max = cap(kind))
+                    .width(animateDpAsState(natural(kind, compact) * share, tween(450, easing = FastOutSlowInEasing), label = "widgetWidth").value)
                 when (kind) {
                     WidgetKind.Clock -> ClockCard(compact, item)
                     WidgetKind.Weather -> WeatherCard(weather, weatherError, mode, compact, animate, item)
@@ -241,7 +245,7 @@ private fun ClockCard(compact: Boolean, modifier: Modifier) {
         }
     }
     WidgetCard(Color(0xFF9DB4FF), modifier) {
-        Column(Modifier.align(Alignment.CenterStart)) {
+        Column(Modifier.align(Alignment.Center)) {
             Text(
                 clock,
                 style = TextStyle(fontFamily = FlexDisplay, color = Color.White, fontSize = if (compact) 46.sp else 54.sp, fontWeight = FontWeight(260), letterSpacing = (-1.2).sp),
@@ -258,13 +262,13 @@ private fun ClockCard(compact: Boolean, modifier: Modifier) {
 private fun WeatherCard(weather: Weather?, error: String?, mode: WeatherMode, compact: Boolean, animate: Boolean, modifier: Modifier) {
     WidgetCard(skyAccent(weather), modifier) {
         if (weather == null) {
-            Column(Modifier.align(Alignment.CenterStart)) {
+            Column(Modifier.align(Alignment.Center)) {
                 CardLabel("Weather")
                 Spacer(Modifier.height(6.dp))
                 Text(if (error != null) "Can't reach the weather service" else "Finding your area…", style = lineStyle(16.sp), maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
         } else {
-            WeatherWidget(weather, mode, compact, Modifier.align(Alignment.CenterStart), animate = animate)
+            WeatherWidget(weather, mode, compact, Modifier.align(Alignment.Center), animate = animate)
         }
     }
 }
@@ -296,7 +300,7 @@ private fun FennecsCard(fixtures: Fixtures?, error: String?, compact: Boolean, m
     val live = listOfNotNull(fixtures?.last, fixtures?.next).firstOrNull { it.isLive(now) }
     val upcoming = fixtures?.next?.takeIf { it != live }
     WidgetCard(if (live != null) AlgeriaRed else AlgeriaGreen, modifier) {
-        Column(Modifier.align(Alignment.CenterStart), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Column(Modifier.align(Alignment.Center), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             when {
                 live != null -> {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -490,7 +494,7 @@ private fun DaylightCard(weather: Weather?, compact: Boolean, modifier: Modifier
     }
     val format = DateTimeFormatter.ofPattern(if (DateFormat.is24HourFormat(context)) "HH:mm" else "h:mm a", Locale.getDefault())
     WidgetCard(Color(0xFFFFA94D), modifier) {
-        Column(Modifier.align(Alignment.CenterStart)) {
+        Column(Modifier.align(Alignment.Center)) {
             CardLabel(if (compact) "Daylight" else "Sunrise & sunset")
             Spacer(Modifier.height(6.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -546,38 +550,74 @@ private fun SunArc(fraction: Float?, modifier: Modifier) {
 
 // ---- System info -------------------------------------------------------------------
 
-/** The network the TV is on (with VPN) and free storage, checked every 15 seconds. */
+/** Free and total space of storage and memory, in bytes. */
+private data class Usage(val storageFree: Long, val storageTotal: Long, val memoryFree: Long, val memoryTotal: Long)
+
+/**
+ * What's worth glancing at about the TV: free storage and memory as bars (amber when
+ * running low), the connection with VPN, and the Android version. Settings → TV & system
+ * has the matching shortcuts (Free up memory, Storage, System update). Checked every
+ * 10 seconds.
+ */
 @Composable
 private fun SystemCard(compact: Boolean, modifier: Modifier) {
+    val context = LocalContext.current
     val network by rememberNetworkStatus()
-    val freeBytes by produceState(-1L) {
+    val usage by produceState<Usage?>(null) {
         while (true) {
-            value = withContext(Dispatchers.IO) {
-                runCatching { StatFs(Environment.getDataDirectory().path).availableBytes }.getOrDefault(-1L)
-            }
-            delay(15_000)
+            value = withContext(Dispatchers.IO) { readUsage(context) }
+            delay(10_000)
         }
     }
     val online = network.link != Link.Offline
     WidgetCard(if (online) Color(0xFF38D9A9) else Color(0xFFFF8787), modifier) {
-        Row(Modifier.align(Alignment.CenterStart), verticalAlignment = Alignment.CenterVertically) {
-            WifiIcon(network, if (online) Color.White else Color(0xFFFF8787), if (compact) 26.dp else 32.dp)
-            Spacer(Modifier.width(if (compact) 10.dp else 14.dp))
-            Column {
-                CardLabel("System")
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    network.label + if (network.vpn) " · VPN" else "",
-                    style = lineStyle(if (compact) 16.sp else 18.sp, Palette.TextPrimary, 600),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+        Column(Modifier.align(Alignment.Center), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                WifiIcon(network, if (online) Color.White else Color(0xFFFF8787), 16.dp)
+                Spacer(Modifier.width(7.dp))
+                CardLabel(
+                    network.label + (if (network.vpn) " · VPN" else "") + if (compact) "" else " · Android ${android.os.Build.VERSION.RELEASE}",
+                    color = if (online) Palette.TextTertiary else Color(0xFFFF8787),
                 )
-                if (freeBytes >= 0) {
-                    Text(formatBytes(freeBytes) + if (compact) " free" else " storage free", style = lineStyle(15.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
+            }
+            usage?.let { u ->
+                UsageBar("Storage", u.storageFree, u.storageTotal)
+                UsageBar("Memory", u.memoryFree, u.memoryTotal)
             }
         }
     }
+}
+
+/** "Storage  12 GB free" over a thin bar of how full it is; amber under 10% free. */
+@Composable
+private fun UsageBar(label: String, free: Long, total: Long) {
+    if (total <= 0 || free < 0) return
+    val used = (1f - free.toFloat() / total).coerceIn(0f, 1f)
+    val low = free.toFloat() / total < 0.1f
+    Column {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(label, style = lineStyle(14.sp, Palette.TextSecondary), maxLines = 1)
+            Spacer(Modifier.weight(1f))
+            Text(formatBytes(free) + " free", style = lineStyle(14.sp, if (low) Color(0xFFFFC078) else Palette.TextPrimary, 600), maxLines = 1)
+        }
+        Spacer(Modifier.height(3.dp))
+        Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(Color(0x33FFFFFF))) {
+            Box(Modifier.fillMaxWidth(used).height(4.dp).background(if (low) Color(0xFFFFC078) else Color.White, RoundedCornerShape(2.dp)))
+        }
+    }
+}
+
+private fun readUsage(context: Context): Usage {
+    val stat = runCatching { StatFs(Environment.getDataDirectory().path) }.getOrNull()
+    val memory = ActivityManager.MemoryInfo().also { info ->
+        runCatching { context.getSystemService(ActivityManager::class.java).getMemoryInfo(info) }
+    }
+    return Usage(
+        storageFree = stat?.availableBytes ?: -1,
+        storageTotal = stat?.totalBytes ?: -1,
+        memoryFree = memory.availMem,
+        memoryTotal = memory.totalMem,
+    )
 }
 
 private fun formatBytes(bytes: Long): String {

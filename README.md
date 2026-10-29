@@ -73,7 +73,7 @@
 
 To make it your home screen, open **Settings** (the gear) → **Default home screen**. Android asks you to confirm; after that, Home and closing or killing any app bring you back to Pill Launcher.
 
-Many TVs, most Google TV devices among them, don't let any app replace the home screen. On those, use **Settings → Home button helper**: it opens Accessibility settings, where you turn on **Pill Launcher Home button**. Whenever the TV's own home screen opens (Home pressed, an app closed or killed), the helper brings Pill Launcher straight back. It only checks which app came to the front, never what is on screen. On Android 13 and later, a sideloaded app's accessibility switch may be greyed out at first: open **Settings → Apps → Pill Launcher**, choose **⋮ → Allow restricted settings**, then turn it on.
+Many TVs, most Google TV devices among them, don't let any app replace the home screen. On those, use **Settings → Home & startup → Home button helper**: it opens Accessibility settings, where you turn on **Pill Launcher Home button**. Whenever the TV's own home screen opens (Home pressed, an app closed or killed), the helper brings Pill Launcher straight back. It only checks which app came to the front, never what is on screen. On Android 13 and later, a sideloaded app's accessibility switch may be greyed out at first: open **Settings → Apps → Pill Launcher**, choose **⋮ → Allow restricted settings**, then turn it on.
 
 Until one of these is set up, the home screen shows a reminder with a **Set up** button, which tries the first way and then the second. **Not now** hides it.
 
@@ -105,6 +105,7 @@ The `latest` release is rebuilt automatically every time `main` changes, so inst
 | Change how often the photo changes, or the weather unit | In settings, **Left** / **Right** on that row |
 | Turn widgets on or off | **Settings → Widgets**, **OK** on a widget (up to four at once) |
 | Reorder widgets | **Settings → Widgets**, **Left** / **Right** on a widget that's on |
+| Free up memory, or open the TV's network, display, sound or update screens | **Settings → TV & system** |
 | Close settings | **Back** |
 
 Settings and favourites are saved on the TV and survive restarts and updates.

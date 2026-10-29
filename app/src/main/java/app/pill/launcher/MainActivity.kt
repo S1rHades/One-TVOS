@@ -1,6 +1,10 @@
 package app.pill.launcher
 
+import android.app.ActivityManager
 import android.content.ActivityNotFoundException
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.IntentFilter
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -16,7 +20,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.core.content.ContextCompat
 import app.pill.launcher.ui.LauncherScreen
+import app.pill.launcher.ui.SystemAction
 import app.pill.launcher.ui.describe
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -31,6 +37,14 @@ class MainActivity : ComponentActivity() {
 
     private var refresh by mutableIntStateOf(0)
     private var homePresses by mutableIntStateOf(0)
+
+    /** Bumped when the TV wakes (screen on) or the launcher comes back, so it never wakes up idle. */
+    private var wakes by mutableIntStateOf(0)
+    private val screenOn = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            wakes++
+        }
+    }
     private lateinit var store: SettingsStore
     private lateinit var fixturesSource: FixturesSource
     private lateinit var photoFeed: PhotoFeed
@@ -38,6 +52,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         store = SettingsStore(this)
+        ContextCompat.registerReceiver(this, screenOn, IntentFilter(Intent.ACTION_SCREEN_ON), ContextCompat.RECEIVER_NOT_EXPORTED)
         fixturesSource = FixturesSource(this)
         photoFeed = PhotoFeed(this)
 
@@ -124,6 +139,7 @@ class MainActivity : ComponentActivity() {
                     store.savePins(pins)
                 },
                 homePresses = homePresses,
+                wakes = wakes,
                 home = home,
                 onMakeDefault = { requestDefaultHome() },
                 onHomeHelper = { openAccessibilitySettings() },
@@ -148,6 +164,7 @@ class MainActivity : ComponentActivity() {
                         Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${app.pkg}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                     )
                 },
+                onSystemAction = { action -> runSystemAction(action) },
                 onOpenNetworkSettings = {
                     // TVs differ in which of these screens they have
                     listOf(Settings.ACTION_WIFI_SETTINGS, Settings.ACTION_WIRELESS_SETTINGS, Settings.ACTION_SETTINGS)
@@ -175,6 +192,12 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         refresh++
+        wakes++
+    }
+
+    override fun onDestroy() {
+        runCatching { unregisterReceiver(screenOn) }
+        super.onDestroy()
     }
 
     /** The TV's own search screen (Google TV / Android TV search, or the assistant), if any. */
@@ -182,6 +205,43 @@ class MainActivity : ComponentActivity() {
         listOf(Intent("android.search.action.GLOBAL_SEARCH"), Intent(Intent.ACTION_ASSIST))
             .map { it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
             .firstOrNull { it.resolveActivity(packageManager) != null }
+
+    /** One TV & system shortcut from settings; returns what to show under its row. */
+    private fun runSystemAction(action: SystemAction): String? {
+        fun open(vararg actions: String): String? =
+            if (actions.any { tryStartActivity(Intent(it).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }) null
+            else "This TV doesn't have that screen"
+        return when (action) {
+            SystemAction.FreeMemory -> freeMemory()
+            SystemAction.Network -> open(Settings.ACTION_WIFI_SETTINGS, Settings.ACTION_WIRELESS_SETTINGS)
+            SystemAction.Display -> open(Settings.ACTION_DISPLAY_SETTINGS)
+            SystemAction.Sound -> open(Settings.ACTION_SOUND_SETTINGS)
+            SystemAction.Storage -> open(Settings.ACTION_INTERNAL_STORAGE_SETTINGS, Settings.ACTION_MEMORY_CARD_SETTINGS)
+            // Not a public constant, but TVs and phones alike answer it
+            SystemAction.Update -> open("android.settings.SYSTEM_UPDATE_SETTINGS", Settings.ACTION_DEVICE_INFO_SETTINGS)
+            SystemAction.DateTime -> open(Settings.ACTION_DATE_SETTINGS)
+            SystemAction.About -> open(Settings.ACTION_DEVICE_INFO_SETTINGS)
+            SystemAction.AllSettings -> open(Settings.ACTION_SETTINGS)
+        }
+    }
+
+    /**
+     * Asks Android to stop the background processes of every other app (each restarts if
+     * it needs to) and reports how much memory came free. Android 14 and later only let
+     * an app stop its own, so there this mostly reports what is free.
+     */
+    private fun freeMemory(): String {
+        val am = getSystemService(ActivityManager::class.java) ?: return "Not available on this TV"
+        fun available() = ActivityManager.MemoryInfo().also { am.getMemoryInfo(it) }.availMem
+        val before = available()
+        packageManager.getInstalledApplications(0)
+            .filter { it.packageName != packageName }
+            .forEach { runCatching { am.killBackgroundProcesses(it.packageName) } }
+        val after = available()
+        val freed = (after - before).coerceAtLeast(0) / 1_000_000
+        val free = after / 1_000_000
+        return if (freed >= 10) "Freed $freed MB · $free MB now free" else "$free MB free · nothing more to close"
+    }
 
     /** Starts [intent]; false if no app handles it or it isn't open to us. */
     private fun tryStartActivity(intent: Intent): Boolean =
