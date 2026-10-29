@@ -70,7 +70,7 @@ fun HeadlinePage(picked: List<PickedHeadline>, start: Int, onDismiss: () -> Unit
             Column(Modifier.fillMaxWidth().heightIn(min = 220.dp)) {
                 PageLabel(
                     listOfNotNull(item.topic?.title ?: "Top stories", h.source.title, h.published?.let { ageText(it) }).joinToString(" · "),
-                    color = Color(0xFFFFA8A8),
+                    color = Color(0xFFFFC9C9),
                 )
                 Spacer(Modifier.height(10.dp))
                 Text(h.title, color = Palette.TextPrimary, fontSize = 28.sp, fontWeight = FontWeight.SemiBold, lineHeight = 34.sp)

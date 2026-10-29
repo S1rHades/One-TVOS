@@ -41,8 +41,8 @@ class ContrastTest {
     /** Coloured text that only sits on glass: match-day green, headline pink, rain blue. */
     private val accents = listOf(
         Role("match day", Color(0xFF8CE99A), 4.5),
-        Role("headlines", Color(0xFFFFA8A8), 4.5),
-        Role("rain", Color(0xFF74C0FC), 4.5),
+        Role("headlines", Color(0xFFFFC9C9), 4.5),
+        Role("rain", Color(0xFFA5D8FF), 4.5),
     )
 
     @Test

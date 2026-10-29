@@ -47,7 +47,7 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.util.Locale
 
-private val RainBlue = Color(0xFF74C0FC)
+private val RainBlue = Color(0xFFA5D8FF)
 
 /**
  * The forecast behind the weather card: now (with feels like, humidity, wind, UV and the

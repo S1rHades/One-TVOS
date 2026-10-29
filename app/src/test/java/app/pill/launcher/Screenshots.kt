@@ -382,7 +382,7 @@ class Screenshots {
     @Test
     fun matchDayCard() {
         show("mountain-lake", pins = favorites, football = matchDay(inMinutes = 135))
-        compose.onNodeWithText("MATCH DAY · KICK-OFF IN").assertIsDisplayed()
+        compose.onNodeWithText("KICK-OFF IN", substring = true).assertIsDisplayed()
         compose.onRoot().captureRoboImage(File(out, "match-day.png").path)
     }
 

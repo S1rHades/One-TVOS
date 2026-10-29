@@ -142,9 +142,10 @@ fun FootballHub(
             val match = listOfNotNull(f.next, f.last).firstOrNull { it.leagueId != null && it.season != null }
             val key = match?.let { "${it.leagueId}/${it.season}" }
             val table by produceState(key?.let { tables[it] }, key) {
-                if (key == null || match == null) return@produceState
-                if (key !in tables) tables[key] = loadTable(match.leagueId!!, match.season!!)
-                value = tables[key]
+                val m = match ?: return@produceState
+                val k = key ?: return@produceState
+                if (k !in tables) tables[k] = loadTable(m.leagueId!!, m.season!!)
+                value = tables[k]
             }
             InfoBox(table?.let { "Top of the table · ${shortCompetition(it.league)}" } ?: "Table", Modifier.weight(1f)) {
                 val rows = table?.rows

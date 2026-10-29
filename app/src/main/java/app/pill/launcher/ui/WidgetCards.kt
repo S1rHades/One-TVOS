@@ -42,6 +42,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -612,13 +613,10 @@ private fun star(center: Offset, radius: Float): Path = Path().apply {
 @Composable
 private fun HeadlinesCard(picked: List<PickedHeadline>, status: String?, compact: Boolean, modifier: Modifier, onClick: ((Int) -> Unit)?) {
     var index by remember(picked) { mutableIntStateOf(0) }
-    val progress = remember { Animatable(0f) }
     LaunchedEffect(picked) {
-        progress.snapTo(0f)
         while (picked.size > 1) {
-            progress.animateTo(1f, tween(20_000, easing = LinearEasing))
+            delay(20_000)
             index = (index + 1) % picked.size
-            progress.snapTo(0f)
         }
     }
     val item = picked.getOrNull(index)
@@ -633,7 +631,7 @@ private fun HeadlinesCard(picked: List<PickedHeadline>, status: String?, compact
             Crossfade(item, animationSpec = tween(500), label = "headline", modifier = Modifier.align(Alignment.CenterStart)) { shown ->
                 Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     val topic = shown.topic?.let { if (compact && it == NewsTopic.World) "World" else it.title } ?: "Top stories"
-                    CardLabel(if (compact) topic else "$topic · ${shown.headline.source.title}", color = Color(0xFFFFA8A8))
+                    CardLabel(if (compact) topic else "$topic · ${shown.headline.source.title}", color = Color(0xFFFFC9C9))
                     Text(
                         shown.headline.title,
                         style = lineStyle(if (compact) 15.sp else 16.sp, Palette.TextPrimary, 600).copy(lineHeight = if (compact) 18.sp else 20.sp),
@@ -652,17 +650,23 @@ private fun HeadlinesCard(picked: List<PickedHeadline>, status: String?, compact
                 }
             }
             if (picked.size > 1) {
-                Box(
-                    Modifier
-                        .align(Alignment.BottomStart)
-                        .fillMaxWidth()
-                        .height(2.dp)
-                        .graphicsLayer {
-                            scaleX = progress.value
-                            transformOrigin = TransformOrigin(0f, 0.5f)
-                        }
-                        .background(Color.White.copy(alpha = 0.5f), CircleShape),
-                )
+                // Restarts with each headline; an infinite transition, so it never holds anything up
+                key(index) {
+                    val progress by rememberInfiniteTransition(label = "headlineTimer").animateFloat(
+                        0f, 1f, infiniteRepeatable(tween(20_000, easing = LinearEasing), RepeatMode.Restart), label = "headlineProgress",
+                    )
+                    Box(
+                        Modifier
+                            .align(Alignment.BottomStart)
+                            .fillMaxWidth()
+                            .height(2.dp)
+                            .graphicsLayer {
+                                scaleX = progress
+                                transformOrigin = TransformOrigin(0f, 0.5f)
+                            }
+                            .background(Color.White.copy(alpha = 0.5f), CircleShape),
+                    )
+                }
             }
         }
     }

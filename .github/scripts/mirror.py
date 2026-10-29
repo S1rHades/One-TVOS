@@ -31,10 +31,16 @@ import xml.etree.ElementTree as ET
 API = "https://www.thesportsdb.com/api/v1/json/123"
 UA = "PillLauncher-mirror/2.5 (+https://github.com/S1rHades/One-TVOS)"
 ALGERIA = "134516"
-SPACING_S = 4.0
-LOOKUPS_PER_RUN = 30
-TEAMS_PER_RUN = 18
-TABLES_PER_RUN = 4
+SPACING_S = 6.0
+LOOKUPS_PER_RUN = 40
+TEAMS_PER_RUN = 40
+TABLES_PER_RUN = 6
+# On a rate limit: wait this long and try again, at most this many times in a row
+BACKOFF_S = 70
+BACKOFF_TRIES = 3
+# Stop starting new TheSportsDB calls after this long, so a run ends well inside 30 minutes
+BUDGET_S = 14 * 60
+_started = time.time()
 
 
 class RateLimited(Exception):
@@ -45,6 +51,22 @@ _last_call = 0.0
 
 
 def get(url, sportsdb=True):
+    """[url]'s body. TheSportsDB calls are spaced out, and wait and retry on its rate limit."""
+    if not sportsdb:
+        return fetch(url, False)
+    for attempt in range(BACKOFF_TRIES + 1):
+        if time.time() - _started > BUDGET_S:
+            raise RateLimited("out of time for this run")
+        try:
+            return fetch(url, True)
+        except RateLimited as e:
+            if attempt == BACKOFF_TRIES:
+                raise
+            print(f"rate limited ({e}), waiting {BACKOFF_S} s", file=sys.stderr)
+            time.sleep(BACKOFF_S)
+
+
+def fetch(url, sportsdb):
     global _last_call
     if sportsdb:
         wait = SPACING_S - (time.time() - _last_call)
