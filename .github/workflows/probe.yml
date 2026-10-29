@@ -1,0 +1,73 @@
+name: Data probe
+
+# One-off: saves real answers from the data sources to the probe-data branch, so the
+# parsers can be written and tested against them. Removed once that is done.
+on:
+  push:
+    paths: [.github/workflows/probe.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch
+        run: |
+          mkdir -p out && cd out
+          api=https://www.thesportsdb.com/api/v1/json/123
+          ua="PillLauncher/2.5 (+https://github.com/S1rHades/One-TVOS)"
+          get() { curl -sS -L --max-time 25 -A "$ua" -o "$2" -w "%{http_code} $2 %{size_download}\n" "$1" || echo "FAIL $2"; sleep 2.5; }
+          get "$api/searchteams.php?t=MC%20Alger" search-mcalger.json
+          get "$api/searchteams.php?t=Algeria" search-algeria.json
+          get "$api/searchteams.php?t=Arsenal" search-arsenal.json
+          get "$api/searchteams.php?t=Marseille" search-marseille.json
+          get "$api/lookupteam.php?id=134516" team-algeria.json
+          get "$api/eventsnext.php?id=134516" next-algeria.json
+          get "$api/eventslast.php?id=134516" last-algeria.json
+          get "$api/eventsnext.php?id=133604" next-arsenal.json
+          get "$api/eventslast.php?id=133604" last-arsenal.json
+          get "$api/all_leagues.php" all-leagues.json
+          get "$api/search_all_leagues.php?c=Algeria&s=Soccer" leagues-algeria.json
+          get "$api/search_all_teams.php?l=English%20Premier%20League" teams-epl-by-name.json
+          get "$api/lookup_all_teams.php?id=4328" teams-epl-by-id.json
+          get "$api/eventsnextleague.php?id=4328" nextleague-epl.json
+          get "$api/eventspastleague.php?id=4328" pastleague-epl.json
+          get "$api/lookuptable.php?l=4328&s=2025-2026" table-epl.json
+          # The table and season for Algeria's competitions
+          for f in next-algeria.json last-algeria.json; do
+            jq -r '((.events // .results) // [])[] | "\(.idLeague) \(.strSeason)"' $f 2>/dev/null
+          done | sort -u > alg-leagues.txt || true
+          cat alg-leagues.txt
+          while read id season; do
+            get "$api/lookuptable.php?l=$id&s=$season" "table-$id.json"
+            get "$api/eventsnextleague.php?id=$id" "nextleague-$id.json"
+            get "$api/eventspastleague.php?id=$id" "pastleague-$id.json"
+            get "$api/lookupleague.php?id=$id" "league-$id.json"
+          done < alg-leagues.txt
+          if [ -s leagues-algeria.json ]; then
+            jq -r '(.countries // [])[] | "\(.idLeague) \(.strLeague)"' leagues-algeria.json | head -3 | while read id name; do
+              get "$api/lookup_all_teams.php?id=$id" "teams-$id.json"
+              get "$api/eventsnextleague.php?id=$id" "nextleague-$id.json"
+              get "$api/eventspastleague.php?id=$id" "pastleague-$id.json"
+            done
+          fi
+          get "https://www.aljazeera.com/xml/rss/all.xml" aj-all.xml
+          for s in "" news russia world business sport op-ed; do
+            get "https://www.rt.com/rss/$s${s:+/}" "rt-${s:-main}.xml"
+          done
+          get "https://api.open-meteo.com/v1/forecast?latitude=38.72&longitude=-9.14&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m,uv_index&hourly=temperature_2m,weather_code,precipitation_probability&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_probability_max&forecast_days=7&forecast_hours=12&timezone=auto" openmeteo.json
+          get "https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=38.72&lon=-9.14" metno.json
+          ls -la
+
+      - name: Publish
+        working-directory: out
+        run: |
+          git init -q -b probe-data
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -qm "Probe $(date -u +%FT%TZ)"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" probe-data
