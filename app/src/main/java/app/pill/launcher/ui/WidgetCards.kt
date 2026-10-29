@@ -129,7 +129,7 @@ private fun naturalWidth(kind: WidgetKind, compact: Boolean): Dp = when (kind) {
     WidgetKind.Fennecs -> if (compact) 204.dp else 270.dp
     WidgetKind.Daylight -> if (compact) 146.dp else 200.dp
     WidgetKind.System -> if (compact) 176.dp else 220.dp
-    WidgetKind.Headlines -> if (compact) 230.dp else 300.dp
+    WidgetKind.Headlines -> if (compact) 176.dp else 280.dp
 }
 
 private val AlgeriaGreen = Color(0xFF006633)

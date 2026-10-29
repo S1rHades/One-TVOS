@@ -129,7 +129,13 @@ class Screenshots {
         return listOf(
             parseFixtures(next, data("last-algeria.json"), java.time.Instant.now()),
             parseFixtures(data("next-arsenal.json"), data("last-arsenal.json"), java.time.Instant.now(), arsenal),
-        )
+        ).map { it.withoutCrests() }
+    }
+
+    /** The test image loader turns every URL into the background photo; crests show their stand-ins instead. */
+    private fun Fixtures.withoutCrests(): Fixtures {
+        fun Match.plain() = copy(home = home.copy(badge = null), away = away.copy(badge = null))
+        return copy(team = team.copy(badge = null), next = next?.plain(), last = last?.plain())
     }
 
     /** A forecast around now, so the hours and days are always current. */
@@ -475,7 +481,9 @@ class Screenshots {
                 weather = weather,
                 football = football,
                 news = news,
-                loadTable = { league, _ -> if (league == "4328") parseTable(data("table-epl.json")) else null },
+                loadTable = { league, _ ->
+                    if (league == "4328") parseTable(data("table-epl.json")).let { t -> t.copy(rows = t.rows.map { it.copy(badge = null) }) } else null
+                },
                 searchTeams = { q -> searchTeams(listOf(Algeria, arsenal, Team("139283", "MC Alger", league = "Algerian Ligue 1", country = "Algeria"), Team("1", "Algeria U23", country = "Algeria")), q).map { TeamHit(it, it.id != "1") } },
                 pins = pinned,
                 settings = current,
