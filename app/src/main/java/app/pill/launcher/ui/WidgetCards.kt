@@ -576,7 +576,7 @@ private fun SystemCard(compact: Boolean, modifier: Modifier) {
                 WifiIcon(network, if (online) Color.White else Color(0xFFFF8787), 16.dp)
                 Spacer(Modifier.width(7.dp))
                 CardLabel(
-                    network.label + (if (network.vpn) " · VPN" else "") + if (compact) "" else " · Android ${android.os.Build.VERSION.RELEASE}",
+                    "System · " + network.label + (if (network.vpn) " · VPN" else "") + if (compact) "" else " · Android ${android.os.Build.VERSION.RELEASE}",
                     color = if (online) Palette.TextTertiary else Color(0xFFFF8787),
                 )
             }

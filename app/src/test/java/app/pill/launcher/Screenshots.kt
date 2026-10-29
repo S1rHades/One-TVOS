@@ -292,7 +292,8 @@ class Screenshots {
     fun widgets() {
         val four = listOf(WidgetKind.Clock, WidgetKind.Weather, WidgetKind.Fennecs, WidgetKind.System)
         show("mountain-lake", pins = favorites, settings = LauncherSettings(weather = WeatherMode.Celsius, widgets = four))
-        for (label in listOf("25° / 16°", "NEXT", "SYSTEM")) compose.onNodeWithText(label).assertIsDisplayed()
+        for (label in listOf("25° / 16°", "NEXT")) compose.onNodeWithText(label).assertIsDisplayed()
+        compose.onNodeWithText("SYSTEM", substring = true).assertIsDisplayed()
         compose.onRoot().captureRoboImage(File(out, "widgets.png").path)
     }
 
