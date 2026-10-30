@@ -188,11 +188,11 @@ class Screenshots {
     fun pinFromGrid() {
         show("canyon-river", pins = favorites)
         // Down past the chips into the grid, along to "Maps", then hold OK to pin it
-        compose.onRoot().performKeyInput {
-            pressKey(Key.DirectionDown)
-            pressKey(Key.DirectionDown)
-            repeat(6) { pressKey(Key.DirectionRight) }
-        }
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionDown) }
+        settle()
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionDown) }
+        settle()
+        compose.onRoot().performKeyInput { repeat(6) { pressKey(Key.DirectionRight) } }
         settle()
         // Hold OK the way a remote does: one key-down, a pause, one key-up (no repeats).
         // That opens the app's menu, and the release mustn't pick anything in it.
@@ -493,13 +493,15 @@ class Screenshots {
         captureScreenRoboImage(File(out, "internet.png").path)
     }
 
-    /** Down to the chips above All apps, then Right: only the video apps, waved in. */
+    /** Down to the chips above All apps, Right and OK: only the video apps, waved in. */
     @Test
     fun appChips() {
         show("canyon-river", pins = favorites)
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionDown) }
+        settle()
         compose.onRoot().performKeyInput {
-            pressKey(Key.DirectionDown)
             pressKey(Key.DirectionRight)
+            pressKey(Key.DirectionCenter)
         }
         compose.mainClock.advanceTimeBy(2_000)
         settle()

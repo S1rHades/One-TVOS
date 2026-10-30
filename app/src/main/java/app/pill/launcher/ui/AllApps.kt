@@ -24,6 +24,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,8 +57,9 @@ private val CardShape = RoundedCornerShape(16.dp)
 private val ChipShape = RoundedCornerShape(50)
 
 /**
- * The chips above All apps: All, then each kind of app the TV has. Moving onto a chip
- * picks it (there is nothing else to choose), and a white pill glides to it.
+ * The chips above All apps: All, then each kind of app the TV has. OK on a chip picks it
+ * and a white pill glides to it; focus alone only outlines it, so passing over the chips
+ * (or coming up from the grid) never changes what's shown.
  */
 @Composable
 fun CategoryChips(
@@ -86,6 +89,8 @@ fun CategoryChips(
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             for ((i, category) in categories.withIndex()) {
                 val on = i == index
+                var focused by remember { mutableStateOf(false) }
+                val ring by animateFloatAsState(if (focused) 1f else 0f, tween(Motion.Quick), label = "chipRing")
                 val fg by animateColorAsState(if (on) Palette.Ink else Palette.TextPrimary, tween(Motion.Quick), label = "chipText")
                 Box(
                     Modifier
@@ -94,8 +99,9 @@ fun CategoryChips(
                         .clip(ChipShape)
                         .background(if (on) Color.Transparent else Color(0x1FFFFFFF))
                         .border(1.dp, if (on) Color.Transparent else Color(0x33FFFFFF), ChipShape)
+                        .border(2.5.dp, (if (on) Palette.Ink else Palette.Focus).copy(alpha = ring), ChipShape)
                         .then(if (i == 0) Modifier.focusRequester(firstFocus) else Modifier)
-                        .onFocusChanged { if (it.isFocused) onSelect(category) }
+                        .onFocusChanged { focused = it.isFocused }
                         .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onSelect(category) }
                         .padding(horizontal = 18.dp),
                     contentAlignment = Alignment.Center,
