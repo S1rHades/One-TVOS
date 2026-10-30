@@ -262,6 +262,10 @@ class MainActivity : ComponentActivity() {
             SystemAction.DateTime -> open(Settings.ACTION_DATE_SETTINGS)
             SystemAction.About -> open(Settings.ACTION_DEVICE_INFO_SETTINGS)
             SystemAction.AllSettings -> open(Settings.ACTION_SETTINGS)
+            // The system asks to confirm; afterwards the TV's own home screen takes over
+            SystemAction.Uninstall ->
+                if (tryStartActivity(Intent(Intent.ACTION_DELETE, Uri.parse("package:$packageName")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))) null
+                else "This TV can't uninstall apps from here. Use Settings → Apps instead"
         }
     }
 

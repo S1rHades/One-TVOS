@@ -666,7 +666,7 @@ private fun summaryOf(page: SettingsPage, settings: LauncherSettings, home: Home
         home.redirectOn -> "Home button helper on"
         else -> "Not the home screen yet"
     }
-    SettingsPage.System -> "Free up memory, network, display, sound, updates"
+    SettingsPage.System -> "Free up memory, network, display, sound, updates, uninstall"
     SettingsPage.Football -> settings.teams.joinToString(", ") { it.name }
     SettingsPage.News -> settings.newsTopics.joinToString(", ") { it.title }
 }
@@ -682,6 +682,7 @@ enum class SystemAction(val title: String, val subtitle: String) {
     DateTime("Date & time", "Time zone and clock format"),
     About("About this TV", "Model, Android version, security patch"),
     AllSettings("All Android TV settings", "Everything else"),
+    Uninstall("Uninstall Pill Launcher", "Removes the launcher and its settings; the TV's own home screen takes over"),
 }
 
 @Composable
@@ -689,7 +690,7 @@ private fun SystemPage(onAction: (SystemAction) -> String?, firstModifier: Modif
     // The last result or problem for each row, shown under it until the panel closes
     val notes = remember { mutableStateMapOf<SystemAction, String>() }
     Group(null) {
-        for (action in SystemAction.entries) {
+        for (action in SystemAction.entries - SystemAction.Uninstall) {
             SettingRow(
                 title = action.title,
                 subtitle = notes[action] ?: action.subtitle,
@@ -697,6 +698,24 @@ private fun SystemPage(onAction: (SystemAction) -> String?, firstModifier: Modif
                 modifier = if (action == SystemAction.entries.first()) firstModifier else Modifier,
             ) { focused -> Chevron(focused) }
         }
+    }
+    // Two presses, so a stray OK doesn't start it; the TV then asks to confirm as well
+    var armed by remember { mutableStateOf(false) }
+    Group("Pill Launcher") {
+        SettingRow(
+            title = SystemAction.Uninstall.title,
+            subtitle = notes[SystemAction.Uninstall]
+                ?: if (armed) "Press OK again to uninstall" else SystemAction.Uninstall.subtitle,
+            onClick = {
+                if (!armed) {
+                    armed = true
+                } else {
+                    armed = false
+                    onAction(SystemAction.Uninstall)?.let { notes[SystemAction.Uninstall] = it } ?: notes.remove(SystemAction.Uninstall)
+                }
+            },
+            modifier = Modifier.onFocusChanged { if (!it.isFocused) armed = false },
+        ) { focused -> Mark("✕", focused) }
     }
 }
 
