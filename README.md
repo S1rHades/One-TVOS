@@ -125,6 +125,7 @@ The `latest` release is rebuilt automatically every time `main` changes, so inst
 | Choose headline topics | **Settings → Widgets → Headlines** |
 | Hide the kick-off reminder | **Back** (it also goes by itself after 30 seconds) |
 | Free up memory, or open the TV's network, display, sound or update screens | **Settings → TV & system** |
+| Uninstall Pill Launcher (OK twice, then confirm) | **Settings → TV & system → Uninstall Pill Launcher** |
 | Close settings | **Back** |
 
 Settings and favourites are saved on the TV and survive restarts and updates.

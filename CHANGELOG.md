@@ -3,6 +3,10 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 2.6 (October 2026)
+
+- **Uninstall Pill Launcher** from **Settings → TV & system**. Press OK twice (so a stray press does nothing), then the TV asks to confirm. Afterwards the TV's own home screen takes over.
+
 ## 2.5 (October 2026)
 
 - **Football for any team**: the Algeria widget is now the football widget. Algeria stays first; add up to five more clubs or national teams under **Settings → Widgets → Football teams**, by searching. The card takes turns between them every 20 seconds. The fixtures mirror now keeps copies for about 120 teams (`.github/mirror/teams.txt`), so they load on TVs that can't reach TheSportsDB; search says which ones need a direct connection.

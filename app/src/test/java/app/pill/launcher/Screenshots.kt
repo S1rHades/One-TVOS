@@ -275,7 +275,7 @@ class Screenshots {
         compose.onRoot().captureRoboImage(File(out, "two-widgets.png").path)
     }
 
-    /** Settings opens on its list of categories; TV & system holds the shortcuts. */
+    /** Settings opens on its list of categories; TV & system holds the shortcuts and uninstall. */
     @Test
     fun settingsPages() {
         show("pine-forest", pins = favorites)
@@ -285,6 +285,10 @@ class Screenshots {
         settle()
         compose.onNodeWithText("Free up memory").assertIsDisplayed()
         captureScreenRoboImage(File(out, "settings-system.png").path)
+        // Uninstall takes two presses before the TV's own confirmation
+        compose.onNodeWithText("Uninstall Pill Launcher").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNodeWithText("Press OK again to uninstall").assertExists()
     }
 
     @Test
