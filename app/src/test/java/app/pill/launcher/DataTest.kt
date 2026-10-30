@@ -10,6 +10,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import androidx.compose.ui.graphics.toArgb
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDateTime
@@ -314,5 +315,19 @@ class DataTest {
         val hijri = app.pill.launcher.ui.hijriDate(java.time.LocalDate.of(2026, 10, 30), java.util.Locale.ENGLISH)
         assertNotNull(hijri)
         assertTrue(hijri!!, "1448" in hijri)
+    }
+
+    @Test
+    fun wallpaperTintFollowsThePhotosColour() {
+        fun px(vararg colors: Int) = IntArray(400) { colors[it % colors.size] }
+        // A sunset: mostly orange, some dark ground. The tint is a soft orange
+        val sunset = app.pill.launcher.ui.tintFromPixels(px(0xFFE07A20.toInt(), 0xFFE07A20.toInt(), 0xFF201810.toInt()))
+        val hsv = FloatArray(3).also { android.graphics.Color.colorToHSV(sunset.toArgb(), it) }
+        assertTrue("hue ${hsv[0]}", hsv[0] in 20f..40f)
+        // Greys only (fog, snow): the neutral tint
+        assertEquals(app.pill.launcher.ui.NeutralTint, app.pill.launcher.ui.tintFromPixels(px(0xFF808080.toInt(), 0xFFF0F0F0.toInt(), 0xFF101010.toInt())))
+        // A little colour in a grey photo doesn't take over
+        val mostlyGrey = IntArray(1000) { if (it < 5) 0xFF2060E0.toInt() else 0xFF7A7A7A.toInt() }
+        assertEquals(app.pill.launcher.ui.NeutralTint, app.pill.launcher.ui.tintFromPixels(mostlyGrey))
     }
 }

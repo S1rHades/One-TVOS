@@ -42,6 +42,7 @@ import app.pill.launcher.ui.Palette
 import app.pill.launcher.ui.WeatherIcon
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.Modifier
@@ -244,6 +245,24 @@ class Screenshots {
         }
         compose.waitForIdle()
         compose.onRoot().captureRoboImage(File(out, "weather-icons.png").path)
+    }
+
+    /** The same icons part way through their motion (a lightning flash included), for the README. */
+    @Test
+    fun weatherIconsMoving() {
+        compose.setContent {
+            Column(Modifier.background(Palette.Ink).padding(horizontal = 24.dp, vertical = 20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                for (at in listOf(0.25f, 0.42f)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) {
+                        for ((sky, day) in Sky.entries.map { it to true } + (Sky.Clear to false) + (Sky.PartlyCloudy to false)) {
+                            WeatherIcon(sky, day, 72.dp, motion = { at })
+                        }
+                    }
+                }
+            }
+        }
+        compose.waitForIdle()
+        compose.onRoot().captureRoboImage(File(out, "weather-icons-moving.png").path)
     }
 
     @Test

@@ -85,7 +85,7 @@ fun AppTile(
 ) {
     val input = rememberTileInput(onOpen, onMenu, onFocus)
     val active = input.active
-    val accent = Color(app.accent)
+    val glow = LocalWallpaperTint.current
     val scale by animateFloatAsState(if (active) 1.12f else 1f, FocusSpring, label = "tileScale")
     val ring by animateFloatAsState(if (active) 1f else 0f, tween(180), label = "tileRing")
     // No shadow at rest: drawing one under every icon is costly on TV hardware
@@ -116,7 +116,13 @@ fun AppTile(
                 depth = { depth.value },
                 modifier = Modifier
                     .size(iconSize)
-                    .shadow(lift, Squircle, ambientColor = accent, spotColor = accent)
+                    // A glow in the wallpaper's colour, read while drawing
+                    .graphicsLayer {
+                        shadowElevation = lift.toPx()
+                        shape = Squircle
+                        ambientShadowColor = glow.value
+                        spotShadowColor = glow.value
+                    }
                     .clip(Squircle),
             )
             if (showPinBadge) PinBadge(Modifier.align(Alignment.TopEnd))

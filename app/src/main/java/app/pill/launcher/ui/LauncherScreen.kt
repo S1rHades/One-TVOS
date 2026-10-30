@@ -65,6 +65,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.runtime.State
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -329,9 +330,15 @@ fun LauncherScreen(
         }
     }
 
+    // The photo's colour, which glass, the widgets and the focus glow take a little of. It
+    // drifts to each new photo's over a few seconds, well after the photos have crossfaded.
+    val tintTarget = remember(backdrop) { backdrop?.let { wallpaperTint(it) } ?: NeutralTint }
+    val wallpaperTint = animateColorAsState(tintTarget, tween(3000, easing = FastOutSlowInEasing), label = "wallpaperTint")
+
     // The blurred photo for glass surfaces, and Roboto Flex as the default for all text
     CompositionLocalProvider(
         LocalBackdrop provides backdrop,
+        LocalWallpaperTint provides wallpaperTint,
         LocalTextStyle provides LocalTextStyle.current.merge(TextStyle(fontFamily = Flex)),
     ) {
         Box(

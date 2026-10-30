@@ -96,13 +96,11 @@ import app.pill.launcher.Team
 import app.pill.launcher.cardTeams
 import app.pill.launcher.matchDayApplies
 import app.pill.launcher.matchPhase
-import app.pill.launcher.Sky
 import app.pill.launcher.Weather
 import app.pill.launcher.WeatherMode
 import app.pill.launcher.WidgetKind
 import app.pill.launcher.shortCode
 import app.pill.launcher.shortCompetition
-import app.pill.launcher.skyFor
 import app.pill.launcher.sunTimes
 import coil.compose.AsyncImage
 import kotlinx.coroutines.Dispatchers
@@ -300,7 +298,7 @@ private fun ClockCard(compact: Boolean, modifier: Modifier, onClick: (() -> Unit
             if (!is24h) append(now.format(amPm))
         }
     }
-    WidgetCard(Color(0xFF9DB4FF), modifier, onClick) {
+    WidgetCard(LocalWallpaperTint.current.value, modifier, onClick) {
         Column(Modifier.align(Alignment.Center)) {
             Text(
                 clock,
@@ -316,7 +314,7 @@ private fun ClockCard(compact: Boolean, modifier: Modifier, onClick: (() -> Unit
 
 @Composable
 private fun WeatherCard(weather: Weather?, error: String?, mode: WeatherMode, compact: Boolean, animate: Boolean, modifier: Modifier, onClick: (() -> Unit)?) {
-    WidgetCard(skyAccent(weather), modifier, onClick = onClick) {
+    WidgetCard(LocalWallpaperTint.current.value, modifier, onClick = onClick) {
         if (weather == null) {
             Column(Modifier.align(Alignment.Center)) {
                 CardLabel("Weather")
@@ -326,20 +324,6 @@ private fun WeatherCard(weather: Weather?, error: String?, mode: WeatherMode, co
         } else {
             WeatherWidget(weather, mode, compact, Modifier.align(Alignment.Center), animate = animate)
         }
-    }
-}
-
-/** Warm for sun, blue-grey for cloud, deep blue for rain and night. */
-private fun skyAccent(weather: Weather?): Color = when {
-    weather == null -> Color(0xFF8FA3C8)
-    !weather.isDay -> Color(0xFF5B6CFF)
-    else -> when (skyFor(weather.code)) {
-        Sky.Clear -> Color(0xFFFFB347)
-        Sky.PartlyCloudy -> Color(0xFFFFCF70)
-        Sky.Cloudy, Sky.Fog -> Color(0xFFA9B6CC)
-        Sky.Rain -> Color(0xFF4DABF7)
-        Sky.Snow -> Color(0xFFD0EBFF)
-        Sky.Storm -> Color(0xFF9775FA)
     }
 }
 

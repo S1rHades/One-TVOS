@@ -3,6 +3,11 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 2.8 (October 2026)
+
+- **Wallpaper tinting**: the launcher takes a little of each photo's own colour (amber at sunset, sea blue on the coast, leaf green in a forest). It shows in the glass of the widgets, panels and pages, their edges, the clock and weather cards, and the glow under the app you're on. It drifts to the next photo's colour over three seconds, after the photos have changed. Focus outlines and highlighted rows stay white, and the match-day green and headline pink keep their meaning. The build checks that text stays readable on the tinted glass over every bundled photo.
+- **Livelier weather icons**: they now move all the time, gently, instead of in short bursts. The sun's glow breathes and its rays turn and shimmer, cloud puffs swell and drift (two layers at their own pace when it's cloudy), rain and snow fall steadily, fog rolls, lightning flickers, and stars twinkle by the moon. They pause on the idle screen and with Android's "remove animations".
+
 ## 2.7 (October 2026)
 
 - **Clock page**: the clock card now takes focus like the other widgets, and OK opens a page with the time to the second, the full date and the Islamic (Umm al-Qura) date, this month's calendar, and the time in Algiers, London, Mecca, Moscow and New York.
