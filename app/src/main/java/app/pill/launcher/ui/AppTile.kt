@@ -2,6 +2,7 @@ package app.pill.launcher.ui
 
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -67,6 +68,12 @@ fun tileWidth(iconSize: Dp): Dp = iconSize + Spacing.Tile * 2
 
 /** Spring shared by every focusable tile: a small, physical overshoot. */
 val FocusSpring = spring<Float>(dampingRatio = 0.6f, stiffness = 400f)
+
+/**
+ * Starts and ends gently (ease in-out), for the slow moves between the idle screen and
+ * Home, so nothing lurches at the start of a move.
+ */
+val WakeEasing = CubicBezierEasing(0.6f, 0f, 0.3f, 1f)
 
 /**
  * App icon, shown edge to edge in a squircle. OK opens the app; holding OK (or Menu) opens

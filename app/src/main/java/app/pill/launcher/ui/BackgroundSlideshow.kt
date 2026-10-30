@@ -130,7 +130,12 @@ fun BackgroundSlideshow(
     }
 
     Box(modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Palette.Ink, Palette.InkLight)))) {
-        val amount by animateFloatAsState(if (drift) 1f else 0f, tween(2000, easing = FastOutSlowInEasing), label = "driftAmount")
+        // Waking eases the photo back out of its zoom slowly, so the screen doesn't lurch
+        val amount by animateFloatAsState(
+            if (drift) 1f else 0f,
+            if (drift) tween(2000, easing = FastOutSlowInEasing) else tween(2200, easing = WakeEasing),
+            label = "driftAmount",
+        )
         // Only composed (and so only animating) while drifting, or easing back out of it
         val motion = if (drift || amount > 0f) slowMotion() else null
         Crossfade(
