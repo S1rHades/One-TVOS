@@ -406,6 +406,7 @@ fun LauncherScreen(
                     HeaderHeight + favoritesRowHeight(settings.favoritesStyle, FavoriteIcon) * favoriteRows + maxHeight * PAGE_EDGE,
                 )
                 val pageEdge = maxHeight * PAGE_EDGE
+                val screenHeight = maxHeight
                 val pageHeightPx = with(LocalDensity.current) { pageHeight.toPx() }
                 val columns = (contentWidth / (AppCardMinWidth + 10.dp)).toInt().coerceAtLeast(1)
                 // 0 on the first page, 1 once the grid fills the screen; dims the photo behind the apps
@@ -519,7 +520,7 @@ fun LauncherScreen(
                         }
 
                         // All apps fills at least a screen, so it scrolls to the top even with a short filter
-                        Column(Modifier.fillMaxWidth().heightIn(min = maxHeight - Spacing.ScreenV - 48.dp)) {
+                        Column(Modifier.fillMaxWidth().heightIn(min = screenHeight - Spacing.ScreenV - 48.dp)) {
                         SectionTitle(
                             "All apps",
                             hint = apps?.let { if (it.size == 1) "1 app" else "${it.size} apps" },
