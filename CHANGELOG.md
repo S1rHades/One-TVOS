@@ -3,6 +3,19 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 3.0 (October 2026)
+
+A new look, built from the 3.0 mockup video.
+
+- **Side rail**: Home, All apps, Search, Internet and Settings now sit in a slim rail down the left, instead of the buttons at the top right. A disc marks where you are; go Left onto the rail and it turns white and glides with you, and the item's name appears beside it.
+- **Greeting**: "Good evening" (or morning, afternoon, night) above the widgets, with the date and your city. It goes with the rail and favourites when the screen rests.
+- **Glass motion**: everything now moves the same way. Pages and panels arrive frosted and come into focus, their parts in a wave from top left; the photo goes soft behind them; markers glide from item to item instead of jumping. Going idle and waking up use the same dissolve. On TVs older than Android 12 the frost is left out and the rest stays.
+- **All apps**: chips above the grid (All, Video, Music, Games, Other) filter it, with a white pill gliding between them; apps show as frosted cards in each app's own colour. **Apps** on the rail jumps straight there.
+- **Weather page**: OK on the weather card opens a dashboard: feels like (with the next day's trend), humidity, wind and UV across the top; the week as a chart of each day's range, which follows **Left** / **Right** with the day's details; and a Today list (the next sunrise or sunset, when rain is likely, the warmest or coolest hour to come, and tomorrow).
+- **Football page**: three columns. Your teams down the left (**Up** / **Down** picks one), the match centre with a countdown in days, hours and minutes and the latest result, and the team with where it stands and the top of its table.
+- **News page**: OK on the headlines card lists every headline, with the story beside it; **Up** / **Down** moves through them.
+- **Internet page** (new, on the rail): **Start test** measures ping, download (on a dial, with a graph as it runs) and upload against Cloudflare's speed test, then says what the speed is good for. **Test again** runs it again; **Network settings** opens the TV's own. The last result is kept.
+
 ## 2.8 (October 2026)
 
 - **Wallpaper tinting**: the launcher takes a little of each photo's own colour (amber at sunset, sea blue on the coast, leaf green in a forest). It shows in the glass of the widgets, panels and pages, their edges, the clock and weather cards, and the glow under the app you're on. It drifts to the next photo's colour over three seconds, after the photos have changed. Focus outlines and highlighted rows stay white, and the match-day green and headline pink keep their meaning. The build checks that text stays readable on the tinted glass over every bundled photo.

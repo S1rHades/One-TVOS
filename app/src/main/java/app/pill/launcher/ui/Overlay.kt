@@ -1,15 +1,15 @@
 package app.pill.launcher.ui
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.MutableTransitionState
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -24,7 +24,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
@@ -36,36 +35,60 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 
-private const val PAGE_MS = 220
 private val PageShape = RoundedCornerShape(30.dp)
 
 /**
- * A page opened from a widget: a glass card over a dimmed screen that scales in, and out
- * again on Back before it is removed. [content] gets a close function for its own keys.
+ * A page opened from a widget or the rail, in glass motion: the photo racks focus (goes
+ * soft) behind it, then the page dissolves in, its parts in a wave ([reveal] steps); Back
+ * plays it out again before it is removed. [framed] pages sit on one glass card; unframed
+ * ones lay out their own glass cards straight on the softened photo. [content] gets a
+ * close function for its own keys.
  */
 @Composable
-fun OverlayPage(onDismiss: () -> Unit, width: Dp, content: @Composable ColumnScope.(close: () -> Unit) -> Unit) {
-    val visible = remember { MutableTransitionState(false).apply { targetState = true } }
-    val close = { visible.targetState = false }
-    LaunchedEffect(visible.isIdle, visible.currentState) {
-        if (visible.isIdle && !visible.currentState) onDismiss()
+fun OverlayPage(
+    onDismiss: () -> Unit,
+    width: Dp,
+    framed: Boolean = true,
+    content: @Composable ColumnScope.(close: () -> Unit) -> Unit,
+) {
+    var showing by remember { mutableStateOf(true) }
+    val close = { showing = false }
+    // The wave's clock: up to its end on the way in, quickly back to 0 on the way out
+    val clock = remember { Animatable(0f) }
+    LaunchedEffect(showing) {
+        if (showing) {
+            clock.animateTo(Motion.RevealMs.toFloat(), tween(Motion.RevealMs, easing = LinearEasing))
+        } else {
+            clock.animateTo(0f, tween(Motion.Exit + Motion.Step * 4, easing = LinearEasing))
+            onDismiss()
+        }
     }
-    val scrimAlpha by animateFloatAsState(if (visible.targetState) 1f else 0f, tween(PAGE_MS), label = "pageScrim")
+    val revealed = remember { derivedStateOf { clock.value } }
+    // The softened photo and the dim behind the page, in step with the wave
+    val focusOut = { (clock.value / Motion.Enter).coerceIn(0f, 1f) }
+    val backdrop = LocalBackdrop.current
     Dialog(onDismissRequest = close, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Box(Modifier.fillMaxSize()) {
-            Box(Modifier.fillMaxSize().alpha(scrimAlpha).background(Palette.Scrim))
-            AnimatedVisibility(
-                visibleState = visible,
-                modifier = Modifier.align(Alignment.Center),
-                enter = fadeIn(tween(PAGE_MS)) + scaleIn(tween(PAGE_MS, easing = FastOutSlowInEasing), initialScale = 0.94f),
-                exit = fadeOut(tween(PAGE_MS)) + scaleOut(tween(PAGE_MS), targetScale = 0.96f),
-            ) {
+        CompositionLocalProvider(LocalReveal provides revealed) {
+            Box(Modifier.fillMaxSize()) {
+                Canvas(Modifier.fillMaxSize().graphicsLayer { alpha = focusOut() }) {
+                    backdrop?.let { drawBackdrop(it, IntSize(size.width.toInt(), size.height.toInt())) }
+                    drawRect(Palette.Scrim)
+                }
                 Column(
                     Modifier
+                        .align(Alignment.Center)
                         .width(width)
-                        .shadow(32.dp, PageShape)
-                        .glass(PageShape)
-                        .padding(horizontal = 30.dp, vertical = 24.dp),
+                        .then(
+                            if (framed) {
+                                Modifier
+                                    .reveal(0)
+                                    .shadow(32.dp, PageShape)
+                                    .glass(PageShape)
+                                    .padding(horizontal = 30.dp, vertical = 24.dp)
+                            } else {
+                                Modifier
+                            },
+                        ),
                 ) {
                     content(close)
                 }

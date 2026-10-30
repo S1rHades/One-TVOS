@@ -92,7 +92,9 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.pill.launcher.AppCategory
 import app.pill.launcher.AppEntry
+import androidx.compose.animation.core.LinearEasing
 import app.pill.launcher.Fixtures
 import app.pill.launcher.LeagueTable
 import app.pill.launcher.MatchDayMode
@@ -112,10 +114,9 @@ import app.pill.launcher.Weather
 import kotlinx.coroutines.delay
 
 private val FavoriteIcon = 96.dp
-private val GridIcon = 84.dp
 
-/** Room the clock, weather and buttons take at the top of the first page. */
-private val HeaderHeight = 150.dp
+/** Room the greeting and widgets take at the top of the first page. */
+private val HeaderHeight = 214.dp
 
 /**
  * Space between the favourites row and the bottom of the first page. Also the margin
@@ -192,7 +193,12 @@ fun LauncherScreen(
     var clockOpen by remember { mutableStateOf(false) }
     var hubTeam by remember { mutableStateOf<Team?>(null) }
     var headlineAt by remember { mutableStateOf<Int?>(null) }
-    val pageOpen = forecastOpen || clockOpen || hubTeam != null || headlineAt != null
+    // The Internet page, from the rail
+    var internetOpen by remember { mutableStateOf(false) }
+    val pageOpen = forecastOpen || clockOpen || hubTeam != null || headlineAt != null || internetOpen
+    // The All apps chip picked (null: all), and the first chip, where the rail's Apps lands
+    var appFilter by remember { mutableStateOf<AppCategory?>(null) }
+    val chipFocus = remember { FocusRequester() }
     // Kick-off banners already seen (by match), so each shows once
     var bannersShown by remember { mutableStateOf(setOf<String>()) }
     val headlines = remember(news, settings.newsTopics) { news?.let { pickHeadlines(it, settings.newsTopics) }.orEmpty() }
@@ -255,6 +261,7 @@ fun LauncherScreen(
         clockOpen = false
         hubTeam = null
         headlineAt = null
+        internetOpen = false
         idle = false
         focusFirstPage()
     }
@@ -288,6 +295,19 @@ fun LauncherScreen(
         if (idle) tween(1600, easing = FastOutSlowInEasing) else tween(1000, delayMillis = 250, easing = WakeEasing),
         label = "idleFade",
     )
+
+    // The chips above All apps: All, then each kind of app there is; a new chip waves its apps in
+    val categories = remember(apps) { listOf<AppCategory?>(null) + AppCategory.entries.filter { c -> apps.orEmpty().any { it.category == c } } }
+    val shownApps = apps.orEmpty().filter { appFilter == null || it.category == appFilter }
+    val gridClock = remember { Animatable(Motion.RevealMs.toFloat()) }
+    var wavedFilter by remember { mutableStateOf(appFilter) }
+    LaunchedEffect(appFilter) {
+        if (appFilter == wavedFilter) return@LaunchedEffect
+        wavedFilter = appFilter
+        gridClock.snapTo(0f)
+        gridClock.animateTo(Motion.RevealMs.toFloat(), tween(Motion.RevealMs, easing = LinearEasing))
+    }
+    val gridReveal = remember { derivedStateOf { gridClock.value } }
 
     // Back in All apps returns to the first page (on the first page, Back does nothing)
     val scrolled by remember { derivedStateOf { scroll.value > 0 } }
@@ -374,7 +394,7 @@ fun LauncherScreen(
             BackgroundScrim()
 
             BoxWithConstraints(Modifier.fillMaxSize()) {
-                val contentWidth = maxWidth - Spacing.ScreenH * 2
+                val contentWidth = maxWidth - RailRoom - Spacing.ScreenH
                 // Wrapped favourites can need more than one row; the first page grows to fit them
                 val favoriteRows = if (settings.favoritesLayout == FavoritesLayout.Wrap) {
                     favoritesPerRow(contentWidth, settings.favoritesStyle, FavoriteIcon).let { (pinnedApps.size + it - 1) / it }.coerceAtLeast(1)
@@ -386,8 +406,9 @@ fun LauncherScreen(
                     HeaderHeight + favoritesRowHeight(settings.favoritesStyle, FavoriteIcon) * favoriteRows + maxHeight * PAGE_EDGE,
                 )
                 val pageEdge = maxHeight * PAGE_EDGE
+                val screenHeight = maxHeight
                 val pageHeightPx = with(LocalDensity.current) { pageHeight.toPx() }
-                val columns = ((maxWidth - Spacing.ScreenH * 2) / tileWidth(GridIcon)).toInt().coerceAtLeast(1)
+                val columns = (contentWidth / (AppCardMinWidth + 10.dp)).toInt().coerceAtLeast(1)
                 // 0 on the first page, 1 once the grid fills the screen; dims the photo behind the apps
                 val depth by remember(pageHeightPx) { derivedStateOf { (scroll.value / pageHeightPx).coerceIn(0f, 1f) } }
                 // Alpha is read in the draw phase, so scrolling does not recompose the screen
@@ -406,10 +427,16 @@ fun LauncherScreen(
                         Modifier
                             .fillMaxSize()
                             .verticalScroll(scroll)
-                            .padding(start = Spacing.ScreenH, end = Spacing.ScreenH, top = Spacing.ScreenV, bottom = 48.dp),
+                            .padding(start = RailRoom, end = Spacing.ScreenH, top = Spacing.ScreenV, bottom = 48.dp),
                     ) {
-                        // First page: clock, weather and favourites only. The grid starts below the fold.
+                        // First page: the greeting, the widgets and favourites only. The grid starts below the fold.
                         Column(Modifier.fillMaxWidth().height(pageHeight)) {
+                            Greeting(
+                                place = weather?.place,
+                                modifier = Modifier
+                                    .padding(start = Spacing.Tile, bottom = 16.dp)
+                                    .dissolveStep({ 1f - idleFade }, step = 1, steps = 3),
+                            )
                             Row(
                                 Modifier
                                     .fillMaxWidth()
@@ -434,16 +461,6 @@ fun LauncherScreen(
                                     onOpenFootball = { hubTeam = it },
                                     onOpenHeadline = { headlineAt = it },
                                 )
-                                Spacer(Modifier.width(16.dp))
-                                // Buttons fade with the apps while idle; the widgets stay
-                                Row(Modifier.padding(top = 8.dp).graphicsLayer { alpha = 1f - idleFade }) {
-                                    QuickActions(
-                                        onSearch = { searchOpen = true },
-                                        onSettings = { panelOpen = true },
-                                        onNetwork = onOpenNetworkSettings,
-                                        settingsFocus = pillFocus,
-                                    )
-                                }
                             }
 
                             Spacer(Modifier.weight(1f))
@@ -465,7 +482,7 @@ fun LauncherScreen(
                                     onDismiss = { onSettingsChange(settings.copy(homePromptDismissed = true)) },
                                     modifier = Modifier
                                         .padding(horizontal = Spacing.Tile, vertical = 8.dp)
-                                        .graphicsLayer { alpha = 1f - idleFade },
+                                        .dissolveStep({ 1f - idleFade }, step = 2, steps = 3),
                                 )
                             }
 
@@ -473,7 +490,7 @@ fun LauncherScreen(
                                 Modifier
                                     .fillMaxWidth()
                                     .heightIn(min = favoritesRowHeight(settings.favoritesStyle, FavoriteIcon))
-                                    .graphicsLayer { alpha = 1f - idleFade },
+                                    .dissolveStep({ 1f - idleFade }, step = 2, steps = 3),
                                 contentAlignment = Alignment.CenterStart,
                             ) {
                                 if (pinnedApps.isEmpty()) {
@@ -502,32 +519,64 @@ fun LauncherScreen(
                             Spacer(Modifier.height(pageEdge))
                         }
 
+                        // All apps fills at least a screen, so it scrolls to the top even with a short filter
+                        Column(Modifier.fillMaxWidth().heightIn(min = screenHeight - Spacing.ScreenV - 48.dp)) {
                         SectionTitle(
                             "All apps",
                             hint = apps?.let { if (it.size == 1) "1 app" else "${it.size} apps" },
                             modifier = Modifier.padding(top = 10.dp, bottom = 6.dp),
                         )
-                        for (row in apps.orEmpty().chunked(columns)) {
-                            Row(Modifier.fillMaxWidth().padding(bottom = 6.dp).bottomEdgeFade(scroll, pageEdge)) {
-                                for (app in row) {
-                                    key(app.pkg) {
-                                        AppTile(
-                                            app = app,
-                                            iconSize = GridIcon,
-                                            showPinBadge = app.pkg in pins,
-                                            onOpen = { onOpen(app) },
-                                            onMenu = { held -> menu = MenuRequest(app, held, fromFavorites = false) },
-                                            // Equal cells across the row, with the icon centred in each
-                                            modifier = Modifier.weight(1f),
-                                        )
+                        if (!apps.isNullOrEmpty()) {
+                            CategoryChips(
+                                categories = categories,
+                                selected = appFilter,
+                                onSelect = { appFilter = it },
+                                firstFocus = chipFocus,
+                                modifier = Modifier.padding(start = Spacing.Tile, top = 4.dp, bottom = 16.dp),
+                            )
+                        }
+                        // A new chip waves its apps in
+                        CompositionLocalProvider(LocalReveal provides gridReveal) {
+                            for ((r, row) in shownApps.chunked(columns).withIndex()) {
+                                Row(Modifier.fillMaxWidth().padding(start = 7.dp, end = 7.dp, bottom = 10.dp).bottomEdgeFade(scroll, pageEdge)) {
+                                    for ((c, app) in row.withIndex()) {
+                                        key(app.pkg) {
+                                            AppCard(
+                                                app = app,
+                                                showPinBadge = app.pkg in pins,
+                                                onOpen = { onOpen(app) },
+                                                onMenu = { held -> menu = MenuRequest(app, held, fromFavorites = false) },
+                                                // Equal cells across the row
+                                                modifier = Modifier.weight(1f).padding(horizontal = 5.dp).reveal(r + c),
+                                            )
+                                        }
                                     }
+                                    repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
                                 }
-                                repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
                             }
+                        }
                         }
                     }
                 }
             }
+
+            SideRail(
+                current = if (scrolled) RailItem.Apps else RailItem.Home,
+                onSelect = { item ->
+                    when (item) {
+                        RailItem.Home -> scope.launch { focusFirstPage() }
+                        RailItem.Apps -> runCatching { chipFocus.requestFocus() }
+                        RailItem.Search -> searchOpen = true
+                        RailItem.Internet -> internetOpen = true
+                        RailItem.Settings -> panelOpen = true
+                    }
+                },
+                settingsFocus = pillFocus,
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(start = 18.dp)
+                    .dissolveStep({ 1f - idleFade }, step = 0, steps = 3),
+            )
 
             // Where the photo was taken and who took it, while the screen rests
             photoCaption?.let { caption ->
@@ -626,6 +675,9 @@ fun LauncherScreen(
             headlineAt?.let { start ->
                 HeadlinePage(headlines, start, onDismiss = { headlineAt = null })
             }
+            if (internetOpen) {
+                InternetPage(onOpenNetworkSettings = onOpenNetworkSettings, onDismiss = { internetOpen = false })
+            }
 
             if (searchOpen) {
                 SearchPanel(
@@ -672,6 +724,8 @@ private class PageScrollSpec(
         val edge = containerSize * PAGE_EDGE
         target = when {
             top < firstPageEnd -> 0f
+            // Coming down from the first page into All apps: its title goes to the top
+            current < firstPageEnd - 1f && bottom <= firstPageEnd + containerSize -> firstPageEnd
             top >= target && bottom <= target + containerSize -> target
             top > target -> top - edge
             else -> bottom - (containerSize - edge)

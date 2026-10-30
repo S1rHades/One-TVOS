@@ -16,14 +16,15 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/home.png" width="100%" alt="The home screen: the clock and date with the weather beside it over a photo of a lake, a round settings button top right, five favourite apps along the bottom with the first one focused, and an All apps hint below them">
+  <img src="docs/screenshots/home.png" width="100%" alt="The home screen: a rail of icons down the left, a greeting with the date above the clock and weather cards, over a photo of a lake, and five favourite apps along the bottom with the first one focused">
 </p>
 
 ## Highlights
 
-- **Just your apps.** The home screen shows only your favourites; everything else waits one press below, in an alphabetical grid that turns over a page at a time.
+- **Just your apps.** The home screen shows only your favourites; everything else waits one press below, as colour cards you can filter by kind (video, music, games).
+- **Glass motion.** Pages arrive frosted and come into focus in a wave, the photo softens behind them, and markers glide; a slim rail down the left leads to Home, All apps, Search, the Internet test and Settings.
 - **Tinted by the photo.** Glass, card edges and the glow under the app you're on take a little of each photo's own colour, changing slowly with the slideshow.
-- **Widgets you choose.** Up to four frosted-glass cards across the top: clock (OK opens the clock page: seconds, the Islamic date, this month and world clocks), weather (OK opens the forecast), sunrise & sunset, system info, headlines from Al Jazeera English and RT English by topic, and football for Algeria and the teams you follow, with a match-day countdown and a kick-off reminder.
+- **Widgets you choose.** Up to four frosted-glass cards across the top: clock (OK opens the clock page: seconds, the Islamic date, this month and world clocks), weather (OK opens a weather dashboard), sunrise & sunset, system info, headlines from Al Jazeera English and RT English by topic, and football for Algeria and the teams you follow, with a match-day countdown and a kick-off reminder.
 - **Built for the remote.** Focused apps lift and get a crisp white ring, every move animates smoothly, and every action is one or two presses of the D-pad.
 - **A fresh view.** The background cross-fades between full-screen photos, and the next one is loaded before it appears, so it never flashes.
 - **Light on the TV.** One small app, written in Jetpack Compose, with no background services and no tracking.
@@ -34,7 +35,7 @@ Coming next: [planned features](docs/PLANNED.md), with mockups.
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/all-apps.png" alt="All apps: the grid fills the screen under its title, the photo dimmed behind it, with Games focused"><br><sub><b>All apps</b>: press down and the grid slides up a page at a time over a dimmed photo.</sub></td>
+    <td width="50%"><img src="docs/screenshots/all-apps.png" alt="All apps: chips above a grid of app cards in each app's colour, the photo dimmed behind it"><br><sub><b>All apps</b>: press down for every app, as cards in their own colours.</sub></td>
     <td width="50%"><img src="docs/screenshots/settings.png" alt="The settings card on the right: Photo slideshow switch, Change photo every 20 s, Weather in °C, and Android TV settings"><br><sub><b>Settings</b>: a floating card for the slideshow, the weather and the TV's own settings.</sub></td>
   </tr>
   <tr>
@@ -69,6 +70,13 @@ Coming next: [planned features](docs/PLANNED.md), with mockups.
   <tr>
     <td width="50%"><img src="docs/screenshots/forecast.png" alt="The forecast page: now, the next twelve hours with icons and chance of rain, and seven days with temperature bars"><br><sub><b>Forecast</b>: OK on the weather card for the next hours and days.</sub></td>
     <td width="50%"><img src="docs/screenshots/headlines.png" alt="Four widgets with a headlines card showing a Russia story from RT"><br><sub><b>Headlines</b>: one story at a time, picked by topic.</sub></td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/internet.png" alt="The Internet page: a speed dial reading 0.0 Mbps with Start test and Network settings buttons, and a results card for ping, download and upload"><br><sub><b>Internet</b>: a speed test and the TV's network settings, from the rail.</sub></td>
+    <td width="50%"><img src="docs/screenshots/all-apps-video.png" alt="All apps filtered to Video: the Video chip selected and only the video apps' cards below"><br><sub><b>Chips</b>: only the video, music or game apps.</sub></td>
   </tr>
 </table>
 
@@ -118,16 +126,17 @@ If the launcher won't open, use the TV's own **Settings → Apps → Pill Launch
 | To | Press |
 | --- | --- |
 | Open an app | **OK** |
-| See all apps | **Down** from Favorites |
-| Find an app | The magnifier (top right), then type |
-| Open Wi-Fi settings | The connection icon (top right, left of the magnifier), then **OK** |
-| See if a VPN is on | A green key shows beside the connection icon |
+| See all apps | **Down** from Favorites, or **Apps** on the rail |
+| Show only video, music or game apps | **Down** to the chips above All apps, then **Left** / **Right** |
+| Find an app | **Search** on the rail (**Left** from the first app), then type |
+| Test the internet speed, or open Wi-Fi settings | **Internet** on the rail, then **Start test** or **Network settings** |
+| See if a VPN is on | The Internet page says so |
 | Change how favourites are laid out | **Settings → Favorites row → Layout**: Scroll or Wrap |
 | Banners or icons for favourites | **Settings → Favorites row → Tile style** |
 | Wake the idle screen | Any key |
 | App menu: pin / unpin, move, app info, uninstall | Hold **OK** for half a second, or press **Menu** (☰) |
 | Reorder favourites | App menu → **Move**, then **Left** / **Right**, and **OK** when done |
-| Open settings | Go up to the round gear button (top right), then **OK** |
+| Open settings | **Settings** (the gear) at the bottom of the rail, then **OK** |
 | Change how often the photo changes, or the weather unit | In settings, **Left** / **Right** on that row |
 | Turn widgets on or off | **Settings → Widgets**, **OK** on a widget (up to four at once) |
 | Reorder widgets | **Settings → Widgets**, **Left** / **Right** on a widget that's on |
@@ -145,11 +154,11 @@ Settings and favourites are saved on the TV and survive restarts and updates.
 
 The widget finds the TV's approximate location from its internet address with [GeoJS](https://www.geojs.io/) and gets the forecast from [Open-Meteo](https://open-meteo.com/), or from [MET Norway](https://api.met.no/) if Open-Meteo can't be reached. None of them needs an account or key. It refreshes every 30 minutes. Choose °C or °F in settings. Turn off both the Weather and the Sunrise & sunset widgets, and the launcher contacts none of these services. If the weather can't load, Settings shows why under the Weather widget's row. Sunrise and sunset are worked out on the TV from the same location.
 
-OK on the weather card opens the forecast: now (with "feels like", humidity, wind, UV, sunrise and sunset), the next twelve hours with the chance of rain, and seven days. MET Norway gives no "feels like", UV or chance of rain, so with it the page shows the expected rain in mm instead. The last reading is saved on the TV, so the card and the forecast show at once after a restart and while offline.
+OK on the weather card opens the weather dashboard: "feels like" (with the next day's trend), humidity, wind and UV; the week as a chart of each day's range (**Left** / **Right** picks a day); and a Today list with the next sunrise or sunset, when rain is likely, the warmest or coolest hour to come, and tomorrow. MET Norway gives no "feels like", UV or chance of rain, so with it the page shows the expected rain in mm instead. The last reading is saved on the TV, so the card and the forecast show at once after a restart and while offline.
 
 ### Football
 
-The football widget follows Algeria's men's team (always first) and up to five more teams you add under **Settings → Widgets → Football teams**: search for a club or a country. The card takes turns between them every 20 seconds, each with its next fixture (competition, crests and kick-off in the TV's time zone) and latest result, marked W, D or L. During a match it shows **LIVE** and the score. OK on the card opens the football page: the next match with its venue, the latest result, and the top of the league table where there is one.
+The football widget follows Algeria's men's team (always first) and up to five more teams you add under **Settings → Widgets → Football teams**: search for a club or a country. The card takes turns between them every 20 seconds, each with its next fixture (competition, crests and kick-off in the TV's time zone) and latest result, marked W, D or L. During a match it shows **LIVE** and the score. OK on the card opens the football page: your teams down the left (**Up** / **Down** picks one), the next match with its venue and a countdown, the latest result, and the team with the top of its league table where there is one.
 
 **Match day**: on the day a followed team plays, the card stays on that team and counts down to kick-off, and ten minutes before, a banner says so (it never takes focus: **Back** hides it, and it goes by itself after 30 seconds). Choose all teams, Algeria only, or off under **Football teams → Match day**.
 
@@ -157,7 +166,7 @@ The data comes from [TheSportsDB](https://www.thesportsdb.com/)'s free API, with
 
 ### Headlines
 
-The headlines widget shows one story at a time from [Al Jazeera English](https://www.aljazeera.com/) and [RT English](https://www.rt.com/), newest first, a new one every 20 seconds. OK opens its summary; **Left** / **Right** there reads the others. Neither site has feeds by topic, so the launcher picks stories itself, by section and by words in the headline and summary, for the topics on under **Settings → Widgets → Headlines**: Algeria, Russia and International politics by default, plus Africa & Middle East, Economy and Sport. If nothing matches, it shows the newest stories as top stories.
+The headlines widget shows one story at a time from [Al Jazeera English](https://www.aljazeera.com/) and [RT English](https://www.rt.com/), newest first, a new one every 20 seconds. OK opens the news page: every headline in a list, with the story beside it; **Up** / **Down** moves through them. Neither site has feeds by topic, so the launcher picks stories itself, by section and by words in the headline and summary, for the topics on under **Settings → Widgets → Headlines**: Algeria, Russia and International politics by default, plus Africa & Middle East, Economy and Sport. If nothing matches, it shows the newest stories as top stories.
 
 Al Jazeera is read from its RSS feed, or from a copy the Fixtures mirror keeps on `fixtures-data` (headline, link, date and short summary only). RT is only ever read directly by the TV: it is banned from distribution in the EU and blocked in some other countries, so it is never copied to GitHub. Where it is blocked, Settings says "Not available on this network" and the widget carries on with Al Jazeera.
 

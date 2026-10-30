@@ -28,7 +28,41 @@ data class AppEntry(
      * on focus. Drawables, not bitmaps, so this costs no extra memory; null for older icons.
      */
     val iconLayers: IconLayers? = null,
+    /** What kind of app it is, for the chips above All apps. */
+    val category: AppCategory = AppCategory.Other,
 )
+
+/** The kinds the All apps chips filter by. */
+enum class AppCategory(val title: String) { Video("Video"), Music("Music"), Games("Games"), Other("Other") }
+
+// Words that say what an app is when it appears in its name, and brands found in names or packages
+private val VideoWords = setOf("video", "videos", "tv", "cinema", "movie", "movies", "film", "films", "kids", "iptv")
+private val VideoBrands = setOf("youtube", "netflix", "disney", "hbo", "plex", "kodi", "vlc", "twitch", "kinopoisk", "okko", "ivi", "rutube", "wink", "primevideo", "crunchyroll")
+private val MusicWords = setOf("music", "radio", "podcast", "podcasts", "audio")
+private val MusicBrands = setOf("spotify", "deezer", "soundcloud", "tidal", "zvuk")
+private val GameWords = setOf("game", "games", "arcade")
+
+/**
+ * The kind of app: from the category it declares ([declared], an ApplicationInfo
+ * category, -1 for none) and whether it calls itself a game; failing that, from words in
+ * its name and brands in its package, since many TV apps declare nothing.
+ */
+fun categoryOf(declared: Int, isGame: Boolean, label: String, pkg: String): AppCategory {
+    if (isGame || declared == ApplicationInfo.CATEGORY_GAME) return AppCategory.Games
+    when (declared) {
+        ApplicationInfo.CATEGORY_VIDEO -> return AppCategory.Video
+        ApplicationInfo.CATEGORY_AUDIO -> return AppCategory.Music
+    }
+    val split = Regex("[^\\p{L}\\p{N}]+")
+    val name = label.lowercase().split(split).toSet()
+    val all = name + pkg.lowercase().split(split)
+    return when {
+        name.any { it in GameWords } -> AppCategory.Games
+        name.any { it in MusicWords } || all.any { it in MusicBrands } -> AppCategory.Music
+        name.any { it in VideoWords } || all.any { it in VideoBrands } -> AppCategory.Video
+        else -> AppCategory.Other
+    }
+}
 
 /** Background and foreground of an adaptive icon. Drawn on the main thread only. */
 class IconLayers(val background: Drawable, val foreground: Drawable)
@@ -95,6 +129,10 @@ fun loadApps(pm: PackageManager, self: String): List<AppEntry> {
                 accent = runCatching { accentOf(banner ?: icon) }.getOrDefault(DefaultAccent),
                 iconLayers = layers,
                 removable = (info.activityInfo.applicationInfo.flags and ApplicationInfo.FLAG_SYSTEM) == 0,
+                category = info.activityInfo.applicationInfo.let { app ->
+                    @Suppress("DEPRECATION")
+                    categoryOf(app.category, (app.flags and ApplicationInfo.FLAG_IS_GAME) != 0, info.loadLabel(pm).toString(), pkg)
+                },
             )
         }
     }
