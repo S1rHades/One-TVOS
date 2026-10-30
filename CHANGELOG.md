@@ -5,8 +5,7 @@ Pill Launcher is built from `main` on every change; the newest build is always t
 
 ## 2.6 (October 2026)
 
-- **Uninstall Pill Launcher** from **Settings → TV & system**. Press OK twice (so a stray press does nothing), then the TV asks to confirm. Afterwards the TV's own home screen takes over.
-- **Uninstaller app**: `uninstall-pill-launcher.apk`, published next to the launcher, removes it when the launcher itself won't open. Open it, press OK and confirm; then it can remove itself.
+- **Uninstall Pill Launcher** from **Settings → TV & system**. Press OK twice (so a stray press does nothing), then the TV asks to confirm. Afterwards the TV's own home screen takes over. Each release's notes say how to uninstall, right under the install link.
 - **Releases named by version**: each version now keeps its own release (**Pill Launcher 2.6**, tag `v2.6`, with `pill-launcher-2.6.apk`), so older versions stay downloadable and are easy to tell apart. `latest` still holds the newest, now titled **Pill Launcher 2.6 (latest)**, at the same download link. 2.5 gets its own release (`v2.5`) when 2.6 is published.
 
 ## 2.5 (October 2026)

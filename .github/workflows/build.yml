@@ -55,18 +55,14 @@ jobs:
           SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
         run: gradle assembleDebug --no-daemon
 
-      - name: Rename APKs
-        run: |
-          cp app/build/outputs/apk/debug/app-debug.apk launcher.apk
-          cp uninstaller/build/outputs/apk/debug/uninstaller-debug.apk uninstall-pill-launcher.apk
+      - name: Rename APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk launcher.apk
 
-      - name: Upload APKs
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: launcher-apk
-          path: |
-            launcher.apk
-            uninstall-pill-launcher.apk
+          path: launcher.apk
 
       # Only builds of main publish. Each version gets its own release (v2.6, "Pill Launcher
       # 2.6") that stays, and "latest" always holds the newest under the same download link.
@@ -96,7 +92,7 @@ jobs:
           notes() {
             echo "Install on the TV with the **Downloader** app: \`https://github.com/$REPO/releases/download/$1\`"
             echo
-            echo "To remove Pill Launcher, use **Settings → TV & system → Uninstall Pill Launcher**, or install \`https://github.com/$REPO/releases/download/$2\` and open **Uninstall Pill Launcher**."
+            echo "To uninstall: in Pill Launcher, **Settings → TV & system → Uninstall Pill Launcher**, press OK twice and confirm. If the launcher won't open, use the TV's **Settings → Apps → Pill Launcher → Uninstall**."
             echo
             # The newest section of the changelog
             awk '/^## /{n++} n==1' CHANGELOG.md
@@ -104,17 +100,17 @@ jobs:
             echo "Built from ${GITHUB_SHA::7}. Full history: [CHANGELOG.md](https://github.com/$REPO/blob/main/CHANGELOG.md)"
           }
 
-          notes "v$version/pill-launcher-$version.apk" "v$version/uninstall-pill-launcher.apk" > version.md
+          notes "v$version/pill-launcher-$version.apk" > version.md
           if gh release view "v$version" > /dev/null 2>&1; then
             # Another build of the same version: refresh its files and notes
-            gh release upload "v$version" "pill-launcher-$version.apk" uninstall-pill-launcher.apk --clobber
+            gh release upload "v$version" "pill-launcher-$version.apk" --clobber
             gh release edit "v$version" --notes-file version.md
           else
-            gh release create "v$version" "pill-launcher-$version.apk" uninstall-pill-launcher.apk \
+            gh release create "v$version" "pill-launcher-$version.apk" \
               --title "Pill Launcher $version" --notes-file version.md --latest=false
           fi
 
-          notes "latest/launcher.apk" "latest/uninstall-pill-launcher.apk" > latest.md
+          notes "latest/launcher.apk" > latest.md
           gh release delete latest --yes --cleanup-tag || true
-          gh release create latest launcher.apk uninstall-pill-launcher.apk \
+          gh release create latest launcher.apk \
             --title "Pill Launcher $version (latest)" --notes-file latest.md --latest
