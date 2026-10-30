@@ -54,6 +54,8 @@ import com.github.takahirom.roborazzi.captureRoboImage
 import com.github.takahirom.roborazzi.captureScreenRoboImage
 import org.junit.Before
 import org.junit.Rule
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasText
 import org.junit.Test
 import org.junit.rules.ExternalResource
 import org.junit.rules.RuleChain
@@ -432,6 +434,19 @@ class Screenshots {
         compose.onNodeWithText("Feels like", substring = true).assertIsDisplayed()
         compose.onNodeWithText("Tomorrow").assertIsDisplayed()
         captureScreenRoboImage(File(out, "forecast.png").path)
+    }
+
+    /** OK on the clock card opens the clock page. */
+    @Test
+    fun clockPage() {
+        show("misty-valley", pins = favorites)
+        val weekday = java.time.LocalDate.now().dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.getDefault())
+        compose.onAllNodes(hasClickAction() and hasText(weekday, substring = true)).onFirst()
+            .performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNodeWithText("WORLD CLOCKS").assertIsDisplayed()
+        compose.onNodeWithText("Algiers").assertIsDisplayed()
+        captureScreenRoboImage(File(out, "clock.png").path)
     }
 
     /** The headlines card among four widgets, then a story's summary. */

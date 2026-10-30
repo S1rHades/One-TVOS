@@ -19,7 +19,7 @@ data class AppEntry(
     val icon: ImageBitmap,
     /** The app's 16:9 TV banner, when it ships one. */
     val banner: ImageBitmap? = null,
-    /** A vivid colour from the app's artwork (ARGB), for its glow and the ambient light. */
+    /** A vivid colour from the app's artwork (ARGB), for its glow. */
     val accent: Int = DefaultAccent,
     /** False for apps built into the TV, which can't be uninstalled. */
     val removable: Boolean = true,
