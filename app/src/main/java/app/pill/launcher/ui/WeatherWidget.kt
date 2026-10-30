@@ -101,7 +101,7 @@ fun WeatherWidget(weather: Weather, mode: WeatherMode, compact: Boolean, modifie
                 )
                 // The city always; the condition too when there's room (the icon shows it anyway)
                 Text(
-                    if (compact) w.place.ifBlank { describe(w.code) } else listOf(describe(w.code), w.place).filter { it.isNotBlank() }.joinToString(" · "),
+                    if (compact) w.place.ifBlank { describe(w.code) } else listOf(w.place, describe(w.code)).filter { it.isNotBlank() }.joinToString(" · "),
                     style = TextStyle(fontFamily = Flex, color = Palette.TextSecondary, fontSize = if (compact) 14.sp else 16.sp, fontWeight = FontWeight.Medium),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,

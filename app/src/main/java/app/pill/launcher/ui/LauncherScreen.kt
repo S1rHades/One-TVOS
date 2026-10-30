@@ -720,6 +720,8 @@ private class PageScrollSpec(
         val edge = containerSize * PAGE_EDGE
         target = when {
             top < firstPageEnd -> 0f
+            // Coming down from the first page into All apps: its title goes to the top
+            current < firstPageEnd - 1f && bottom <= firstPageEnd + containerSize -> firstPageEnd
             top >= target && bottom <= target + containerSize -> target
             top > target -> top - edge
             else -> bottom - (containerSize - edge)

@@ -19,7 +19,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -81,9 +83,19 @@ fun SideRail(
     val at = if (active) focused else current.ordinal
     val markerY by animateDpAsState(RailPad + (ItemSize + ItemGap) * at, Motion.glide(), label = "railMarker")
     val markerColor by animateColorAsState(if (active) Palette.Focus else Color(0x38FFFFFF), tween(Motion.Quick), label = "railMarkerColor")
-    val labelShown by animateFloatAsState(if (active) 1f else 0f, tween(Motion.Quick), label = "railLabel")
+    // The name is a tooltip: it shows as focus arrives on an item and fades after a moment,
+    // so it never sits over the screen for long
     var labelAt by remember { mutableIntStateOf(0) }
     if (active) labelAt = focused
+    var tip by remember { mutableStateOf(false) }
+    LaunchedEffect(focused) {
+        tip = focused >= 0
+        if (tip) {
+            delay(1800)
+            tip = false
+        }
+    }
+    val labelShown by animateFloatAsState(if (tip) 1f else 0f, tween(Motion.Quick), label = "railLabel")
 
     Box(modifier) {
         Box(Modifier.glass(RoundedCornerShape(50)).padding(RailPad)) {

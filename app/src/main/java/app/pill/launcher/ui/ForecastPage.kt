@@ -197,8 +197,9 @@ private fun WeekChart(days: List<DayForecast>, today: LocalDate, selected: Int, 
     Box(modifier) {
         Canvas(Modifier.fillMaxSize()) {
             val col = size.width / days.size
-            val top = 46.dp.toPx()
-            val bottom = size.height - 54.dp.toPx()
+            val top = 62.dp.toPx()
+            // Room under the bars for the low, the day's sky and its name
+            val bottom = size.height - 82.dp.toPx()
             val barW = (col * 0.42f).coerceAtMost(30.dp.toPx())
             val span = (high - low).coerceAtLeast(1.0)
             fun y(c: Double) = (bottom - ((c - low) / span).toFloat() * (bottom - top))
@@ -233,7 +234,7 @@ private fun WeekChart(days: List<DayForecast>, today: LocalDate, selected: Int, 
             val w = tip.size.width + pad * 2
             val h = tip.size.height + 8.dp.toPx()
             val cx = (col * (at + 0.5f)).coerceIn(w / 2, size.width - w / 2)
-            val ty = (y(days[i].highC) - 24.dp.toPx() - h).coerceAtLeast(0f)
+            val ty = (y(days[i].highC) - 26.dp.toPx() - h).coerceAtLeast(0f)
             drawRoundRect(Color.White, Offset(cx - w / 2, ty), Size(w, h), CornerRadius(h / 2))
             drawText(tip, topLeft = Offset(cx - w / 2 + pad, ty + 4.dp.toPx()))
         }
@@ -298,11 +299,13 @@ private fun todayAgenda(
         items += AgendaItem(
             Color(0xFFFF8A80),
             "Tomorrow",
-            listOfNotNull(
-                formatTemp(d.lowC, mode) + " to " + formatTemp(d.highC, mode),
-                describe(d.code).lowercase(),
-                d.rainChance?.takeIf { it >= 20 }?.let { "rain $it%" },
-            ).joinToString(", "),
+            run {
+                val sky = describe(d.code).lowercase()
+                val wet = listOf("rain", "drizzle", "shower", "snow", "thunder").any { it in sky }
+                val chance = d.rainChance?.takeIf { it >= 20 }
+                formatTemp(d.lowC, mode) + " to " + formatTemp(d.highC, mode) + ", " + sky +
+                    (chance?.let { if (wet) " ($it%)" else ", rain $it%" } ?: "")
+            },
         )
     }
     return items

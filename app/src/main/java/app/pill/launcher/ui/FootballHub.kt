@@ -40,6 +40,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -278,7 +279,7 @@ private fun TeamColumn(f: Fixtures, table: LeagueTable?, loading: Boolean, follo
                     Crest(Side(row.teamId, row.team, row.badge), 18.dp)
                     Spacer(Modifier.width(6.dp))
                     Text(row.team, color = Palette.TextPrimary, fontSize = 13.sp, fontWeight = if (highlight) FontWeight(650) else FontWeight.Normal, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                    Text("${row.points}", color = Palette.TextPrimary, fontSize = 13.sp, fontWeight = FontWeight(650))
+                    Text("${row.points}", color = Palette.TextPrimary, fontSize = 13.sp, fontWeight = FontWeight(650), textAlign = TextAlign.End, modifier = Modifier.padding(start = 8.dp).width(22.dp))
                 }
             }
             Text("Top five from the free data", color = Palette.TextTertiary, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))

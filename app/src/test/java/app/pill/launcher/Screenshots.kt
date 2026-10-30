@@ -293,7 +293,7 @@ class Screenshots {
     @Test
     fun twoWidgets() {
         show("misty-valley", pins = favorites, settings = LauncherSettings(weather = WeatherMode.Celsius, widgets = listOf(WidgetKind.Clock, WidgetKind.Weather)))
-        compose.onNodeWithText("Partly cloudy · Lisbon").assertIsDisplayed()
+        compose.onNodeWithText("Lisbon · Partly cloudy").assertIsDisplayed()
         compose.onRoot().captureRoboImage(File(out, "two-widgets.png").path)
     }
 
@@ -493,19 +493,18 @@ class Screenshots {
         captureScreenRoboImage(File(out, "internet.png").path)
     }
 
-    /** Down to the chips above All apps, Right and OK: only the video apps, waved in. */
+    /** Down to the chips above All apps, then OK on Video: only the video apps, waved in. */
     @Test
     fun appChips() {
         show("canyon-river", pins = favorites)
         compose.onRoot().performKeyInput { pressKey(Key.DirectionDown) }
         settle()
-        compose.onRoot().performKeyInput {
-            pressKey(Key.DirectionRight)
-            pressKey(Key.DirectionCenter)
-        }
+        // OK on the Video chip (the first clickable "Video": the chips come before the cards)
+        compose.onAllNodes(hasClickAction() and hasText("Video")).onFirst().performSemanticsAction(SemanticsActions.OnClick)
         compose.mainClock.advanceTimeBy(2_000)
         settle()
         compose.onAllNodes(hasText("Video")).onFirst().assertExists()
+        compose.onNodeWithText("Kids").assertExists()
         compose.onNodeWithText("Maps").assertDoesNotExist()
         compose.onRoot().captureRoboImage(File(out, "all-apps-video.png").path)
     }
