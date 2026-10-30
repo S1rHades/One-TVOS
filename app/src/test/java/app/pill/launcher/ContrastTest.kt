@@ -2,7 +2,7 @@ package app.pill.launcher
 
 import androidx.compose.ui.graphics.Color
 import app.pill.launcher.ui.GlassTint
-import app.pill.launcher.ui.GlassTintAlpha
+import app.pill.launcher.ui.glassTintLayer
 import app.pill.launcher.ui.tintFromPixels
 import app.pill.launcher.ui.Palette
 import app.pill.launcher.ui.ScrimStops
@@ -67,10 +67,10 @@ class ContrastTest {
             val bg = brightest(photo, 0f, 0f, 1f, 1f, grid = 24) { GlassTint.alpha to GlassTint.copy(alpha = 1f) }
             val small = Bitmap.createScaledBitmap(photo, 192, 108, true)
             val px = IntArray(192 * 108).also { small.getPixels(it, 0, 192, 0, 0, 192, 108) }
-            val tint = tintFromPixels(px)
+            val layer = glassTintLayer(tintFromPixels(px))
             FloatArray(3) { i ->
-                val t = when (i) { 0 -> tint.red; 1 -> tint.green; else -> tint.blue }
-                bg[i] * (1 - GlassTintAlpha) + t * GlassTintAlpha
+                val t = when (i) { 0 -> layer.red; 1 -> layer.green; else -> layer.blue }
+                bg[i] * (1 - layer.alpha) + t * layer.alpha
             }
         }
     }

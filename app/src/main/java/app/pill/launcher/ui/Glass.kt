@@ -31,6 +31,7 @@ import androidx.compose.runtime.State
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.lerp
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
@@ -52,9 +53,14 @@ val LocalWallpaperTint = staticCompositionLocalOf<State<Color>> { mutableStateOf
 /** The tint for a photo with no colour to speak of (snow, fog, night). */
 val NeutralTint = Color(0xFFB8C4DE)
 
-/** How much of the wallpaper's colour glass takes on, and its edges. */
-const val GlassTintAlpha = 0.08f
+/** How much of the wallpaper's colour glass edges take on. */
 const val EdgeTintAlpha = 0.36f
+
+/**
+ * The layer that colours glass: a darker shade of [tint], thinly, so the glass takes the
+ * photo's hue without getting lighter (text on it keeps its contrast; see ContrastTest).
+ */
+fun glassTintLayer(tint: Color): Color = lerp(Color.Black, tint, 0.55f).copy(alpha = 0.06f)
 
 /** [tintFromPixels] for a (blurred) backdrop. */
 fun wallpaperTint(image: ImageBitmap): Color {
@@ -179,7 +185,7 @@ fun Modifier.glass(shape: Shape, tint: Color = GlassTint): Modifier {
         .drawBehind {
             backdrop?.let { drawBackdrop(it, screen, origin) }
             drawRect(tint)
-            drawRect(wallpaper.value.copy(alpha = GlassTintAlpha))
+            drawRect(glassTintLayer(wallpaper.value))
             // Light catching the top edge
             drawRect(Color(0x1FFFFFFF), size = size.copy(height = 1.dp.toPx()))
         }
