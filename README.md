@@ -28,6 +28,8 @@
 - **A fresh view.** The background cross-fades between full-screen photos, and the next one is loaded before it appears, so it never flashes.
 - **Light on the TV.** One small app, written in Jetpack Compose, with no background services and no tracking.
 
+Coming next: [planned features](docs/PLANNED.md), with mockups.
+
 ## Screenshots
 
 <table>
