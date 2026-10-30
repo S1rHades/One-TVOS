@@ -187,8 +187,9 @@ class Screenshots {
     @Test
     fun pinFromGrid() {
         show("canyon-river", pins = favorites)
-        // Down into the grid, along to "Maps", then hold OK to pin it
+        // Down past the chips into the grid, along to "Maps", then hold OK to pin it
         compose.onRoot().performKeyInput {
+            pressKey(Key.DirectionDown)
             pressKey(Key.DirectionDown)
             repeat(6) { pressKey(Key.DirectionRight) }
         }
@@ -438,7 +439,7 @@ class Screenshots {
         compose.onNodeWithText("NEXT", substring = true).performSemanticsAction(SemanticsActions.OnClick)
         settle()
         compose.onNodeWithText("LATEST RESULT").assertIsDisplayed()
-        compose.onNodeWithText("LATEST RESULT").performKeyInput { pressKey(Key.DirectionRight) }
+        compose.onNodeWithText("LATEST RESULT").performKeyInput { pressKey(Key.DirectionDown) }
         settle()
         compose.onNodeWithText("Manchester City").assertIsDisplayed()
         captureScreenRoboImage(File(out, "football-hub.png").path)
@@ -448,9 +449,9 @@ class Screenshots {
     @Test
     fun forecast() {
         show("misty-valley", pins = favorites, weather = forecastWeather)
-        compose.onNodeWithText("Lisbon", substring = true).performSemanticsAction(SemanticsActions.OnClick)
+        compose.onAllNodes(hasClickAction() and hasText("Lisbon", substring = true)).onFirst().performSemanticsAction(SemanticsActions.OnClick)
         settle()
-        compose.onNodeWithText("Feels like", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("FEELS LIKE").assertIsDisplayed()
         compose.onNodeWithText("Tomorrow").assertIsDisplayed()
         captureScreenRoboImage(File(out, "forecast.png").path)
     }
@@ -477,8 +478,34 @@ class Screenshots {
         compose.onRoot().captureRoboImage(File(out, "headlines.png").path)
         compose.onNodeWithText("RUSSIA", substring = true).performSemanticsAction(SemanticsActions.OnClick)
         settle()
-        compose.onNodeWithText("Left / Right for more", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("Up / Down for more", substring = true).assertIsDisplayed()
         captureScreenRoboImage(File(out, "headline-page.png").path)
+    }
+
+    /** The rail's Internet page: the speed test, ready to start, and a way to network settings. */
+    @Test
+    fun internetPage() {
+        show("mountain-lake", pins = favorites)
+        compose.onNodeWithContentDescription("Internet", substring = true).performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNodeWithText("Start test").assertIsDisplayed()
+        compose.onNodeWithText("Network settings").assertIsDisplayed()
+        captureScreenRoboImage(File(out, "internet.png").path)
+    }
+
+    /** Down to the chips above All apps, then Right: only the video apps, waved in. */
+    @Test
+    fun appChips() {
+        show("canyon-river", pins = favorites)
+        compose.onRoot().performKeyInput {
+            pressKey(Key.DirectionDown)
+            pressKey(Key.DirectionRight)
+        }
+        compose.mainClock.advanceTimeBy(2_000)
+        settle()
+        compose.onAllNodes(hasText("Video")).onFirst().assertExists()
+        compose.onNodeWithText("Maps").assertDoesNotExist()
+        compose.onRoot().captureRoboImage(File(out, "all-apps-video.png").path)
     }
 
     /** Settings → Widgets → Football teams: the followed teams and a search to add one. */
@@ -591,7 +618,7 @@ class Screenshots {
         val pkg = pkg(label)
         // Two stand-ins ship a TV banner, like real TV apps; the rest get generated ones
         val banner = if (label in setOf("Cinema", "Live TV")) fakeBanner(label, color) else null
-        return AppEntry(label, pkg, ComponentName(pkg, "$pkg.Main"), bitmap.asImageBitmap(), banner?.asImageBitmap(), accentOf(banner ?: bitmap))
+        return AppEntry(label, pkg, ComponentName(pkg, "$pkg.Main"), bitmap.asImageBitmap(), banner?.asImageBitmap(), accentOf(banner ?: bitmap), category = categoryOf(-1, false, label, pkg))
     }
 
     /** A 16:9 banner in the style of a TV app: a deep gradient with the name set large. */

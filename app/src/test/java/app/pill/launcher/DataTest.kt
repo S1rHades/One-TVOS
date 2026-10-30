@@ -330,4 +330,58 @@ class DataTest {
         val mostlyGrey = IntArray(1000) { if (it < 5) 0xFF2060E0.toInt() else 0xFF7A7A7A.toInt() }
         assertEquals(app.pill.launcher.ui.NeutralTint, app.pill.launcher.ui.tintFromPixels(mostlyGrey))
     }
+
+    // ---- 3.0: glass motion, the rail, All apps chips, the Internet page --------------------
+
+    @Test
+    fun glassMotionWavesInReadingOrder() {
+        // Each step starts one step later, and every step is fully in by the end of the wave
+        val at = 200f
+        val steps = (0..9).map { app.pill.launcher.ui.waveProgress(at, it) }
+        assertTrue("earlier steps lead: $steps", steps.zipWithNext().all { (a, b) -> a >= b })
+        assertEquals(0f, app.pill.launcher.ui.waveProgress(0f, 3), 1e-3f)
+        assertEquals(1f, app.pill.launcher.ui.waveProgress(app.pill.launcher.ui.Motion.RevealMs.toFloat(), 20), 1e-3f)
+        // A long list stops waiting after the cap
+        assertEquals(app.pill.launcher.ui.waveDelay(8), app.pill.launcher.ui.waveDelay(40))
+        // One value drives a group: all in at 1, all out at 0, the first step leading
+        for (step in 0..2) {
+            assertEquals(1f, app.pill.launcher.ui.staggered(1f, step, 3), 0f)
+            assertEquals(0f, app.pill.launcher.ui.staggered(0f, step, 3), 0f)
+        }
+        assertTrue(app.pill.launcher.ui.staggered(0.5f, 0, 3) > app.pill.launcher.ui.staggered(0.5f, 2, 3))
+    }
+
+    @Test
+    fun appCategoriesForTheChips() {
+        assertEquals(AppCategory.Games, categoryOf(-1, true, "Asphalt", "com.gameloft.asphalt"))
+        assertEquals(AppCategory.Video, categoryOf(android.content.pm.ApplicationInfo.CATEGORY_VIDEO, false, "Anything", "a.b"))
+        assertEquals(AppCategory.Music, categoryOf(android.content.pm.ApplicationInfo.CATEGORY_AUDIO, false, "Anything", "a.b"))
+        assertEquals(AppCategory.Video, categoryOf(-1, false, "YouTube", "com.google.android.youtube.tv"))
+        assertEquals(AppCategory.Video, categoryOf(-1, false, "Live TV", "app.example.livetv"))
+        assertEquals(AppCategory.Music, categoryOf(-1, false, "Spotify", "com.spotify.tv.android"))
+        assertEquals(AppCategory.Music, categoryOf(-1, false, "Radio", "app.example.radio"))
+        // "tv" in a package alone doesn't make an app a video app
+        assertEquals(AppCategory.Other, categoryOf(-1, false, "Settings", "com.android.tv.settings"))
+        assertEquals(AppCategory.Other, categoryOf(-1, false, "Maps", "app.example.maps"))
+    }
+
+    @Test
+    fun internetSpeedsInPlainWords() {
+        // 10 MB in one second is 80 Mbps
+        assertEquals(80.0, mbps(10_000_000, 1_000_000_000), 0.001)
+        assertEquals(0.0, mbps(1000, 0), 0.0)
+        assertEquals("Good for 4K streaming", speedVerdict(87.4))
+        assertEquals("Good for HD streaming", speedVerdict(12.0))
+        assertEquals("Fine for standard video", speedVerdict(5.0))
+        assertEquals("Slow: video may stop to load", speedVerdict(1.5))
+    }
+
+    @Test
+    fun greetingAndPlaces() {
+        assertEquals("Good morning", app.pill.launcher.ui.greetingFor(8))
+        assertEquals("Good afternoon", app.pill.launcher.ui.greetingFor(16))
+        assertEquals("Good evening", app.pill.launcher.ui.greetingFor(20))
+        assertEquals("Good night", app.pill.launcher.ui.greetingFor(2))
+        assertEquals(listOf("1st", "2nd", "3rd", "4th", "11th", "12th", "13th", "21st", "22nd", "101st"), listOf(1, 2, 3, 4, 11, 12, 13, 21, 22, 101).map { app.pill.launcher.ui.ordinal(it) })
+    }
 }
