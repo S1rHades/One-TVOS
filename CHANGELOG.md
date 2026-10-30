@@ -3,6 +3,13 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 2.7 (October 2026)
+
+- **Clock page**: the clock card now takes focus like the other widgets, and OK opens a page with the time to the second, the full date and the Islamic (Umm al-Qura) date, this month's calendar, and the time in Algiers, London, Mecca, Moscow and New York.
+- **Focused widgets aren't cut off**: the card at either end of the row used to lose its edge when it grew on focus.
+- **Ambient light removed**: the photo is no longer tinted with the focused app's colour, and the setting is gone.
+- **Quieter idle screen**: the line at the bottom now says only where the photo was taken and who took it. The full credit and licence stay in Settings → Background.
+
 ## 2.6 (October 2026)
 
 - **Uninstall Pill Launcher** from **Settings → TV & system**. Press OK twice (so a stray press does nothing), then the TV asks to confirm. Afterwards the TV's own home screen takes over. Each release's notes say how to uninstall, right under the install link.

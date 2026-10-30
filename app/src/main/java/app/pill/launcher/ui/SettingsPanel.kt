@@ -268,12 +268,6 @@ fun SettingsPanel(
                             ) { focused ->
                                 Stepper(formatInterval(settings.intervalSec), current > 0, current < options.lastIndex, focused)
                             }
-
-                            SettingRow(
-                                title = "Ambient light",
-                                subtitle = if (settings.ambientLight) "Tints the photo with the focused app's colour" else "Photo shown as it is",
-                                onClick = { onChange(settings.copy(ambientLight = !settings.ambientLight)) },
-                            ) { focused -> Switch(checked = settings.ambientLight, focused = focused) }
                                 }
                                 SettingsPage.Widgets -> {
                                     Group("${settings.widgets.size} of $MaxWidgets on · Left / Right moves one") {

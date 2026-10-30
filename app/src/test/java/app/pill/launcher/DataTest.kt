@@ -289,4 +289,30 @@ class DataTest {
         assertEquals("3 h ago", app.pill.launcher.ui.ageText(now.minus(Duration.ofHours(3)), now))
         assertEquals("Yesterday", app.pill.launcher.ui.ageText(now.minus(Duration.ofHours(30)), now))
     }
+
+    @Test
+    fun photoCaptionIsPlaceAndPhotographer() {
+        assertEquals("Iceland, Gullfoss", placeOf("Iceland - 2017-02-22 - Gullfoss - 3684"))
+        assertEquals("Lake Bled, Slovenia", placeOf("Lake_Bled, Slovenia (DSC 0412)"))
+        val photo = parsePhotoFeed(
+            """{"photos":[{"file":"a.jpg","title":"Iceland - 2017-02-22 - Gullfoss - 3684","artist":"Pierre-Selim Huard","license":"CC BY 4.0"}]}""",
+        ).single()
+        assertEquals("Iceland, Gullfoss · Pierre-Selim Huard", photo.caption)
+        // The full credit, with the licence, stays for Settings
+        assertEquals("Iceland - 2017-02-22 - Gullfoss - 3684 · Pierre-Selim Huard · CC BY 4.0 · Wikimedia Commons", photo.credit)
+    }
+
+    @Test
+    fun clockPageOffsetsAndIslamicDate() {
+        val here = java.time.ZonedDateTime.of(2026, 10, 30, 23, 30, 0, 0, ZoneId.of("Europe/Moscow"))
+        fun at(zone: String) = here.withZoneSameInstant(ZoneId.of(zone))
+        assertEquals("Same time", app.pill.launcher.ui.offsetText(here, at("Asia/Riyadh")))
+        assertEquals("−3 h", app.pill.launcher.ui.offsetText(here, at("Europe/London")))
+        assertEquals("+6 h, tomorrow", app.pill.launcher.ui.offsetText(here, at("Asia/Tokyo")))
+        assertEquals("+2 h 30 min, tomorrow", app.pill.launcher.ui.offsetText(here, at("Asia/Kolkata")))
+        // 1 Muharram 1448 fell in June 2026
+        val hijri = app.pill.launcher.ui.hijriDate(java.time.LocalDate.of(2026, 10, 30), java.util.Locale.ENGLISH)
+        assertNotNull(hijri)
+        assertTrue(hijri!!, "1448" in hijri)
+    }
 }

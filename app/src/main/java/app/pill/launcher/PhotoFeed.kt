@@ -3,8 +3,12 @@ package app.pill.launcher
 import android.content.Context
 import org.json.JSONObject
 
-/** A slideshow photo, and who to credit for it (null for the built-in set). */
-data class Photo(val url: String, val credit: String? = null)
+/**
+ * A slideshow photo, and who to credit for it (null for the built-in set): the full
+ * [credit] with its licence for Settings, and a short [caption] (place and photographer)
+ * for the idle screen.
+ */
+data class Photo(val url: String, val credit: String? = null, val caption: String? = null)
 
 private const val FeedBase = "https://raw.githubusercontent.com/S1rHades/One-TVOS/photos-data/"
 
@@ -34,6 +38,22 @@ fun parsePhotoFeed(json: String): List<Photo> {
         val credit = listOf(p.optString("title"), p.optString("artist"), p.optString("license"))
             .filter { it.isNotBlank() }
             .joinToString(" · ")
-        Photo(FeedBase + p.getString("file"), "$credit · Wikimedia Commons".removePrefix(" · "))
+        val caption = listOf(placeOf(p.optString("title")), p.optString("artist"))
+            .filter { it.isNotBlank() }
+            .joinToString(" · ")
+        Photo(FeedBase + p.getString("file"), "$credit · Wikimedia Commons".removePrefix(" · "), caption.ifEmpty { null })
     }
+}
+
+/**
+ * The place in a Commons title, without the dates, numbers and camera codes around it:
+ * "Iceland - 2017-02-22 - Gullfoss - 3684" is "Iceland, Gullfoss".
+ */
+fun placeOf(title: String): String {
+    val parts = title.replace('_', ' ')
+        .split(Regex("""\s+[-–—]\s+|,\s*|\s*[()]\s*"""))
+        .map { it.trim() }
+        .filter { it.isNotEmpty() && it.none(Char::isDigit) }
+        .distinct()
+    return parts.take(3).joinToString(", ")
 }

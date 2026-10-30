@@ -22,7 +22,7 @@
 ## Highlights
 
 - **Just your apps.** The home screen shows only your favourites; everything else waits one press below, in an alphabetical grid that turns over a page at a time.
-- **Widgets you choose.** Up to four frosted-glass cards across the top: clock, weather (OK opens the forecast), sunrise & sunset, system info, headlines from Al Jazeera English and RT English by topic, and football for Algeria and the teams you follow, with a match-day countdown and a kick-off reminder.
+- **Widgets you choose.** Up to four frosted-glass cards across the top: clock (OK opens the clock page: seconds, the Islamic date, this month and world clocks), weather (OK opens the forecast), sunrise & sunset, system info, headlines from Al Jazeera English and RT English by topic, and football for Algeria and the teams you follow, with a match-day countdown and a kick-off reminder.
 - **Built for the remote.** Focused apps lift and get a crisp white ring, every move animates smoothly, and every action is one or two presses of the D-pad.
 - **A fresh view.** The background cross-fades between full-screen photos, and the next one is loaded before it appears, so it never flashes.
 - **Light on the TV.** One small app, written in Jetpack Compose, with no background services and no tracking.
@@ -128,7 +128,7 @@ If the launcher won't open, use the TV's own **Settings → Apps → Pill Launch
 | Change how often the photo changes, or the weather unit | In settings, **Left** / **Right** on that row |
 | Turn widgets on or off | **Settings → Widgets**, **OK** on a widget (up to four at once) |
 | Reorder widgets | **Settings → Widgets**, **Left** / **Right** on a widget that's on |
-| See the forecast, the football page or a headline's summary | Go up to that widget, then **OK** (**Back** closes it) |
+| See the clock page, the forecast, the football page or a headline's summary | Go up to that widget, then **OK** (**Back** closes it) |
 | Follow more teams, or change match day | **Settings → Widgets → Football teams** |
 | Choose headline topics | **Settings → Widgets → Headlines** |
 | Hide the kick-off reminder | **Back** (it also goes by itself after 30 seconds) |
@@ -160,7 +160,7 @@ Al Jazeera is read from its RSS feed, or from a copy the Fixtures mirror keeps o
 
 ### Online photos
 
-By default the slideshow shows a new set of 24 landscape photos each day from [Wikimedia Commons' Featured Pictures](https://commons.wikimedia.org/wiki/Commons:Featured_pictures) (mountains, lakes, forests, waterfalls and coasts). The **Photo feed** workflow (`.github/workflows/photo-feed.yml`, `.github/scripts/photo_feed.py`) picks them each morning, resizes them to 1920×1080 and publishes them with their credits on the `photos-data` branch. The TV reads them from `raw.githubusercontent.com`. The photos are freely licensed (mostly CC BY-SA): the author and licence of the one on screen show on the idle screen and in Settings. Offline, the TV uses the last set it saw and the built-in photos.
+By default the slideshow shows a new set of 24 landscape photos each day from [Wikimedia Commons' Featured Pictures](https://commons.wikimedia.org/wiki/Commons:Featured_pictures) (mountains, lakes, forests, waterfalls and coasts). The **Photo feed** workflow (`.github/workflows/photo-feed.yml`, `.github/scripts/photo_feed.py`) picks them each morning, resizes them to 1920×1080 and publishes them with their credits on the `photos-data` branch. The TV reads them from `raw.githubusercontent.com`. The photos are freely licensed (mostly CC BY-SA): the idle screen names where the photo on screen was taken and who took it, and Settings shows its full credit and licence. Offline, the TV uses the last set it saw and the built-in photos.
 
 ### Your own photos
 

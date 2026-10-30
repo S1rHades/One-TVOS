@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
@@ -80,7 +81,9 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.offset
 import androidx.compose.ui.unit.sp
 import app.pill.launcher.Fixtures
 import app.pill.launcher.Match
@@ -121,6 +124,8 @@ import kotlin.math.sin
 val WidgetHeight = 112.dp
 private val CardShape = RoundedCornerShape(26.dp)
 private val Gap = 14.dp
+/** Room beside the row for a focused card, which grows by up to 4.5%. */
+private val FocusRoom = 24.dp
 
 /** Widths each card is designed for, roomy and compact. The row scales them to fit. */
 private fun naturalWidth(kind: WidgetKind, compact: Boolean): Dp = when (kind) {
@@ -156,6 +161,7 @@ fun WidgetRow(
     animate: Boolean,
     modifier: Modifier = Modifier,
     /** OK on a card opens its page. Cards without one aren't focusable. */
+    onOpenClock: (() -> Unit)? = null,
     onOpenWeather: (() -> Unit)? = null,
     onOpenFootball: ((Team) -> Unit)? = null,
     onOpenHeadline: ((Int) -> Unit)? = null,
@@ -172,7 +178,15 @@ fun WidgetRow(
         // Every card stretches by the same factor, so the row always fills its width: two cards
         // share it between them, four squeeze into their compact layouts
         val share = if (needed == 0.dp) 1f else (maxWidth - gaps) / needed
+        // A lazy row clips its sides, which cut off a focused card's grown edge at either end.
+        // So the row is laid out FocusRoom wider on each side, with that room as padding.
         LazyRow(
+            modifier = Modifier.layout { measurable, constraints ->
+                val room = FocusRoom.roundToPx()
+                val row = measurable.measure(constraints.offset(horizontal = room * 2))
+                layout(row.width - room * 2, row.height) { row.place(-room, 0) }
+            },
+            contentPadding = PaddingValues(horizontal = FocusRoom),
             horizontalArrangement = Arrangement.spacedBy(Gap),
             userScrollEnabled = false,
             verticalAlignment = Alignment.Top,
@@ -186,7 +200,7 @@ fun WidgetRow(
                     )
                     .width(animateDpAsState(natural(kind, compact) * share, tween(450, easing = FastOutSlowInEasing), label = "widgetWidth").value)
                 when (kind) {
-                    WidgetKind.Clock -> ClockCard(compact, item)
+                    WidgetKind.Clock -> ClockCard(compact, item, onOpenClock)
                     WidgetKind.Weather -> WeatherCard(weather, weatherError, mode, compact, animate, item, onOpenWeather.takeIf { weather?.forecast != null })
                     WidgetKind.Fennecs -> FootballCard(football, matchDay, compact, item, onOpenFootball)
                     WidgetKind.Daylight -> DaylightCard(weather, compact, item)
@@ -262,9 +276,9 @@ private fun lineStyle(size: TextUnit, color: Color = Palette.TextSecondary, weig
 
 // ---- Clock -------------------------------------------------------------------------
 
-/** Hours and minutes (no seconds) and the date. Ticks on each minute boundary. */
+/** Hours and minutes (no seconds) and the date. Ticks on each minute boundary. OK opens the clock page. */
 @Composable
-private fun ClockCard(compact: Boolean, modifier: Modifier) {
+private fun ClockCard(compact: Boolean, modifier: Modifier, onClick: (() -> Unit)?) {
     val context = LocalContext.current
     val is24h = DateFormat.is24HourFormat(context)
     val locale = Locale.getDefault()
@@ -286,7 +300,7 @@ private fun ClockCard(compact: Boolean, modifier: Modifier) {
             if (!is24h) append(now.format(amPm))
         }
     }
-    WidgetCard(Color(0xFF9DB4FF), modifier) {
+    WidgetCard(Color(0xFF9DB4FF), modifier, onClick) {
         Column(Modifier.align(Alignment.Center)) {
             Text(
                 clock,

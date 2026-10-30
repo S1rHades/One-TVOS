@@ -64,7 +64,6 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.setValue
@@ -174,9 +173,9 @@ fun LauncherScreen(
     var photoError by remember { mutableStateOf<String?>(null) }
     // Who took the photo on screen (online photos only), shown on the idle screen and in settings
     var photoCredit by remember { mutableStateOf<String?>(null) }
+    // Where it was taken and by whom, the short form shown while idle
+    var photoCaption by remember { mutableStateOf<String?>(null) }
     var backdrop by remember { mutableStateOf<ImageBitmap?>(null) }
-    // Accent of the focused app; read only by AmbientLight, so focus moves don't recompose the screen
-    val ambient = remember { mutableStateOf<Int?>(null) }
     var initialFocusDone by remember { mutableStateOf(false) }
     var toast by remember { mutableStateOf<Toast?>(null) }
     var toastVisible by remember { mutableStateOf(false) }
@@ -189,9 +188,10 @@ fun LauncherScreen(
     var lastInput by remember { mutableLongStateOf(SystemClock.uptimeMillis()) }
     // Pages opened from the widgets: the forecast, a team on the football page, a headline
     var forecastOpen by remember { mutableStateOf(false) }
+    var clockOpen by remember { mutableStateOf(false) }
     var hubTeam by remember { mutableStateOf<Team?>(null) }
     var headlineAt by remember { mutableStateOf<Int?>(null) }
-    val pageOpen = forecastOpen || hubTeam != null || headlineAt != null
+    val pageOpen = forecastOpen || clockOpen || hubTeam != null || headlineAt != null
     // Kick-off banners already seen (by match), so each shows once
     var bannersShown by remember { mutableStateOf(setOf<String>()) }
     val headlines = remember(news, settings.newsTopics) { news?.let { pickHeadlines(it, settings.newsTopics) }.orEmpty() }
@@ -251,6 +251,7 @@ fun LauncherScreen(
         panelOpen = false
         searchOpen = false
         forecastOpen = false
+        clockOpen = false
         hubTeam = null
         headlineAt = null
         idle = false
@@ -352,7 +353,10 @@ fun LauncherScreen(
                 // Today's online set when there is one, with the built-in photos to fall back on
                 photos = if (settings.onlinePhotos && onlinePhotos.isNotEmpty()) onlinePhotos else BackgroundSources.photos,
                 fallback = if (settings.onlinePhotos && onlinePhotos.isNotEmpty()) BackgroundSources.photos else emptyList(),
-                onShown = { photoCredit = it.credit },
+                onShown = {
+                    photoCredit = it.credit
+                    photoCaption = it.caption
+                },
                 intervalMs = settings.intervalSec * 1000L,
                 enabled = settings.slideshow,
                 drift = idle && settings.idleAnimation,
@@ -360,7 +364,6 @@ fun LauncherScreen(
                 onBackdrop = { backdrop = it },
             )
             BackgroundScrim()
-            if (settings.ambientLight) AmbientLight(ambient, fade = { idleFade })
 
             BoxWithConstraints(Modifier.fillMaxSize()) {
                 val contentWidth = maxWidth - Spacing.ScreenH * 2
@@ -418,6 +421,7 @@ fun LauncherScreen(
                                     modifier = Modifier
                                         .weight(1f)
                                         .idlePresentation(focus = { idleFocus }, shift = { idleShift.value }),
+                                    onOpenClock = { clockOpen = true },
                                     onOpenWeather = { forecastOpen = true },
                                     onOpenFootball = { hubTeam = it },
                                     onOpenHeadline = { headlineAt = it },
@@ -471,7 +475,6 @@ fun LauncherScreen(
                                         apps = pinnedApps,
                                         layout = settings.favoritesLayout,
                                         style = settings.favoritesStyle,
-                                        onFocus = { ambient.value = it.accent },
                                         animate = settings.favoritesAnimation,
                                         iconSize = FavoriteIcon,
                                         width = contentWidth,
@@ -506,7 +509,6 @@ fun LauncherScreen(
                                             showPinBadge = app.pkg in pins,
                                             onOpen = { onOpen(app) },
                                             onMenu = { held -> menu = MenuRequest(app, held, fromFavorites = false) },
-                                            onFocus = { if (it) ambient.value = app.accent },
                                             // Equal cells across the row, with the icon centred in each
                                             modifier = Modifier.weight(1f),
                                         )
@@ -519,10 +521,10 @@ fun LauncherScreen(
                 }
             }
 
-            // The photographer's credit, while the screen rests
-            photoCredit?.let { credit ->
+            // Where the photo was taken and who took it, while the screen rests
+            photoCaption?.let { caption ->
                 Text(
-                    credit,
+                    caption,
                     color = Palette.TextTertiary,
                     fontSize = 13.sp,
                     maxLines = 1,
@@ -604,6 +606,9 @@ fun LauncherScreen(
                 )
             }
 
+            if (clockOpen) {
+                ClockPage(place = weather?.place, onDismiss = { clockOpen = false })
+            }
             if (forecastOpen && weather != null) {
                 ForecastPage(weather, settings.weather, onDismiss = { forecastOpen = false })
             }
@@ -810,25 +815,6 @@ internal fun ToastChip(message: String) {
             .padding(horizontal = 24.dp, vertical = 13.dp),
     ) {
         Text(message, color = Palette.TextPrimary, fontSize = 17.sp, fontWeight = FontWeight(560))
-    }
-}
-
-/**
- * A soft wash of the focused app's colour rising from the lower left, cross-fading in
- * 400 ms as focus moves. Drawn in the draw phase from [accent], so only this layer redraws.
- */
-@Composable
-private fun AmbientLight(accent: State<Int?>, fade: () -> Float) {
-    val color = animateColorAsState(
-        accent.value?.let { Color(it) } ?: Color.Transparent,
-        tween(400, easing = FastOutSlowInEasing),
-        label = "ambient",
-    )
-    Canvas(Modifier.fillMaxSize().graphicsLayer { alpha = 1f - fade() }) {
-        val c = color.value
-        val origin = Offset(size.width * 0.2f, size.height)
-        drawRect(Brush.radialGradient(listOf(c.copy(alpha = c.alpha * 0.42f), Color.Transparent), origin, size.width * 0.62f))
-        drawRect(Brush.radialGradient(listOf(c.copy(alpha = c.alpha * 0.3f), Color.Transparent), origin, size.width * 0.3f))
     }
 }
 

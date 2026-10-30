@@ -26,8 +26,6 @@ data class LauncherSettings(
     /** Sliding and reordering animations in the favourites row. */
     val favoritesAnimation: Boolean = true,
     val favoritesStyle: FavoritesStyle = FavoritesStyle.Banners,
-    /** Tint the photo with the focused app's colour. */
-    val ambientLight: Boolean = true,
     /** Header cards, in display order; at most [MaxWidgets]. */
     val widgets: List<WidgetKind> = DefaultWidgets,
     /** "Not now" on the home-screen prompt to make Pill Launcher the home screen. */
@@ -71,7 +69,6 @@ class SettingsStore(context: Context) {
         favoritesStyle = prefs.getString("favoritesStyle", null)
             ?.let { name -> FavoritesStyle.entries.firstOrNull { it.name == name } }
             ?: FavoritesStyle.Banners,
-        ambientLight = prefs.getBoolean("ambientLight", true),
         // Before widgets, the weather setting had an Off choice; it maps to the widget being off
         widgets = parseWidgets(prefs.getString("widgets", null))
             ?: if (prefs.getString("weather", null) == WeatherMode.Off.name) DefaultWidgets - WidgetKind.Weather else DefaultWidgets,
@@ -97,7 +94,6 @@ class SettingsStore(context: Context) {
             .putString("favoritesLayout", settings.favoritesLayout.name)
             .putBoolean("favoritesAnimation", settings.favoritesAnimation)
             .putString("favoritesStyle", settings.favoritesStyle.name)
-            .putBoolean("ambientLight", settings.ambientLight)
             .putString("widgets", settings.widgets.toStored())
             .putBoolean("homePromptDismissed", settings.homePromptDismissed)
             .putBoolean("onlinePhotos", settings.onlinePhotos)
