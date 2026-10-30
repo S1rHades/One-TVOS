@@ -65,6 +65,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.runtime.State
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -274,16 +275,17 @@ fun LauncherScreen(
         // Back to the first page, with focus there too, so waking up lands somewhere visible
         focusFirstPage()
     }
-    // While idle the widgets glide to the middle of the screen and grow, then hold still
+    // While idle the widgets glide to the middle of the screen and grow, then hold still.
+    // Waking, they glide back gently, and the rest of Home fades in once they're on their way.
     val idleFocus by animateFloatAsState(
         if (idle) 1f else 0f,
-        tween(if (idle) 1800 else 600, easing = FastOutSlowInEasing),
+        if (idle) tween(1800, easing = FastOutSlowInEasing) else tween(1300, easing = WakeEasing),
         label = "idleFocus",
     )
     val idleShift = rememberBurnInShift(idle && settings.idleAnimation)
     val idleFade by animateFloatAsState(
         if (idle) 1f else 0f,
-        tween(if (idle) 1600 else 450, easing = FastOutSlowInEasing),
+        if (idle) tween(1600, easing = FastOutSlowInEasing) else tween(1000, delayMillis = 250, easing = WakeEasing),
         label = "idleFade",
     )
 
@@ -329,9 +331,15 @@ fun LauncherScreen(
         }
     }
 
+    // The photo's colour, which glass, the widgets and the focus glow take a little of. It
+    // drifts to each new photo's over a few seconds, well after the photos have crossfaded.
+    val tintTarget = remember(backdrop) { backdrop?.let { wallpaperTint(it) } ?: NeutralTint }
+    val wallpaperTint = animateColorAsState(tintTarget, tween(3000, easing = FastOutSlowInEasing), label = "wallpaperTint")
+
     // The blurred photo for glass surfaces, and Roboto Flex as the default for all text
     CompositionLocalProvider(
         LocalBackdrop provides backdrop,
+        LocalWallpaperTint provides wallpaperTint,
         LocalTextStyle provides LocalTextStyle.current.merge(TextStyle(fontFamily = Flex)),
     ) {
         Box(
@@ -737,7 +745,8 @@ private fun rememberBurnInShift(active: Boolean): State<Offset> {
     val shift = remember { Animatable(Offset.Zero, Offset.VectorConverter) }
     LaunchedEffect(active) {
         if (!active) {
-            shift.snapTo(Offset.Zero)
+            // Back home with the widgets, rather than jumping as they leave
+            shift.animateTo(Offset.Zero, tween(1300, easing = WakeEasing))
             return@LaunchedEffect
         }
         val range = with(density) { 14.dp.toPx() }

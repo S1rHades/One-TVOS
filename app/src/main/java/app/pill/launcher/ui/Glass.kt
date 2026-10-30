@@ -26,6 +26,15 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import kotlin.math.max
 import kotlin.math.roundToInt
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.State
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.lerp
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * A blurred copy of the photo on screen. Glass surfaces draw the part of it that lies
@@ -33,6 +42,73 @@ import kotlin.math.roundToInt
  * behind a panel) but costs nothing per frame and works on every Android version.
  */
 val LocalBackdrop = compositionLocalOf<ImageBitmap?> { null }
+
+/**
+ * The photo's own colour, softened (see [tintFromPixels]), fading slowly to each new
+ * photo's. Glass, the widgets and the focus glow take a little of it. A State, read only
+ * while drawing, so a fade redraws those surfaces without recomposing them.
+ */
+val LocalWallpaperTint = staticCompositionLocalOf<State<Color>> { mutableStateOf(NeutralTint) }
+
+/** The tint for a photo with no colour to speak of (snow, fog, night). */
+val NeutralTint = Color(0xFFB8C4DE)
+
+/** How much of the wallpaper's colour glass edges take on. */
+const val EdgeTintAlpha = 0.36f
+
+/**
+ * The layer that colours glass: a darker shade of [tint], thinly, so the glass takes the
+ * photo's hue without getting lighter (text on it keeps its contrast; see ContrastTest).
+ */
+fun glassTintLayer(tint: Color): Color = lerp(Color.Black, tint, 0.55f).copy(alpha = 0.06f)
+
+/** [tintFromPixels] for a (blurred) backdrop. */
+fun wallpaperTint(image: ImageBitmap): Color {
+    val px = IntArray(image.width * image.height)
+    image.readPixels(px)
+    return tintFromPixels(px)
+}
+
+/**
+ * The colour a photo is most about, as a soft pastel: the hue that carries the most
+ * colour (24 bins, each pixel weighted by how colourful it is, neighbouring bins
+ * together), at a fixed lightness so text over it reads the same on every photo.
+ * Greys, near-blacks and near-whites hardly count; a photo made only of them gets
+ * [NeutralTint].
+ */
+fun tintFromPixels(px: IntArray): Color {
+    val bins = 24
+    val weight = FloatArray(bins)
+    val sumX = FloatArray(bins)
+    val sumY = FloatArray(bins)
+    for (c in px) {
+        val r = ((c shr 16) and 0xFF) / 255f
+        val g = ((c shr 8) and 0xFF) / 255f
+        val b = (c and 0xFF) / 255f
+        val max = maxOf(r, g, b)
+        val min = minOf(r, g, b)
+        val chroma = max - min
+        if (chroma < 0.04f) continue
+        val hue = when (max) {
+            r -> 60f * (((g - b) / chroma) % 6f)
+            g -> 60f * ((b - r) / chroma + 2f)
+            else -> 60f * ((r - g) / chroma + 4f)
+        }.let { if (it < 0f) it + 360f else it }
+        val bin = (hue / (360f / bins)).toInt().coerceIn(0, bins - 1)
+        val rad = Math.toRadians(hue.toDouble())
+        weight[bin] += chroma
+        sumX[bin] += chroma * cos(rad).toFloat()
+        sumY[bin] += chroma * sin(rad).toFloat()
+    }
+    val best = (0 until bins).maxByOrNull { b -> weight[(b + bins - 1) % bins] + weight[b] + weight[(b + 1) % bins] } ?: return NeutralTint
+    val near = listOf((best + bins - 1) % bins, best, (best + 1) % bins)
+    // Average colourfulness of the whole photo in that hue
+    val strength = near.sumOf { weight[it].toDouble() }.toFloat() / px.size.coerceAtLeast(1)
+    if (strength < 0.02f) return NeutralTint
+    val hue = Math.toDegrees(atan2(near.sumOf { sumY[it].toDouble() }, near.sumOf { sumX[it].toDouble() })).toFloat()
+        .let { if (it < 0f) it + 360f else it }
+    return Color.hsl(hue, (0.32f + strength * 2.2f).coerceAtMost(0.62f), 0.74f)
+}
 
 /** Downscales [source] to a thumbnail and box-blurs it: about 10 ms, once per photo. */
 fun blurredBackdrop(source: Bitmap): ImageBitmap {
@@ -97,6 +173,7 @@ fun DrawScope.drawBackdrop(image: ImageBitmap, screen: IntSize, origin: Offset =
 @Composable
 fun Modifier.glass(shape: Shape, tint: Color = GlassTint): Modifier {
     val backdrop = LocalBackdrop.current
+    val wallpaper = LocalWallpaperTint.current
     var origin by remember { mutableStateOf(Offset.Zero) }
     var screen by remember { mutableStateOf(IntSize.Zero) }
     return this
@@ -108,8 +185,13 @@ fun Modifier.glass(shape: Shape, tint: Color = GlassTint): Modifier {
         .drawBehind {
             backdrop?.let { drawBackdrop(it, screen, origin) }
             drawRect(tint)
+            drawRect(glassTintLayer(wallpaper.value))
             // Light catching the top edge
             drawRect(Color(0x1FFFFFFF), size = size.copy(height = 1.dp.toPx()))
         }
-        .border(1.dp, Color(0x29FFFFFF), shape)
+        // A hairline edge in the wallpaper's colour (half of it falls outside the clip)
+        .drawWithContent {
+            drawContent()
+            drawOutline(shape.createOutline(size, layoutDirection, this), wallpaper.value.copy(alpha = EdgeTintAlpha), style = Stroke(2.dp.toPx()))
+        }
 }

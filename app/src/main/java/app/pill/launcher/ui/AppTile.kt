@@ -2,6 +2,7 @@ package app.pill.launcher.ui
 
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -69,6 +70,12 @@ fun tileWidth(iconSize: Dp): Dp = iconSize + Spacing.Tile * 2
 val FocusSpring = spring<Float>(dampingRatio = 0.6f, stiffness = 400f)
 
 /**
+ * Starts and ends gently (ease in-out), for the slow moves between the idle screen and
+ * Home, so nothing lurches at the start of a move.
+ */
+val WakeEasing = CubicBezierEasing(0.6f, 0f, 0.3f, 1f)
+
+/**
  * App icon, shown edge to edge in a squircle. OK opens the app; holding OK (or Menu) opens
  * its menu. On focus (or pointer hover) the tile springs to 1.12x, glows in the app's
  * own colour, gains a crisp white outline and a bold label, and draws above its neighbours.
@@ -85,7 +92,7 @@ fun AppTile(
 ) {
     val input = rememberTileInput(onOpen, onMenu, onFocus)
     val active = input.active
-    val accent = Color(app.accent)
+    val glow = LocalWallpaperTint.current
     val scale by animateFloatAsState(if (active) 1.12f else 1f, FocusSpring, label = "tileScale")
     val ring by animateFloatAsState(if (active) 1f else 0f, tween(180), label = "tileRing")
     // No shadow at rest: drawing one under every icon is costly on TV hardware
@@ -116,7 +123,13 @@ fun AppTile(
                 depth = { depth.value },
                 modifier = Modifier
                     .size(iconSize)
-                    .shadow(lift, Squircle, ambientColor = accent, spotColor = accent)
+                    // A glow in the wallpaper's colour, read while drawing
+                    .graphicsLayer {
+                        shadowElevation = lift.toPx()
+                        shape = Squircle
+                        ambientShadowColor = glow.value
+                        spotShadowColor = glow.value
+                    }
                     .clip(Squircle),
             )
             if (showPinBadge) PinBadge(Modifier.align(Alignment.TopEnd))

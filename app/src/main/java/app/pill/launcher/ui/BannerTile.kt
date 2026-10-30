@@ -59,7 +59,7 @@ fun BannerTile(
 ) {
     val input = rememberTileInput(onOpen, onMenu, onFocus)
     val active = input.active
-    val accent = Color(app.accent)
+    val glow = LocalWallpaperTint.current
     val scale by animateFloatAsState(if (active) 1.1f else 1f, FocusSpring, label = "bannerScale")
     val shine by animateFloatAsState(if (active) 1f else 0f, tween(200), label = "bannerShine")
     val lift by animateDpAsState(if (active) 24.dp else 4.dp, label = "bannerLift")
@@ -79,7 +79,13 @@ fun BannerTile(
         Box(
             Modifier
                 .size(BannerWidth, BannerHeight)
-                .shadow(lift, CardShape, ambientColor = if (active) accent else Color.Black, spotColor = if (active) accent else Color.Black)
+                // Focused, it glows in the wallpaper's colour; at rest a plain shadow
+                .graphicsLayer {
+                    shadowElevation = lift.toPx()
+                    shape = CardShape
+                    ambientShadowColor = if (active) glow.value else Color.Black
+                    spotShadowColor = if (active) glow.value else Color.Black
+                }
                 .clip(CardShape),
         ) {
             val banner = app.banner

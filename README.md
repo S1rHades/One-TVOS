@@ -22,6 +22,7 @@
 ## Highlights
 
 - **Just your apps.** The home screen shows only your favourites; everything else waits one press below, in an alphabetical grid that turns over a page at a time.
+- **Tinted by the photo.** Glass, card edges and the glow under the app you're on take a little of each photo's own colour, changing slowly with the slideshow.
 - **Widgets you choose.** Up to four frosted-glass cards across the top: clock (OK opens the clock page: seconds, the Islamic date, this month and world clocks), weather (OK opens the forecast), sunrise & sunset, system info, headlines from Al Jazeera English and RT English by topic, and football for Algeria and the teams you follow, with a match-day countdown and a kick-off reminder.
 - **Built for the remote.** Focused apps lift and get a crisp white ring, every move animates smoothly, and every action is one or two presses of the D-pad.
 - **A fresh view.** The background cross-fades between full-screen photos, and the next one is loaded before it appears, so it never flashes.
