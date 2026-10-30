@@ -76,17 +76,20 @@ jobs:
           cp launcher.apk "pill-launcher-$version.apk"
 
           # The "latest" being replaced keeps its own version release, if it has none yet
-          # (2.5 and older were only ever published as "latest")
+          # (2.5 and older were only ever published as "latest"). Its tag is made on this
+          # commit: the token may not tag an older one whose workflows differ. Its notes say
+          # which commit it was built from. A failure here never stops the new release.
           old=$(gh release view latest --json name -q .name 2>/dev/null | sed -n 's/^Pill Launcher \([0-9.]*\).*/\1/p')
           if [ -n "$old" ] && [ "$old" != "$version" ] && ! gh release view "v$old" > /dev/null 2>&1; then
             mkdir -p previous
-            gh release download latest -D previous -p launcher.apk
-            cp previous/launcher.apk "pill-launcher-$old.apk"
-            gh release view latest --json body -q .body \
-              | sed "s#releases/download/latest/launcher.apk#releases/download/v$old/pill-launcher-$old.apk#" > previous.md
-            gh release create "v$old" "pill-launcher-$old.apk" \
-              --target "$(gh api "repos/$REPO/git/ref/tags/latest" -q .object.sha)" \
-              --title "Pill Launcher $old" --notes-file previous.md --latest=false
+            {
+              gh release download latest -D previous -p launcher.apk &&
+              cp previous/launcher.apk "pill-launcher-$old.apk" &&
+              gh release view latest --json body -q .body \
+                | sed "s#releases/download/latest/launcher.apk#releases/download/v$old/pill-launcher-$old.apk#" > previous.md &&
+              gh release create "v$old" "pill-launcher-$old.apk" \
+                --title "Pill Launcher $old" --notes-file previous.md --latest=false
+            } || echo "::warning::Could not keep $old as its own release"
           fi
 
           notes() {
