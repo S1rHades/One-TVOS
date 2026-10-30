@@ -55,25 +55,31 @@ jobs:
           SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
         run: gradle assembleDebug --no-daemon
 
-      - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk launcher.apk
+      # Named after its version (pill-launcher-2.7.apk), so files on the TV or a computer
+      # can be told apart
+      - name: Name the APK
+        run: |
+          version=$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' app/build.gradle.kts)
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          cp app/build/outputs/apk/debug/app-debug.apk "pill-launcher-$version.apk"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: launcher-apk
-          path: launcher.apk
+          name: pill-launcher-${{ env.VERSION }}
+          path: pill-launcher-${{ env.VERSION }}.apk
 
-      # Only builds of main publish. Each version gets its own release (v2.6, "Pill Launcher
-      # 2.6") that stays, and "latest" always holds the newest under the same download link.
+      # Only builds of main publish. Each version gets its own release (v2.7, "Pill Launcher
+      # 2.7", pill-launcher-2.7.apk) that stays. "latest" holds the newest under its version's
+      # name too, plus launcher.apk: the same file at a link that never changes.
       - name: Publish the release
         if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
-          version=$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' app/build.gradle.kts)
-          cp launcher.apk "pill-launcher-$version.apk"
+          version="$VERSION"
+          cp "pill-launcher-$version.apk" launcher.apk
 
           # The "latest" being replaced keeps its own version release, if it has none yet
           # (2.5 and older were only ever published as "latest"). Its tag is made on this
@@ -95,6 +101,8 @@ jobs:
           notes() {
             echo "Install on the TV with the **Downloader** app: \`https://github.com/$REPO/releases/download/$1\`"
             echo
+            echo "Always the newest version: \`https://github.com/$REPO/releases/download/latest/launcher.apk\`"
+            echo
             echo "To uninstall: in Pill Launcher, **Settings → TV & system → Uninstall Pill Launcher**, press OK twice and confirm. If the launcher won't open, use the TV's **Settings → Apps → Pill Launcher → Uninstall**."
             echo
             # The newest section of the changelog
@@ -113,7 +121,7 @@ jobs:
               --title "Pill Launcher $version" --notes-file version.md --latest=false
           fi
 
-          notes "latest/launcher.apk" > latest.md
+          notes "latest/pill-launcher-$version.apk" > latest.md
           gh release delete latest --yes --cleanup-tag || true
-          gh release create latest launcher.apk \
+          gh release create latest "pill-launcher-$version.apk" launcher.apk \
             --title "Pill Launcher $version (latest)" --notes-file latest.md --latest

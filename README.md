@@ -102,7 +102,7 @@ On TVs that ignore that command, turning off the stock launcher works too (turn 
 
 The `latest` release is rebuilt automatically every time `main` changes, so installing it again always gets you the newest version.
 
-Every version also keeps its own release, named after it (**Pill Launcher 2.6**, tag `v2.6`, file `pill-launcher-2.6.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v2.6/pill-launcher-2.6.apk`. The newest is titled **Pill Launcher 2.6 (latest)**. Releases from 2.5 on are kept; older ones weren't saved.
+Every version also keeps its own release, named after it (**Pill Launcher 2.7**, tag `v2.7`, file `pill-launcher-2.7.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v2.7/pill-launcher-2.7.apk`. The newest is titled **Pill Launcher 2.7 (latest)** and holds the same file under its version's name (`pill-launcher-2.7.apk`), plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
 
 ### Uninstalling
 
