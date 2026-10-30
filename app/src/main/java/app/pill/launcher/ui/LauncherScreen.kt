@@ -518,6 +518,8 @@ fun LauncherScreen(
                             Spacer(Modifier.height(pageEdge))
                         }
 
+                        // All apps fills at least a screen, so it scrolls to the top even with a short filter
+                        Column(Modifier.fillMaxWidth().heightIn(min = maxHeight - Spacing.ScreenV - 48.dp)) {
                         SectionTitle(
                             "All apps",
                             hint = apps?.let { if (it.size == 1) "1 app" else "${it.size} apps" },
@@ -551,6 +553,7 @@ fun LauncherScreen(
                                     repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
                                 }
                             }
+                        }
                         }
                     }
                 }
