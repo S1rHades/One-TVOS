@@ -15,4 +15,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "pill-launcher"
-include(":app")
+include(":app", ":uninstaller")

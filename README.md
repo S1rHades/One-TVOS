@@ -102,6 +102,14 @@ On TVs that ignore that command, turning off the stock launcher works too (turn 
 
 The `latest` release is rebuilt automatically every time `main` changes, so installing it again always gets you the newest version.
 
+Every version also keeps its own release, named after it (**Pill Launcher 2.6**, tag `v2.6`, file `pill-launcher-2.6.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v2.6/pill-launcher-2.6.apk`. The newest is titled **Pill Launcher 2.6 (latest)**. Releases from 2.5 on are kept; older ones weren't saved.
+
+### Uninstalling
+
+From the launcher: **Settings → TV & system → Uninstall Pill Launcher**, then OK twice and confirm.
+
+If the launcher won't open, install the uninstaller with Downloader instead: `https://github.com/S1rHades/One-TVOS/releases/download/latest/uninstall-pill-launcher.apk`. Open **Uninstall Pill Launcher** from the TV's apps and press OK to remove the launcher; afterwards the same button removes the uninstaller too. It's a separate app (`uninstaller/`) and works on any version of the launcher.
+
 ## Using it
 
 | To | Press |
@@ -167,7 +175,7 @@ gradle assembleDebug                                   # app/build/outputs/apk/d
 gradle :app:testDebugUnitTest --tests '*Screenshots*'  # re-render docs/screenshots
 ```
 
-**Builds are automated.** `.github/workflows/build.yml` builds the APK for every pull request and push; builds of `main` replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; run it from the Actions tab after changing the interface.
+**Builds are automated.** `.github/workflows/build.yml` builds the APK for every pull request and push; builds of `main` publish a release for the version in `app/build.gradle.kts` (`v2.6`, with the launcher and the uninstaller) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; run it from the Actions tab after changing the interface.
 
 <details>
 <summary><b>Architecture</b></summary>
