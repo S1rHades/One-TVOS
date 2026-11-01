@@ -271,7 +271,7 @@ gradle assembleDebug                                   # app/build/outputs/apk/d
 gradle :app:testDebugUnitTest --tests '*Screenshots*'  # re-render docs/screenshots
 ```
 
-**Builds are automated.** `.github/workflows/build.yml` builds the APK for every pull request and push; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v3.0`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab.
+**Builds are automated.** `.github/workflows/build.yml` builds the APK for every pull request and push; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v3.0`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
 
 <details>
 <summary><b>Architecture</b></summary>
@@ -290,6 +290,7 @@ app/src/main/java/app/pill/launcher/
   PhotoFeed.kt           the daily Wikimedia photo set and its credits
   Daylight.kt            sunrise and sunset from latitude and longitude
   HomeSetup.kt, HomeRedirectService.kt   becoming the home screen, and the Home button helper
+  BootReceiver.kt        opens the launcher when the TV starts, if Autostart is on
   ui/
     LauncherScreen.kt    the home screen: greeting, widgets, favourites, All apps below, page scrolling
     SideRail.kt          the glass rail (Home, Apps, Search, Internet, Settings) and the greeting
@@ -302,6 +303,10 @@ app/src/main/java/app/pill/launcher/
     WeatherWidget.kt     the weather card's content, with drawn condition icons
     FavoritesRow.kt, AppTile.kt, BannerTile.kt   the favourites row and its tiles
     SearchPanel.kt, SettingsPanel.kt, AppMenu.kt   panels over the home screen
+    HomePrompt.kt        the Set up reminder until Pill Launcher is the home screen
+    NetworkStatus.kt     how the TV is connected, the Wi-Fi signal and whether a VPN is on
+    TileInput.kt         OK, long-press and Menu handling shared by tiles and cards
+    SettingsPill.kt      the gear icon
     BackgroundSlideshow.kt  photo cross-fade, tint and the readability scrim
     Glass.kt, Theme.kt, Squircle.kt   frosted glass, shared colours and spacing, the tile shape
 app/src/test/.../Screenshots.kt   Robolectric + Roborazzi renders for this README

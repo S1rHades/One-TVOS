@@ -45,6 +45,11 @@ jobs:
           echo "SIGNING_KEYSTORE=$RUNNER_TEMP/pill.jks" >> "$GITHUB_ENV"
           echo "Signing with the permanent key"
 
+      # Fails the build if the README falls behind: a missing picture, a rendered screenshot
+      # not shown, a source file not in Architecture, or a version it doesn't name
+      - name: Check the README is up to date
+        run: python3 .github/scripts/check_readme.py
+
       # Fails the build if any text drops below WCAG AA contrast on any bundled photo, or if
       # the football, weather or headline parsers stop reading the saved real answers
       - name: Check text contrast and data parsing
