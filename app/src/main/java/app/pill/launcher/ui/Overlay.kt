@@ -49,6 +49,8 @@ fun OverlayPage(
     onDismiss: () -> Unit,
     width: Dp,
     framed: Boolean = true,
+    /** The bar item this page belongs to (the Internet page's), marked in the bar at the top. */
+    nav: NavItem? = null,
     content: @Composable ColumnScope.(close: () -> Unit) -> Unit,
 ) {
     var showing by remember { mutableStateOf(true) }
@@ -74,9 +76,12 @@ fun OverlayPage(
                     backdrop?.let { drawBackdrop(it, IntSize(size.width.toInt(), size.height.toInt())) }
                     drawRect(Palette.Scrim)
                 }
+                // Pages sit below the bar at the top right, which stays usable on every page
+                TopNav(nav)
                 Column(
                     Modifier
                         .align(Alignment.Center)
+                        .padding(top = NavRoom - PageBottomRoom, bottom = 0.dp)
                         .width(width)
                         .then(
                             if (framed) {
@@ -114,3 +119,6 @@ fun PageLabel(text: String, modifier: Modifier = Modifier, color: Color = Palett
 fun PageFooter(text: String, modifier: Modifier = Modifier) {
     Text(text, color = Palette.TextTertiary, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = modifier)
 }
+
+/** Room kept under a page, matched at the top by the bar's room minus this, so pages sit centred below the bar. */
+private val PageBottomRoom = 12.dp

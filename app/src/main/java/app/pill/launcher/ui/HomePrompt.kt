@@ -54,14 +54,15 @@ fun HomePrompt(onSetUp: () -> Unit, onDismiss: () -> Unit, modifier: Modifier = 
             )
         }
         Spacer(Modifier.width(18.dp))
-        PromptButton("Set up", primary = true, onClick = onSetUp)
+        PillButton("Set up", primary = true, onClick = onSetUp)
         Spacer(Modifier.width(8.dp))
-        PromptButton("Not now", primary = false, onClick = onDismiss)
+        PillButton("Not now", primary = false, onClick = onDismiss)
     }
 }
 
+/** A rounded button for prompts and dialogs: white with dark text while focused. */
 @Composable
-private fun PromptButton(label: String, primary: Boolean, onClick: () -> Unit) {
+fun PillButton(label: String, primary: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
     val interaction = remember { MutableInteractionSource() }
     val hovered by interaction.collectIsHoveredAsState()
     var focused by remember { mutableStateOf(false) }
@@ -83,15 +84,16 @@ private fun PromptButton(label: String, primary: Boolean, onClick: () -> Unit) {
         fontSize = 16.sp,
         fontWeight = FontWeight.SemiBold,
         maxLines = 1,
-        modifier = Modifier
+        modifier = modifier
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
+                alpha = if (enabled) 1f else 0.4f
             }
             .clip(RoundedCornerShape(50))
             .background(bg)
             .onFocusChanged { focused = it.isFocused }
-            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+            .clickable(enabled = enabled, interactionSource = interaction, indication = null, onClick = onClick)
             .padding(horizontal = 18.dp, vertical = 10.dp),
     )
 }

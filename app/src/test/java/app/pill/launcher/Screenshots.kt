@@ -24,6 +24,10 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onLast
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.test.requestFocus
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.isFocused
@@ -170,8 +174,12 @@ class Screenshots {
         java.time.Instant.now(),
     )
 
-    /** The pins as the screen last changed them. */
+    /** The pins and settings as the screen last changed them. */
     private var currentPins: List<String> = emptyList()
+    private var currentSettings: LauncherSettings = LauncherSettings()
+
+    /** The fixtures on screen; a test changes them to show what a new fetch brings. */
+    private var footballNow by mutableStateOf<List<Fixtures>>(emptyList())
 
     @Before
     fun setUp() {
@@ -187,12 +195,14 @@ class Screenshots {
     @Test
     fun pinFromGrid() {
         show("canyon-river", pins = favorites)
-        // Down past the chips into the grid, along to "Maps", then hold OK to pin it
+        // Down past the chips into the grid (A to Z), to the second row and along to "Maps", then hold OK to pin it
         compose.onRoot().performKeyInput { pressKey(Key.DirectionDown) }
         settle()
         compose.onRoot().performKeyInput { pressKey(Key.DirectionDown) }
         settle()
-        compose.onRoot().performKeyInput { repeat(6) { pressKey(Key.DirectionRight) } }
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionDown) }
+        settle()
+        compose.onRoot().performKeyInput { repeat(2) { pressKey(Key.DirectionRight) } }
         settle()
         // Hold OK the way a remote does: one key-down, a pause, one key-up (no repeats).
         // That opens the app's menu, and the release mustn't pick anything in it.
@@ -316,11 +326,127 @@ class Screenshots {
     @Test
     fun search() {
         show("pine-forest", pins = favorites)
+        fun count(text: String) = compose.onAllNodesWithText(text).fetchSemanticsNodes().size
+        val maps = count("Maps")
+        val music = count("Music")
         compose.onNodeWithContentDescription("Search").performSemanticsAction(SemanticsActions.OnClick)
         settle()
-        compose.onNode(hasSetTextAction()).performTextInput("m")
+        // Letters from the strip, no keyboard: M then A leaves the apps with "ma" in their names
+        compose.onNodeWithContentDescription("M").performSemanticsAction(SemanticsActions.OnClick)
         settle()
+        compose.onNodeWithContentDescription("A").performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNodeWithText("ma").assertExists()
+        // The matches add Maps to the screen, but not Music
+        check(count("Maps") == maps + 1) { "Maps should match" }
+        check(count("Music") == music) { "Music shouldn't match" }
         captureScreenRoboImage(File(out, "search.png").path)
+    }
+
+    /** Menu → Rename… on the first favourite: the name changes only in the launcher. */
+    @Test
+    fun renameApp() {
+        show("misty-valley", pins = favorites)
+        compose.onRoot().performKeyInput { pressKey(Key.Menu) }
+        settle()
+        compose.onNodeWithText("Rename…").performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNode(hasSetTextAction()).performTextReplacement("Films")
+        settle()
+        compose.onNodeWithText("Only in Pill Launcher").assertExists()
+        captureScreenRoboImage(File(out, "rename.png").path)
+        compose.onNodeWithText("Save").performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNodeWithText("Renamed Cinema to Films").assertExists()
+        compose.onAllNodesWithText("Films", substring = false).onFirst().assertExists()
+    }
+
+    /** A widget stack beside the clock and weather; Down while it has focus flips to the next widget. */
+    @Test
+    fun widgetStack() {
+        val settings = LauncherSettings(
+            weather = WeatherMode.Celsius,
+            widgets = listOf(WidgetKind.Clock, WidgetKind.Weather, WidgetKind.Stack),
+            stack = listOf(WidgetKind.Fennecs, WidgetKind.Headlines, WidgetKind.Daylight),
+        )
+        show("mountain-lake", pins = favorites, settings = settings, news = news)
+        val stack = compose.onNodeWithContentDescription("Widget stack", substring = true)
+        stack.assertExists()
+        stack.requestFocus()
+        settle()
+        stack.performKeyInput { pressKey(Key.DirectionDown) }
+        settle()
+        compose.onNodeWithContentDescription("Widget stack: Headlines").assertExists()
+        compose.onRoot().captureRoboImage(File(out, "widget-stack.png").path)
+    }
+
+    /**
+     * Settings → Widgets → Widget stack: the home screen stands aside as a live preview,
+     * and holding OK on Football, then Right, moves it down the stack.
+     */
+    @Test
+    fun widgetStackSettings() {
+        val settings = LauncherSettings(
+            weather = WeatherMode.Celsius,
+            widgets = listOf(WidgetKind.Clock, WidgetKind.Weather, WidgetKind.Stack),
+            stack = listOf(WidgetKind.Fennecs, WidgetKind.Headlines, WidgetKind.Daylight),
+        )
+        show("pine-forest", pins = favorites, settings = settings, news = news)
+        compose.onNodeWithContentDescription("Settings").performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNodeWithText("Widgets").performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        // The stack's switch, then the row that opens its page
+        compose.onAllNodesWithText("Widget stack").onLast().performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        val football = compose.onNodeWithText("Football")
+        football.requestFocus()
+        settle()
+        football.performKeyInput { keyDown(Key.DirectionCenter) }
+        compose.mainClock.advanceTimeBy(800)
+        football.performKeyInput { keyUp(Key.DirectionCenter) }
+        settle()
+        football.performKeyInput { pressKey(Key.DirectionRight) }
+        settle()
+        check(currentSettings.stack == listOf(WidgetKind.Headlines, WidgetKind.Fennecs, WidgetKind.Daylight)) { "Football should be second: ${currentSettings.stack}" }
+        captureScreenRoboImage(File(out, "widget-stack-settings.png").path)
+        football.performKeyInput { pressKey(Key.DirectionCenter) }
+        settle()
+        check(currentSettings.stack[1] == WidgetKind.Fennecs) { "OK should only put it down: ${currentSettings.stack}" }
+    }
+
+    /** A goal between two fetches: the score flips, the card flashes green and names the minute. Long names stay inside. */
+    @Test
+    fun goalOnTheCard() {
+        val kickoff = java.time.LocalDateTime.now(java.time.ZoneOffset.UTC).minusMinutes(70).withSecond(0).withNano(0)
+        fun live(us: Int) = parseFixtures(
+            """{"events":[{"idEvent":"77","strHomeTeam":"Algeria","idHomeTeam":"134516","strAwayTeam":"Democratic Republic of the Congo","idAwayTeam":"136480",""" +
+                """"strLeague":"African Cup of Nations Qualifying","strTimestamp":"$kickoff:00","intHomeScore":"$us","intAwayScore":"1","strStatus":"2H"}]}""",
+            data("last-algeria.json"),
+            java.time.Instant.now(),
+        ).withoutCrests()
+        show("misty-valley", pins = favorites, football = listOf(live(1)))
+        footballNow = listOf(live(2))
+        compose.mainClock.advanceTimeBy(150)
+        compose.waitForIdle()
+        compose.mainClock.advanceTimeBy(450)
+        compose.onNodeWithText("Goal · Algeria", substring = true).assertExists()
+        compose.onRoot().captureRoboImage(File(out, "goal.png").path)
+    }
+
+    /** A newer release: the card above Favorites, and Settings → Updates. */
+    @Test
+    fun updateCard() {
+        val release = Release("3.1", "https://example.com/pill-launcher-3.1.apk", 9_100_000, listOf("Widget stack: several widgets in one place", "Rename apps in the launcher"))
+        show("canyon-river", pins = favorites, update = UpdateState(UpdatePhase.Available, release, checkedAt = java.time.Instant.now()))
+        compose.onNodeWithText("Pill Launcher 3.1 is ready").assertIsDisplayed()
+        compose.onRoot().captureRoboImage(File(out, "update-card.png").path)
+        compose.onNodeWithContentDescription("Settings").performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNodeWithText("Updates").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNodeWithText("Update to 3.1").assertExists()
+        captureScreenRoboImage(File(out, "settings-updates.png").path)
     }
 
     @Test
@@ -436,11 +562,15 @@ class Screenshots {
     @Test
     fun footballHub() {
         show("canyon-river", pins = favorites, football = matchDay(inMinutes = 60 * 24 * 3))
-        compose.onNodeWithText("NEXT", substring = true).performSemanticsAction(SemanticsActions.OnClick)
+        // The card shows whichever followed team is due first (the saved Arsenal match may be today)
+        compose.onNode(hasClickAction() and (hasText("Algeria", substring = true) or hasText("ALG", substring = true) or hasText("ARS", substring = true)))
+            .performSemanticsAction(SemanticsActions.OnClick)
         settle()
         compose.onNodeWithText("LATEST RESULT").assertIsDisplayed()
-        compose.onNodeWithText("LATEST RESULT").performKeyInput { pressKey(Key.DirectionDown) }
-        settle()
+        if (compose.onAllNodesWithText("Manchester City").fetchSemanticsNodes().isEmpty()) {
+            compose.onNodeWithText("LATEST RESULT").performKeyInput { pressKey(Key.DirectionDown) }
+            settle()
+        }
         compose.onNodeWithText("Manchester City").assertIsDisplayed()
         captureScreenRoboImage(File(out, "football-hub.png").path)
     }
@@ -535,17 +665,21 @@ class Screenshots {
         football: List<Fixtures> = listOf(fixtures),
         weather: Weather = this.weather,
         news: News? = null,
+        update: UpdateState = UpdateState(),
     ) {
         check(fixtures.next != null && fixtures.last?.outcome == 'W') { "fixtures didn't parse: $fixtures" }
         currentPins = pins
+        currentSettings = settings
+        footballNow = football
         useBackground(photo)
         compose.setContent {
             var pinned by remember { mutableStateOf(pins) }
             var current by remember { mutableStateOf(settings) }
+            var names by remember { mutableStateOf(emptyMap<String, String>()) }
             LauncherScreen(
-                apps = apps,
+                apps = withNames(apps, names),
                 weather = weather,
-                football = football,
+                football = footballNow,
                 news = news,
                 loadTable = { league, _ ->
                     if (league == "4328") parseTable(data("table-epl.json")).let { t -> t.copy(rows = t.rows.map { it.copy(badge = null) }) } else null
@@ -553,7 +687,13 @@ class Screenshots {
                 searchTeams = { q -> searchTeams(listOf(Algeria, arsenal, Team("139283", "MC Alger", league = "Algerian Ligue 1", country = "Algeria"), Team("1", "Algeria U23", country = "Algeria")), q).map { TeamHit(it, it.id != "1") } },
                 pins = pinned,
                 settings = current,
-                onSettingsChange = { current = it },
+                onSettingsChange = { current = it; currentSettings = it },
+                onRename = { app, name ->
+                    val own = app.originalLabel ?: app.label
+                    names = cleanName(name, own)?.let { names + (app.pkg to it) } ?: (names - app.pkg)
+                },
+                update = update,
+                version = "3.0",
                 onOpen = {},
                 onTogglePin = { app -> pinned = if (app.pkg in pinned) pinned - app.pkg else pinned + app.pkg; currentPins = pinned },
                 onMovePin = { app, by ->

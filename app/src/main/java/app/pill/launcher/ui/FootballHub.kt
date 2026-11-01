@@ -110,7 +110,7 @@ fun FootballHub(
             value = tables[k]
         }
 
-        Row(Modifier.fillMaxWidth().height(404.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(Modifier.fillMaxWidth().height(PageBodyHeight), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             PageCard(1, Modifier.width(236.dp).fillMaxHeight()) {
                 PageLabel("Your teams", Modifier.padding(bottom = 8.dp))
                 TeamList(football, selected, onSelect = { selected = it }, rowFocus)

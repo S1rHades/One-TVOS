@@ -21,6 +21,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
@@ -102,6 +103,15 @@ import app.pill.launcher.News
 import app.pill.launcher.Team
 import app.pill.launcher.TeamHit
 import app.pill.launcher.WidgetKind
+import app.pill.launcher.activeWidgets
+import app.pill.launcher.cleanName
+import app.pill.launcher.FootballMoment
+import app.pill.launcher.footballMoments
+import app.pill.launcher.momentMillis
+import app.pill.launcher.stackShown
+import app.pill.launcher.UpdatePhase
+import app.pill.launcher.UpdateState
+import androidx.compose.ui.graphics.TransformOrigin
 import app.pill.launcher.dueBanner
 import app.pill.launcher.pickHeadlines
 import androidx.compose.runtime.produceState
@@ -154,6 +164,8 @@ fun LauncherScreen(
     onMovePin: (AppEntry, by: Int) -> Unit = { _, _ -> },
     onUninstall: (AppEntry) -> Unit = {},
     onAppInfo: (AppEntry) -> Unit = {},
+    /** Give an app a name in the launcher; a blank name goes back to its own. */
+    onRename: (AppEntry, String) -> Unit = { _, _ -> },
     /** The TV's Wi-Fi / network settings, from the status bar's connection button. */
     onOpenNetworkSettings: () -> Unit = {},
     /** Bumped each time Home is pressed while the launcher is already showing. */
@@ -169,6 +181,14 @@ fun LauncherScreen(
     onAllowAutostart: () -> String? = { null },
     /** The TV's own search (Google / Assistant), when it has one. */
     onSystemSearch: (() -> Unit)? = null,
+    /** Updates from GitHub: where one has got to, this version, and the release put off with Later. */
+    update: UpdateState = UpdateState(),
+    version: String = "",
+    updateDismissed: String? = null,
+    onCheckUpdate: () -> Unit = {},
+    onStartUpdate: () -> Unit = {},
+    onCancelUpdate: () -> Unit = {},
+    onLaterUpdate: () -> Unit = {},
 ) {
     var panelOpen by remember { mutableStateOf(false) }
     var searchOpen by remember { mutableStateOf(false) }
@@ -187,6 +207,19 @@ fun LauncherScreen(
     // The app whose menu is open (and whether OK is still held), and the favourite being moved
     var menu by remember { mutableStateOf<MenuRequest?>(null) }
     var moving by remember { mutableStateOf<String?>(null) }
+    var renaming by remember { mutableStateOf<AppEntry?>(null) }
+    // Settings → Widgets is open: the home screen steps aside to the left as a live preview
+    var customizing by remember { mutableStateOf(false) }
+    // The stack widget being set up in Settings, held in view on the home screen
+    var stackPreview by remember { mutableStateOf<WidgetKind?>(null) }
+    // A goal or win for a followed team, noticed between two fetches, celebrated for a few seconds
+    var moment by remember { mutableStateOf<FootballMoment?>(null) }
+    var seenFootball by remember { mutableStateOf(football) }
+    LaunchedEffect(football) {
+        footballMoments(seenFootball, football, Instant.now()).lastOrNull()?.let { moment = it }
+        seenFootball = football
+    }
+    LaunchedEffect(moment) { moment?.let { delay(momentMillis(it.kind)); moment = null } }
     var lastInput by remember { mutableLongStateOf(SystemClock.uptimeMillis()) }
     // Pages opened from the widgets: the forecast, a team on the football page, a headline
     var forecastOpen by remember { mutableStateOf(false) }
@@ -229,6 +262,7 @@ fun LauncherScreen(
     if (moving != null && moving !in pins) moving = null
 
     val scroll = rememberScrollState()
+    val customize by animateFloatAsState(if (customizing) 1f else 0f, tween(Motion.Page, easing = Motion.EnterEasing), label = "customize")
     val scope = rememberCoroutineScope()
     val currentPinned by rememberUpdatedState(pinnedApps)
 
@@ -320,7 +354,7 @@ fun LauncherScreen(
             delay(15_000)
         }
     }
-    val banner = if (WidgetKind.Fennecs in settings.widgets && settings.matchDay != MatchDayMode.Off) {
+    val banner = if (WidgetKind.Fennecs in settings.activeWidgets() && settings.matchDay != MatchDayMode.Off) {
         dueBanner(football, settings.matchDay, bannerNow, bannersShown)
     } else {
         null
@@ -356,8 +390,34 @@ fun LauncherScreen(
     val tintTarget = remember(backdrop) { backdrop?.let { wallpaperTint(it) } ?: NeutralTint }
     val wallpaperTint = animateColorAsState(tintTarget, tween(3000, easing = FastOutSlowInEasing), label = "wallpaperTint")
 
+    // The bar at the top right leads anywhere from anywhere: it closes what is open first
+    fun navigate(item: NavItem) {
+        val already = when (item) {
+            NavItem.Home -> false
+            NavItem.Search -> searchOpen
+            NavItem.Internet -> internetOpen
+            NavItem.Settings -> panelOpen
+        }
+        if (already) return
+        forecastOpen = false
+        clockOpen = false
+        hubTeam = null
+        headlineAt = null
+        internetOpen = false
+        searchOpen = false
+        panelOpen = false
+        when (item) {
+            NavItem.Home -> scope.launch { focusFirstPage() }
+            NavItem.Search -> searchOpen = true
+            NavItem.Internet -> internetOpen = true
+            NavItem.Settings -> panelOpen = true
+        }
+    }
+    val navBar: @Composable (NavItem?) -> Unit = { current -> NavBar(current, onSelect = { navigate(it) }) }
+
     // The blurred photo for glass surfaces, and Roboto Flex as the default for all text
     CompositionLocalProvider(
+        LocalNavBar provides navBar,
         LocalBackdrop provides backdrop,
         LocalWallpaperTint provides wallpaperTint,
         LocalTextStyle provides LocalTextStyle.current.merge(TextStyle(fontFamily = Flex)),
@@ -394,7 +454,7 @@ fun LauncherScreen(
             BackgroundScrim()
 
             BoxWithConstraints(Modifier.fillMaxSize()) {
-                val contentWidth = maxWidth - RailRoom - Spacing.ScreenH
+                val contentWidth = maxWidth - Spacing.ScreenH * 2
                 // Wrapped favourites can need more than one row; the first page grows to fit them
                 val favoriteRows = if (settings.favoritesLayout == FavoritesLayout.Wrap) {
                     favoritesPerRow(contentWidth, settings.favoritesStyle, FavoriteIcon).let { (pinnedApps.size + it - 1) / it }.coerceAtLeast(1)
@@ -422,21 +482,41 @@ fun LauncherScreen(
                 // focus search reaches the grid from the first page; PageScrollSpec does the scrolling.
                 val topPx = with(LocalDensity.current) { Spacing.ScreenV.toPx() }
                 val pageScrolling = remember(scroll, pageHeightPx) { PageScrollSpec(scroll, topPx + pageHeightPx) }
+                // While Settings → Widgets is open, the first page shrinks into the space left of the panel
+                val previewTarget = previewScale(contentWidth, maxWidth)
+                val previewTop = (maxHeight - minOf(pageHeight, maxHeight) * previewTarget) / 2
                 CompositionLocalProvider(LocalBringIntoViewSpec provides pageScrolling) {
                     Column(
                         Modifier
                             .fillMaxSize()
+                            .graphicsLayer {
+                                val c = customize
+                                if (c > 0f) {
+                                    val target = previewTarget
+                                    val sc = 1f + (target - 1f) * c
+                                    scaleX = sc
+                                    scaleY = sc
+                                    transformOrigin = TransformOrigin(0f, 0f)
+                                    translationX = c * (PreviewMargin.toPx() - Spacing.ScreenH.toPx() * target)
+                                    translationY = c * (previewTop.toPx() - Spacing.ScreenV.toPx() * target)
+                                }
+                            }
                             .verticalScroll(scroll)
-                            .padding(start = RailRoom, end = Spacing.ScreenH, top = Spacing.ScreenV, bottom = 48.dp),
+                            .padding(start = Spacing.ScreenH, end = Spacing.ScreenH, top = Spacing.ScreenV, bottom = 48.dp),
                     ) {
                         // First page: the greeting, the widgets and favourites only. The grid starts below the fold.
                         Column(Modifier.fillMaxWidth().height(pageHeight)) {
-                            Greeting(
-                                place = weather?.place,
-                                modifier = Modifier
-                                    .padding(start = Spacing.Tile, bottom = 16.dp)
+                            // Level with the bar at the top right, which has the rest of the line to itself
+                            Box(
+                                Modifier
+                                    .offset(y = NavTop - Spacing.ScreenV)
+                                    .padding(start = Spacing.Tile, bottom = 12.dp)
+                                    .height(NavHeight)
                                     .dissolveStep({ 1f - idleFade }, step = 1, steps = 3),
-                            )
+                                contentAlignment = Alignment.CenterStart,
+                            ) {
+                                Greeting()
+                            }
                             Row(
                                 Modifier
                                     .fillMaxWidth()
@@ -460,14 +540,34 @@ fun LauncherScreen(
                                     onOpenWeather = { forecastOpen = true },
                                     onOpenFootball = { hubTeam = it },
                                     onOpenHeadline = { headlineAt = it },
+                                    stack = settings.stackShown(),
+                                    stackPreview = stackPreview,
+                                    moment = moment.takeIf { !idle },
                                 )
                             }
 
                             Spacer(Modifier.weight(1f))
 
+                            // A newer version: the card stays until Later, and comes back for the next one
+                            val updateShown = update.release != null && update.release.version != updateDismissed &&
+                                update.phase in setOf(UpdatePhase.Available, UpdatePhase.Downloading, UpdatePhase.Installing, UpdatePhase.Failed)
+                            AnimatedVisibility(
+                                visible = updateShown,
+                                enter = fadeIn(tween(Motion.Enter, easing = Motion.EnterEasing)) + expandVertically(tween(Motion.Enter, easing = Motion.EnterEasing)),
+                                exit = fadeOut(tween(Motion.Exit)) + shrinkVertically(tween(Motion.Exit + 80, easing = Motion.ExitEasing)),
+                            ) {
+                                UpdateCard(
+                                    update = update,
+                                    onUpdate = onStartUpdate,
+                                    onLater = onLaterUpdate,
+                                    onCancel = onCancelUpdate,
+                                    modifier = Modifier.padding(start = Spacing.Tile, bottom = 12.dp),
+                                )
+                            }
+
                             // Until the launcher is the home screen (or helped), closing apps leads elsewhere
                             AnimatedVisibility(
-                                visible = !home.isDefault && !home.redirectOn && !settings.homePromptDismissed,
+                                visible = !updateShown && !home.isDefault && !home.redirectOn && !settings.homePromptDismissed,
                                 enter = fadeIn(),
                                 exit = fadeOut() + shrinkVertically(),
                             ) {
@@ -560,21 +660,13 @@ fun LauncherScreen(
                 }
             }
 
-            SideRail(
-                current = if (scrolled) RailItem.Apps else RailItem.Home,
-                onSelect = { item ->
-                    when (item) {
-                        RailItem.Home -> scope.launch { focusFirstPage() }
-                        RailItem.Apps -> runCatching { chipFocus.requestFocus() }
-                        RailItem.Search -> searchOpen = true
-                        RailItem.Internet -> internetOpen = true
-                        RailItem.Settings -> panelOpen = true
-                    }
-                },
+            NavBar(
+                current = if (scrolled) null else NavItem.Home,
+                onSelect = { navigate(it) },
                 settingsFocus = pillFocus,
                 modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .padding(start = 18.dp)
+                    .align(Alignment.TopEnd)
+                    .padding(top = NavTop, end = Spacing.ScreenH)
                     .dissolveStep({ 1f - idleFade }, step = 0, steps = 3),
             )
 
@@ -637,7 +729,17 @@ fun LauncherScreen(
                     onMakeDefault = onMakeDefault,
                     onHomeHelper = onHomeHelper,
                     onAllowAutostart = onAllowAutostart,
-                    onDismiss = { panelOpen = false },
+                    onDismiss = { panelOpen = false; customizing = false; stackPreview = null },
+                    onCustomizing = { on ->
+                        customizing = on
+                        if (on) scope.launch { scroll.animateScrollTo(0, tween(Motion.Page, easing = Motion.EnterEasing)) }
+                    },
+                    onStackPreview = { stackPreview = it },
+                    update = update,
+                    version = version,
+                    onCheckUpdate = onCheckUpdate,
+                    onStartUpdate = onStartUpdate,
+                    onCancelUpdate = onCancelUpdate,
                 )
             }
 
@@ -655,11 +757,27 @@ fun LauncherScreen(
                                 moving = app.pkg
                                 toast = Toast("Left / Right to move ${app.label} · OK when done")
                             }
+                            MenuAction.Rename -> renaming = app
                             MenuAction.AppInfo -> onAppInfo(app)
                             MenuAction.Uninstall -> onUninstall(app)
                         }
                     },
                     onDismiss = { menu = null },
+                )
+            }
+
+            renaming?.let { app ->
+                RenameDialog(
+                    app = app,
+                    onRename = { name ->
+                        val own = app.originalLabel ?: app.label
+                        val given = cleanName(name, own)
+                        if ((given ?: own) != app.label) {
+                            onRename(app, name)
+                            toast = Toast(if (given == null) "$own has its own name again" else "Renamed $own to $given")
+                        }
+                    },
+                    onDismiss = { renaming = null },
                 )
             }
 
@@ -744,17 +862,23 @@ private fun Modifier.bottomEdgeFade(scroll: ScrollState, zone: Dp): Modifier {
     val zonePx = with(LocalDensity.current) { zone.toPx() }
     var bottom by remember { mutableFloatStateOf(0f) }
     var screen by remember { mutableFloatStateOf(0f) }
+    var height by remember { mutableFloatStateOf(0f) }
     var holdsFocus by remember { mutableStateOf(false) }
+    val barPx = with(LocalDensity.current) { NavRoom.toPx() }
     return this
         .onGloballyPositioned {
             bottom = it.positionInRoot().y + it.size.height
+            height = it.size.height.toFloat()
             screen = it.findRootCoordinates().size.height.toFloat()
         }
         .onFocusChanged { holdsFocus = it.hasFocus }
         .graphicsLayer {
             val t = if (holdsFocus || !scroll.canScrollForward || screen == 0f) 0f
             else ((bottom - (screen - zonePx)) / zonePx).coerceIn(0f, 1f)
-            alpha = 1f - 0.75f * t * t * (3 - 2 * t)
+            // A row going up under the bar at the top fades away, so the bar always has its space
+            val top = bottom - height
+            val u = if (holdsFocus || height == 0f) 0f else ((barPx - top) / (height * 0.6f)).coerceIn(0f, 1f)
+            alpha = (1f - 0.75f * t * t * (3 - 2 * t)) * (1f - u * u * (3 - 2 * u))
         }
 }
 
@@ -883,3 +1007,11 @@ internal fun ToastChip(message: String) {
 
 /** An open app menu: for [app], whether OK is still held, and whether it came from the favourites row. */
 private class MenuRequest(val app: AppEntry, val okHeld: Boolean, val fromFavorites: Boolean)
+
+/** Room the settings panel takes at the right of the screen, and the margin around the preview. */
+private val PanelRoom = 488.dp
+private val PreviewMargin = 28.dp
+
+/** How small the first page gets so it fits left of the settings panel, as a live preview. */
+private fun previewScale(contentWidth: Dp, screenWidth: Dp): Float =
+    ((screenWidth - PanelRoom - PreviewMargin * 2) / contentWidth).coerceIn(0.3f, 1f)

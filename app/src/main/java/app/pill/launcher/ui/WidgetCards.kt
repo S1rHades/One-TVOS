@@ -99,6 +99,31 @@ import app.pill.launcher.matchPhase
 import app.pill.launcher.Weather
 import app.pill.launcher.WeatherMode
 import app.pill.launcher.WidgetKind
+import app.pill.launcher.FootballMoment
+import app.pill.launcher.MomentKind
+import app.pill.launcher.momentText
+import app.pill.launcher.StackTurnSec
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.focusable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import kotlin.random.Random
 import app.pill.launcher.shortCode
 import app.pill.launcher.shortCompetition
 import app.pill.launcher.sunTimes
@@ -133,6 +158,8 @@ private fun naturalWidth(kind: WidgetKind, compact: Boolean): Dp = when (kind) {
     WidgetKind.Daylight -> if (compact) 146.dp else 200.dp
     WidgetKind.System -> if (compact) 176.dp else 220.dp
     WidgetKind.Headlines -> if (compact) 176.dp else 280.dp
+    // As wide as the widest card inside it; see WidgetRow
+    WidgetKind.Stack -> if (compact) 176.dp else 280.dp
 }
 
 private val AlgeriaGreen = Color(0xFF006633)
@@ -163,12 +190,24 @@ fun WidgetRow(
     onOpenWeather: (() -> Unit)? = null,
     onOpenFootball: ((Team) -> Unit)? = null,
     onOpenHeadline: ((Int) -> Unit)? = null,
+    /** The widgets inside the widget stack, in order. */
+    stack: List<WidgetKind> = emptyList(),
+    /** A stack widget to show now (the one being set up in Settings), rather than taking turns. */
+    stackPreview: WidgetKind? = null,
+    /** A goal or a win to celebrate on the football card; null the rest of the time. */
+    moment: FootballMoment? = null,
 ) {
+    val content = WidgetContent(
+        weather, weatherError, mode, football, matchDay, headlines, headlinesStatus, animate,
+        onOpenClock, onOpenWeather, onOpenFootball, onOpenHeadline, moment,
+    )
     BoxWithConstraints(modifier) {
         val gaps = Gap * (widgets.size - 1).coerceAtLeast(0)
         // The widths are designed at the default text size; a larger TV text size needs more
         val textScale = LocalDensity.current.fontScale.coerceAtLeast(1f)
-        fun natural(kind: WidgetKind, compact: Boolean) = naturalWidth(kind, compact) * textScale
+        fun natural(kind: WidgetKind, compact: Boolean): Dp =
+            if (kind == WidgetKind.Stack && stack.isNotEmpty()) stack.maxOf { naturalWidth(it, compact) } * textScale
+            else naturalWidth(kind, compact) * textScale
         val full = widgets.fold(0.dp) { sum, kind -> sum + natural(kind, compact = false) }
         // Four cards, or full-size ones that don't fit, use the compact layouts
         val compact = widgets.size >= 4 || full + gaps > maxWidth
@@ -197,15 +236,159 @@ fun WidgetRow(
                         fadeOutSpec = tween(220),
                     )
                     .width(animateDpAsState(natural(kind, compact) * share, tween(450, easing = FastOutSlowInEasing), label = "widgetWidth").value)
-                when (kind) {
-                    WidgetKind.Clock -> ClockCard(compact, item, onOpenClock)
-                    WidgetKind.Weather -> WeatherCard(weather, weatherError, mode, compact, animate, item, onOpenWeather.takeIf { weather?.forecast != null })
-                    WidgetKind.Fennecs -> FootballCard(football, matchDay, compact, item, onOpenFootball)
-                    WidgetKind.Daylight -> DaylightCard(weather, compact, item)
-                    WidgetKind.System -> SystemCard(compact, item)
-                    WidgetKind.Headlines -> HeadlinesCard(headlines, headlinesStatus, compact, item, onOpenHeadline)
+                if (kind == WidgetKind.Stack) StackCard(stack, stackPreview, content, compact, item)
+                else content.Card(kind, compact, item)
+            }
+        }
+    }
+}
+
+/** What every card needs, so a stack can draw any of them. */
+private class WidgetContent(
+    val weather: Weather?,
+    val weatherError: String?,
+    val mode: WeatherMode,
+    val football: List<Fixtures>,
+    val matchDay: MatchDayMode,
+    val headlines: List<PickedHeadline>,
+    val headlinesStatus: String?,
+    val animate: Boolean,
+    val onOpenClock: (() -> Unit)?,
+    val onOpenWeather: (() -> Unit)?,
+    val onOpenFootball: ((Team) -> Unit)?,
+    val onOpenHeadline: ((Int) -> Unit)?,
+    val moment: FootballMoment?,
+) {
+    @Composable
+    fun Card(kind: WidgetKind, compact: Boolean, modifier: Modifier) {
+        when (kind) {
+            WidgetKind.Clock -> ClockCard(compact, modifier, onOpenClock)
+            WidgetKind.Weather -> WeatherCard(weather, weatherError, mode, compact, animate, modifier, onOpenWeather.takeIf { weather?.forecast != null })
+            WidgetKind.Fennecs -> FootballCard(football, matchDay, compact, modifier, onOpenFootball, moment.takeIf { animate })
+            WidgetKind.Daylight -> DaylightCard(weather, compact, modifier)
+            WidgetKind.System -> SystemCard(compact, modifier)
+            WidgetKind.Headlines -> HeadlinesCard(headlines, headlinesStatus, compact, modifier, onOpenHeadline)
+            WidgetKind.Stack -> Unit
+        }
+    }
+}
+
+/**
+ * Inside a widget stack a card doesn't take focus itself: the stack does, shows the
+ * card's focus, and passes OK on to it.
+ */
+private class StackSlot {
+    var action by mutableStateOf<(() -> Unit)?>(null)
+    var focused by mutableStateOf(false)
+}
+
+private val LocalStackSlot = compositionLocalOf<StackSlot?> { null }
+
+/**
+ * Several widgets in one place, taking turns: every [StackTurnSec] seconds the next
+ * slides up from below, with dots down the right edge saying which is showing. While it
+ * has focus it stays put, Up / Down flips through by hand (Down from the last goes on to
+ * Favorites), and OK opens the page of the card on show. [preview] holds one in view
+ * while it is set up in Settings; a goal brings the football card forward.
+ */
+@Composable
+private fun StackCard(stack: List<WidgetKind>, preview: WidgetKind?, content: WidgetContent, compact: Boolean, modifier: Modifier) {
+    var index by remember { mutableIntStateOf(0) }
+    var forward by remember { mutableStateOf(true) }
+    var focused by remember { mutableStateOf(false) }
+    val slots = remember { mutableStateMapOf<WidgetKind, StackSlot>() }
+    val count = stack.size
+    val shown = stack.getOrNull(index.coerceIn(0, (count - 1).coerceAtLeast(0)))
+    fun go(to: Int) {
+        if (to == index || to !in 0 until count) return
+        forward = to > index
+        index = to
+    }
+    // Takes turns while nobody is looking at it closely
+    LaunchedEffect(stack, focused, preview, content.moment, content.animate) {
+        while (count > 1 && !focused && preview == null && content.moment == null) {
+            delay(StackTurnSec * 1000L)
+            forward = true
+            index = (index + 1) % count
+        }
+    }
+    LaunchedEffect(preview, stack) { preview?.let { stack.indexOf(it) }?.takeIf { it >= 0 }?.let(::go) }
+    LaunchedEffect(content.moment, stack) { if (content.moment != null) stack.indexOf(WidgetKind.Fennecs).takeIf { it >= 0 }?.let(::go) }
+    if (index >= count && count > 0) index = 0
+
+    val lift by animateFloatAsState(if (focused) 1f else 0f, FocusSpring, label = "stackFocus")
+    Box(
+        modifier
+            .height(WidgetHeight)
+            .graphicsLayer {
+                val s = 1f + 0.045f * lift
+                scaleX = s
+                scaleY = s
+            }
+            .onFocusChanged { focused = it.isFocused }
+            .onPreviewKeyEvent { event ->
+                // Up / Down flip through the stack; past either end focus moves on as usual
+                val step = when (event.key) {
+                    Key.DirectionUp -> -1
+                    Key.DirectionDown -> 1
+                    else -> return@onPreviewKeyEvent false
+                }
+                val to = index + step
+                if (to !in 0 until count) return@onPreviewKeyEvent false
+                if (event.type == KeyEventType.KeyDown) go(to)
+                true
+            }
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+                shown?.let { slots[it]?.action?.invoke() }
+            }
+            .semantics { contentDescription = "Widget stack" + (shown?.let { ": ${it.title}" } ?: "") }
+            .clip(CardShape),
+    ) {
+        if (shown == null) {
+            WidgetCard(accent = NeutralTint, modifier = Modifier.fillMaxSize()) {
+                Text(
+                    "Choose its widgets in Settings → Widgets → Widget stack",
+                    style = lineStyle(15.sp, Palette.TextPrimary),
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.align(Alignment.CenterStart),
+                )
+            }
+        } else {
+            AnimatedContent(
+                targetState = shown,
+                transitionSpec = {
+                    val enter = tween<IntOffset>(Motion.Page, easing = Motion.EnterEasing)
+                    val exit = tween<IntOffset>(Motion.Exit + 120, easing = Motion.ExitEasing)
+                    (slideInVertically(enter) { if (forward) it else -it } + fadeIn(tween(Motion.Enter, delayMillis = 60))) togetherWith
+                        (slideOutVertically(exit) { if (forward) -it / 2 else it / 2 } + fadeOut(tween(Motion.Exit))) using
+                        SizeTransform(clip = true)
+                },
+                label = "stack",
+                modifier = Modifier.fillMaxSize(),
+            ) { kind ->
+                val slot = slots.getOrPut(kind) { StackSlot() }
+                SideEffect { slot.focused = focused }
+                CompositionLocalProvider(LocalStackSlot provides slot) {
+                    content.Card(kind, compact, Modifier.fillMaxSize())
                 }
             }
+        }
+        if (count > 1) {
+            StackDots(count, index.coerceIn(0, count - 1), Modifier.align(Alignment.CenterEnd).padding(end = 8.dp))
+        }
+    }
+}
+
+/** Which card of the stack is showing: a column of dots, the current one longer and brighter. */
+@Composable
+private fun StackDots(count: Int, current: Int, modifier: Modifier = Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        repeat(count) { i ->
+            val on = i == current
+            val h by animateDpAsState(if (on) 14.dp else 5.dp, Motion.glide(), label = "stackDot")
+            val a by animateFloatAsState(if (on) 0.9f else 0.32f, tween(Motion.Quick), label = "stackDotAlpha")
+            Box(Modifier.width(5.dp).height(h).background(Color.White.copy(alpha = a), CircleShape))
         }
     }
 }
@@ -223,35 +406,42 @@ private fun WidgetCard(
     onClick: (() -> Unit)? = null,
     /** How strong the wash is; brighter on a match day. */
     wash: Float = 0.2f,
+    /** Extra wash on top, already animated (a goal's flash). */
+    flash: Float = 0f,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val hovered by interaction.collectIsHoveredAsState()
-    var focused by remember { mutableStateOf(false) }
+    var ownFocus by remember { mutableStateOf(false) }
+    // In a stack, the stack holds focus and does the growing; the card shows the edge
+    val slot = LocalStackSlot.current
+    if (slot != null) SideEffect { slot.action = onClick }
+    val focused = slot?.focused ?: ownFocus
     val lift by animateFloatAsState(if (hovered || focused) 1f else 0f, FocusSpring, label = "widgetLift")
     val focusLift by animateFloatAsState(if (focused) 1f else 0f, FocusSpring, label = "widgetFocus")
     val washColor by animateColorAsState(accent, tween(900), label = "widgetWash")
     val washAlpha by animateFloatAsState(wash, tween(900), label = "widgetWashAlpha")
-    val appear = remember { Animatable(0f) }
+    val appear = remember { Animatable(if (slot != null) 1f else 0f) }
     LaunchedEffect(Unit) { appear.animateTo(1f, tween(520, easing = FastOutSlowInEasing)) }
+    val grow = if (slot != null) 0f else 1f
     val rise = with(LocalDensity.current) { 10.dp.toPx() }
 
     Box(
         modifier
             .height(WidgetHeight)
             .graphicsLayer {
-                val s = 0.95f + 0.05f * appear.value + 0.025f * lift + 0.02f * focusLift
+                val s = 0.95f + 0.05f * appear.value + (0.025f * lift + 0.02f * focusLift) * grow
                 scaleX = s
                 scaleY = s
                 translationY = (1f - appear.value) * rise
             }
             .hoverable(interaction)
             .then(
-                if (onClick == null) Modifier
-                else Modifier.onFocusChanged { focused = it.isFocused }.clickable(interactionSource = interaction, indication = null, onClick = onClick),
+                if (onClick == null || slot != null) Modifier
+                else Modifier.onFocusChanged { ownFocus = it.isFocused }.clickable(interactionSource = interaction, indication = null, onClick = onClick),
             )
             .glass(CardShape)
-            .background(Brush.linearGradient(listOf(washColor.copy(alpha = washAlpha + 0.08f * lift), Color.Transparent), start = Offset.Zero, end = Offset(520f, 360f)))
+            .background(Brush.linearGradient(listOf(washColor.copy(alpha = (washAlpha + flash + 0.08f * lift).coerceAtMost(1f)), Color.Transparent), start = Offset.Zero, end = Offset(520f, 360f)))
             .border((1.5f + 1f * focusLift).dp, Color.White.copy(alpha = 0.32f * lift + 0.6f * focusLift), CardShape)
             .padding(horizontal = 20.dp, vertical = 14.dp),
         content = content,
@@ -337,7 +527,14 @@ private fun WeatherCard(weather: Weather?, error: String?, mode: WeatherMode, co
  * a pulsing LIVE. Without data it says so; a saved copy is marked when it's old.
  */
 @Composable
-private fun FootballCard(football: List<Fixtures>, matchDay: MatchDayMode, compact: Boolean, modifier: Modifier, onClick: ((Team) -> Unit)?) {
+private fun FootballCard(
+    football: List<Fixtures>,
+    matchDay: MatchDayMode,
+    compact: Boolean,
+    modifier: Modifier,
+    onClick: ((Team) -> Unit)?,
+    moment: FootballMoment? = null,
+) {
     val zone = ZoneId.systemDefault()
     // Ticks every second while a countdown is on screen, otherwise twice a minute
     val now by produceState(Instant.now(), football, matchDay) {
@@ -357,27 +554,105 @@ private fun FootballCard(football: List<Fixtures>, matchDay: MatchDayMode, compa
             turn++
         }
     }
-    val current = shown.getOrNull(turn % shown.size.coerceAtLeast(1))
+    // A goal or a win brings its team forward for as long as it lasts
+    val celebrated = moment?.let { m -> football.firstOrNull { it.team.id == m.team.id } }
+    val current = celebrated ?: shown.getOrNull(turn % shown.size.coerceAtLeast(1))
     val phase = current?.takeIf { matchDayApplies(it.team, matchDay) }?.let { matchPhase(it, now, zone) } ?: MatchPhase.None
     val countdown = phase == MatchPhase.Today || phase == MatchPhase.Soon
+    // The green flash: up at once on a goal, then easing back over a few seconds
+    val flash = remember { Animatable(0f) }
+    LaunchedEffect(moment) {
+        if (moment == null) { flash.snapTo(0f); return@LaunchedEffect }
+        repeat(if (moment.kind == MomentKind.Goal) 2 else 1) {
+            flash.animateTo(1f, tween(180, easing = Motion.EnterEasing))
+            flash.animateTo(0.35f, tween(700, easing = Motion.ExitEasing))
+        }
+        flash.animateTo(0f, tween(2400, easing = LinearEasing))
+    }
     WidgetCard(
-        accent = if (phase == MatchPhase.Live) AlgeriaRed else AlgeriaGreen,
+        accent = if (moment != null) GoalGreen else if (phase == MatchPhase.Live) AlgeriaRed else AlgeriaGreen,
         modifier = modifier,
         onClick = current?.let { c -> onClick?.let { open -> { open(c.team) } } },
-        wash = if (countdown || phase == MatchPhase.Live) 0.42f else 0.2f,
+        wash = if (countdown || phase == MatchPhase.Live || moment != null) 0.42f else 0.2f,
+        flash = 0.5f * flash.value,
     ) {
         Crossfade(current, animationSpec = tween(600), label = "footballTeam", modifier = Modifier.align(Alignment.Center)) { f ->
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
-                if (f == null) {
-                    Text("Loading fixtures…", style = lineStyle(15.sp, Palette.TextPrimary))
-                } else {
-                    TeamFixtures(f, if (f.team.id == current?.team?.id) phase else MatchPhase.None, now, compact)
+            Box(Modifier.fillMaxSize().clipToBounds(), contentAlignment = Alignment.CenterStart) {
+                when {
+                    f == null -> Text("Loading fixtures…", style = lineStyle(15.sp, Palette.TextPrimary), maxLines = 1)
+                    moment != null && f.team.id == moment.team.id -> MomentFixtures(moment, f, now, compact)
+                    else -> TeamFixtures(f, if (f.team.id == current?.team?.id) phase else MatchPhase.None, now, compact)
                 }
             }
         }
-        if (shown.size > 1) PageDots(shown.size, turn % shown.size, Modifier.align(Alignment.TopEnd))
+        if (moment?.kind == MomentKind.Win) Confetti(moment.at, Modifier.matchParentSize())
+        if (shown.size > 1 && moment == null) PageDots(shown.size, turn % shown.size, Modifier.align(Alignment.TopEnd))
     }
 }
+
+private val GoalGreen = Color(0xFF2B8A3E)
+private val GoalText = Color(0xFF8CE99A)
+
+/**
+ * The card during a goal or a win: the same three lines as a live match, so nothing
+ * shifts. The label says what happened, the score flips to the new one, and the last
+ * line names the team and minute. Every line is one line, cut short with an ellipsis.
+ */
+@Composable
+private fun MomentFixtures(m: FootballMoment, f: Fixtures, now: Instant, compact: Boolean) {
+    val match = listOfNotNull(f.last, f.next).firstOrNull { it.id == m.match.id } ?: m.match
+    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        CardLabel(
+            when (m.kind) {
+                MomentKind.Goal -> if (compact) "Goal" else "Goal · " + shortCompetition(match.competition)
+                MomentKind.Win -> if (compact) "Full time" else "Full time · " + shortCompetition(match.competition)
+            },
+            color = GoalText,
+        )
+        Teams(match, compact, showScore = true)
+        Text(
+            momentText(m, compact),
+            style = lineStyle(14.sp, GoalText, 640),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+/**
+ * A short burst of confetti for a win, falling from the top of the card and fading out
+ * within two seconds. It is drawn inside the card, so none of it leaves the card's edge.
+ */
+@Composable
+private fun Confetti(seed: Instant, modifier: Modifier) {
+    val progress = remember(seed) { Animatable(0f) }
+    LaunchedEffect(seed) { progress.animateTo(1f, tween(2200, easing = LinearEasing)) }
+    val pieces = remember(seed) {
+        val r = Random(seed.toEpochMilli())
+        List(26) { Triple(r.nextFloat(), r.nextFloat() * 0.35f, r.nextInt(ConfettiColors.size)) to (r.nextFloat() * 2f - 1f) }
+    }
+    if (progress.value >= 1f) return
+    Canvas(modifier.clipToBounds()) {
+        val t = progress.value
+        val fade = if (t < 0.7f) 1f else 1f - (t - 0.7f) / 0.3f
+        for ((piece, sway) in pieces) {
+            val (x, delayAt, colour) = piece
+            val local = ((t - delayAt) / (1f - delayAt)).coerceIn(0f, 1f)
+            if (local <= 0f) continue
+            val cx = size.width * x + sway * 18.dp.toPx() * sin(local * PI.toFloat() * 2f)
+            val cy = -6.dp.toPx() + (size.height + 12.dp.toPx()) * local
+            val w = 6.dp.toPx()
+            val h = 3.dp.toPx()
+            drawRect(
+                ConfettiColors[colour].copy(alpha = 0.9f * fade),
+                topLeft = Offset(cx - w / 2, cy - h / 2),
+                size = Size(w, h * (0.6f + 0.4f * cos(local * 9f + x * 6f).let { it * it })),
+            )
+        }
+    }
+}
+
+private val ConfettiColors = listOf(Color(0xFF51CF66), Color.White, Color(0xFFFFD43B), Color(0xFFFF6B6B), Color(0xFF74C0FC))
 
 @Composable
 private fun TeamFixtures(f: Fixtures, phase: MatchPhase, now: Instant, compact: Boolean) {
@@ -475,21 +750,40 @@ private fun Teams(match: Match, compact: Boolean, showScore: Boolean) {
         Spacer(Modifier.width(if (compact) 6.dp else 8.dp))
         val home = if (compact) shortCode(match.home.name) else match.home.name
         val away = if (compact) shortCode(match.away.name) else match.away.name
-        val pad = if (compact) " " else "  "
-        val middle = if (showScore && match.homeScore != null && match.awayScore != null) "$pad${match.homeScore}–${match.awayScore}$pad" else "${pad}v$pad"
-        Text(
-            buildAnnotatedString {
-                append(home)
-                withStyle(SpanStyle(color = Palette.TextTertiary, fontWeight = FontWeight(if (showScore) 700 else 500))) { append(middle) }
-                append(away)
-            },
-            style = lineStyle(if (compact) 17.sp else 19.sp, Palette.TextPrimary, 640),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f, fill = false),
-        )
+        val style = lineStyle(if (compact) 17.sp else 19.sp, Palette.TextPrimary, 640)
+        val gap = if (compact) 4.dp else 7.dp
+        // Each name gives way (with an ellipsis) before the score does, so long names never push it out
+        Text(home, style = style, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+        Spacer(Modifier.width(gap))
+        if (showScore && match.homeScore != null && match.awayScore != null) {
+            FlipNumber(match.homeScore, style.copy(color = Palette.TextTertiary, fontWeight = FontWeight(700)))
+            Text("–", style = style.copy(color = Palette.TextTertiary, fontWeight = FontWeight(700)))
+            FlipNumber(match.awayScore, style.copy(color = Palette.TextTertiary, fontWeight = FontWeight(700)))
+        } else {
+            Text("v", style = style.copy(color = Palette.TextTertiary, fontWeight = FontWeight(500)))
+        }
+        Spacer(Modifier.width(gap))
+        Text(away, style = style, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
         Spacer(Modifier.width(if (compact) 6.dp else 8.dp))
         Crest(match.away, 24.dp)
+    }
+}
+
+/** A score that flips to its new value: the old number slides up and out, the new one up and in, inside its own box. */
+@Composable
+private fun FlipNumber(value: Int, style: TextStyle) {
+    AnimatedContent(
+        targetState = value,
+        transitionSpec = {
+            val up = targetState > initialState
+            (slideInVertically(tween(Motion.Enter, easing = Motion.EnterEasing)) { if (up) it else -it } + fadeIn(tween(Motion.Quick))) togetherWith
+                (slideOutVertically(tween(Motion.Exit, easing = Motion.ExitEasing)) { if (up) -it else it } + fadeOut(tween(Motion.Quick))) using
+                SizeTransform(clip = true)
+        },
+        label = "score",
+        modifier = Modifier.clipToBounds(),
+    ) { n ->
+        Text("$n", style = style.copy(fontFeatureSettings = "tnum"), maxLines = 1)
     }
 }
 

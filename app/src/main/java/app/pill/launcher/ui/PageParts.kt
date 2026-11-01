@@ -28,6 +28,9 @@ import androidx.compose.ui.unit.sp
 /** The glass cards a dashboard page is made of. */
 val PageCardShape = RoundedCornerShape(20.dp)
 
+/** The height of a page's cards under its title, so every page fits below the bar at the top. */
+val PageBodyHeight = 372.dp
+
 /** A page's name, large, with a quiet line after it: where the data is from, how to leave. */
 @Composable
 fun PageTitle(title: String, detail: String, modifier: Modifier = Modifier) {
