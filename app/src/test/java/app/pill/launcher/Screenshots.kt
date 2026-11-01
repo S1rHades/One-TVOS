@@ -195,12 +195,14 @@ class Screenshots {
     @Test
     fun pinFromGrid() {
         show("canyon-river", pins = favorites)
-        // Down past the chips into the grid, along to "Maps", then hold OK to pin it
+        // Down past the chips into the grid (A to Z), to the second row and along to "Maps", then hold OK to pin it
         compose.onRoot().performKeyInput { pressKey(Key.DirectionDown) }
         settle()
         compose.onRoot().performKeyInput { pressKey(Key.DirectionDown) }
         settle()
-        compose.onRoot().performKeyInput { repeat(6) { pressKey(Key.DirectionRight) } }
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionDown) }
+        settle()
+        compose.onRoot().performKeyInput { repeat(2) { pressKey(Key.DirectionRight) } }
         settle()
         // Hold OK the way a remote does: one key-down, a pause, one key-up (no repeats).
         // That opens the app's menu, and the release mustn't pick anything in it.
@@ -332,8 +334,9 @@ class Screenshots {
         compose.onNodeWithContentDescription("A").performSemanticsAction(SemanticsActions.OnClick)
         settle()
         compose.onNodeWithText("ma").assertExists()
-        compose.onNodeWithText("Maps").assertExists()
-        compose.onNodeWithText("Music").assertDoesNotExist()
+        // All apps behind the panel has one of each; the matches add Maps but not Music
+        check(compose.onAllNodesWithText("Maps").fetchSemanticsNodes().size == 2) { "Maps should match" }
+        check(compose.onAllNodesWithText("Music").fetchSemanticsNodes().size == 1) { "Music shouldn't match" }
         captureScreenRoboImage(File(out, "search.png").path)
     }
 
@@ -392,7 +395,7 @@ class Screenshots {
         settle()
         compose.onNodeWithText("Widgets").performSemanticsAction(SemanticsActions.OnClick)
         settle()
-        compose.onNodeWithText("Widget stack", substring = false).assertExists()
+        // The stack's switch, then the row that opens its page
         compose.onAllNodesWithText("Widget stack").onLast().performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
         settle()
         val football = compose.onNodeWithText("Football")
