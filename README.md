@@ -104,16 +104,11 @@ Up to four cards across the top: clock, weather, sunrise & sunset, system info, 
 
 The widget stack is a widget that holds others and takes turns between them: every 8 seconds the next slides up from below, and dots down its right edge show which is on. With the stack focused, **Up** / **Down** flips through by hand (**Down** from the last goes on to Favorites) and OK opens the page of the one showing. It is as wide as the widest widget in it.
 
-<table>
-  <tr>
-    <td width="50%"><img src="docs/screenshots/widget-stack.png" alt="The home screen with the clock, the weather and a focused widget stack showing headlines, with three dots down its right edge"><br><sub><b>Widget stack</b>: several widgets in one place, with dots for which is on.</sub></td>
-    <td width="50%"><img src="docs/screenshots/widget-stack-turning.png" alt="The widget stack mid-turn: the football card sliding up and out as the headlines card slides up into its place"><br><sub><b>Taking turns</b>: the next widget slides up into place.</sub></td>
-  </tr>
-</table>
+<p align="center"><img src="docs/screenshots/widget-stack.png" width="100%" alt="The home screen with the clock, the weather and a focused widget stack showing headlines, with three dots down its right edge"></p>
 
 Choose what goes in it under **Settings → Widgets → Widget stack**: OK adds or removes a widget, and holding OK on one, then **Left** / **Right**, moves it, the same way as moving a favourite. While the Widgets pages are open, the home screen steps aside to the left of the panel, undimmed, as a live preview: the stack there shows the widget you're on, and each change shows at once.
 
-<p align="center"><img src="docs/screenshots/widget-stack-settings.png" width="100%" alt="Settings, Widget stack, on the right with Football being moved, white arrows beside it; on the left the home screen, smaller and undimmed, shows the stack holding football"></p>
+<p align="center"><img src="docs/screenshots/widget-stack-settings.png" width="100%" alt="Settings, Widget stack, on the right with Football being moved, round arrows beside it; on the left the home screen, smaller and undimmed, shows the stack holding football"></p>
 
 OK on the clock card opens the clock page: the time with seconds, the date in the Gregorian and Islamic calendars, the week and day of the year, this month, and world clocks.
 
@@ -245,7 +240,7 @@ The football widget follows Algeria's men's team (always first) and up to five m
 
 OK on the card opens the football page in three columns: your teams (**Up** / **Down** picks one); the next match with a countdown and the latest result; and the team's crest, league place and points, with the top of its league table.
 
-<p align="center"><img src="docs/screenshots/football-hub.png" width="100%" alt="The football page: Algeria and Arsenal down the left with Arsenal selected; Liverpool v Arsenal on Sunday at Anfield, 1 day 16 hours 30 minutes away, and the latest result Arsenal 2-0 Everton; and Arsenal, 2nd in the Premier League with 21 points, above the top five"></p>
+<p align="center"><img src="docs/screenshots/football-hub.png" width="100%" alt="The football page: Algeria and Arsenal down the left with Arsenal selected; Liverpool v Arsenal at Anfield with a countdown to kick-off, and the latest result Arsenal 2-0 Everton; and Arsenal, 2nd in the Premier League with 21 points, above the top five"></p>
 
 **Goals and wins**: when a team you follow scores, its card flashes green, the score flips to the new one, and the last line says "Goal · Algeria 78'" (the minute is worked out from kick-off, since the free data has no clock). A win ends at full time in a short burst of confetti inside the card. A widget stack holding the football card brings it forward. The data refreshes every 3 minutes around a match, so the card lights up a little after the real goal. Every line stays on one line inside the card: long team names give way with an ellipsis before the score does. Nothing moves on the idle screen.
 
