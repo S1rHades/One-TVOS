@@ -564,8 +564,14 @@ class Screenshots {
     @Test
     fun footballHub() {
         show("canyon-river", pins = favorites, football = matchDay(inMinutes = 60 * 24 * 3))
-        compose.onNode(hasClickAction() and (hasText("Algeria", substring = true) or hasText("ALG", substring = true)))
-            .performSemanticsAction(SemanticsActions.OnClick)
+        val card = compose.onNode(hasClickAction() and (hasText("Algeria", substring = true) or hasText("ALG", substring = true)))
+        runCatching { card.assertExists() }.onFailure {
+            val shown = compose.onAllNodes(hasClickAction()).fetchSemanticsNodes().map { n ->
+                n.config.getOrElseNullable(androidx.compose.ui.semantics.SemanticsProperties.Text) { null }?.joinToString(" | ")
+            }
+            throw AssertionError("No football card. Clickable: $shown", it)
+        }
+        card.performSemanticsAction(SemanticsActions.OnClick)
         settle()
         compose.onNodeWithText("LATEST RESULT").assertIsDisplayed()
         compose.onNodeWithText("LATEST RESULT").performKeyInput { pressKey(Key.DirectionDown) }
