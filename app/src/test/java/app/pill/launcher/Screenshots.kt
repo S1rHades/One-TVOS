@@ -326,6 +326,9 @@ class Screenshots {
     @Test
     fun search() {
         show("pine-forest", pins = favorites)
+        fun count(text: String) = compose.onAllNodesWithText(text).fetchSemanticsNodes().size
+        val maps = count("Maps")
+        val music = count("Music")
         compose.onNodeWithContentDescription("Search").performSemanticsAction(SemanticsActions.OnClick)
         settle()
         // Letters from the strip, no keyboard: M then A leaves the apps with "ma" in their names
@@ -334,9 +337,9 @@ class Screenshots {
         compose.onNodeWithContentDescription("A").performSemanticsAction(SemanticsActions.OnClick)
         settle()
         compose.onNodeWithText("ma").assertExists()
-        // All apps behind the panel has one of each; the matches add Maps but not Music
-        check(compose.onAllNodesWithText("Maps").fetchSemanticsNodes().size == 2) { "Maps should match" }
-        check(compose.onAllNodesWithText("Music").fetchSemanticsNodes().size == 1) { "Music shouldn't match" }
+        // The matches add Maps to the screen, but not Music
+        check(count("Maps") == maps + 1) { "Maps should match" }
+        check(count("Music") == music) { "Music shouldn't match" }
         captureScreenRoboImage(File(out, "search.png").path)
     }
 
@@ -561,7 +564,8 @@ class Screenshots {
     @Test
     fun footballHub() {
         show("canyon-river", pins = favorites, football = matchDay(inMinutes = 60 * 24 * 3))
-        compose.onNodeWithText("NEXT", substring = true).performSemanticsAction(SemanticsActions.OnClick)
+        compose.onNode(hasClickAction() and (hasText("Algeria", substring = true) or hasText("ALG", substring = true)))
+            .performSemanticsAction(SemanticsActions.OnClick)
         settle()
         compose.onNodeWithText("LATEST RESULT").assertIsDisplayed()
         compose.onNodeWithText("LATEST RESULT").performKeyInput { pressKey(Key.DirectionDown) }
