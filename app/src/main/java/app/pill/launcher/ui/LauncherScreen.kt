@@ -21,6 +21,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
@@ -482,7 +483,8 @@ fun LauncherScreen(
                 val topPx = with(LocalDensity.current) { Spacing.ScreenV.toPx() }
                 val pageScrolling = remember(scroll, pageHeightPx) { PageScrollSpec(scroll, topPx + pageHeightPx) }
                 // While Settings → Widgets is open, the first page shrinks into the space left of the panel
-                val previewTop = (maxHeight - minOf(pageHeight, maxHeight) * previewScale(contentWidth, maxWidth)) / 2
+                val previewTarget = previewScale(contentWidth, maxWidth)
+                val previewTop = (maxHeight - minOf(pageHeight, maxHeight) * previewTarget) / 2
                 CompositionLocalProvider(LocalBringIntoViewSpec provides pageScrolling) {
                     Column(
                         Modifier
@@ -490,7 +492,7 @@ fun LauncherScreen(
                             .graphicsLayer {
                                 val c = customize
                                 if (c > 0f) {
-                                    val target = previewScale(contentWidth, maxWidth)
+                                    val target = previewTarget
                                     val sc = 1f + (target - 1f) * c
                                     scaleX = sc
                                     scaleY = sc

@@ -384,4 +384,92 @@ class DataTest {
         assertEquals("Good night", app.pill.launcher.ui.greetingFor(2))
         assertEquals(listOf("1st", "2nd", "3rd", "4th", "11th", "12th", "13th", "21st", "22nd", "101st"), listOf(1, 2, 3, 4, 11, 12, 13, 21, 22, 101).map { app.pill.launcher.ui.ordinal(it) })
     }
+
+    @Test
+    fun widgetStackKeepsEachWidgetInOnePlace() {
+        val base = LauncherSettings(widgets = listOf(WidgetKind.Clock, WidgetKind.Stack), stack = listOf(WidgetKind.Fennecs, WidgetKind.Headlines))
+        assertEquals(setOf(WidgetKind.Clock, WidgetKind.Fennecs, WidgetKind.Headlines), base.activeWidgets())
+        // Turning a stack widget on by itself takes it out of the stack
+        val football = base.withRowToggled(WidgetKind.Fennecs)
+        assertEquals(listOf(WidgetKind.Clock, WidgetKind.Stack, WidgetKind.Fennecs), football.widgets)
+        assertEquals(listOf(WidgetKind.Headlines), football.stack)
+        // Adding one to the stack takes it off the home screen
+        val back = football.withStackToggled(WidgetKind.Fennecs)
+        assertEquals(listOf(WidgetKind.Clock, WidgetKind.Stack), back.widgets)
+        assertEquals(listOf(WidgetKind.Headlines, WidgetKind.Fennecs), back.stack)
+        assertEquals(listOf(WidgetKind.Fennecs, WidgetKind.Headlines), back.withStackMoved(WidgetKind.Fennecs, -1).stack)
+        assertEquals(back, back.withStackMoved(WidgetKind.Fennecs, 1))
+        // A stack never holds itself, and the stack's widgets need data only while it is on
+        assertEquals(back, back.withStackToggled(WidgetKind.Stack))
+        assertEquals(listOf(WidgetKind.Clock, WidgetKind.Weather), parseStack("Clock,Stack,Clock,Weather,Nope"))
+        assertEquals(setOf(WidgetKind.Clock), base.copy(widgets = listOf(WidgetKind.Clock)).activeWidgets())
+    }
+
+    @Test
+    fun renamedAppsKeepTheirOwnName() {
+        assertNull(cleanName("  ", "Cinema"))
+        assertNull(cleanName("Cinema", "Cinema"))
+        assertEquals("Films and series", cleanName("  Films   and series ", "Cinema"))
+        assertEquals(MaxNameLength, cleanName("x".repeat(80), "Cinema")!!.length)
+        val names = mapOf("app.films" to "Films")
+        assertEquals(names, namesFromJson(namesToJson(names)))
+        assertEquals(emptyMap<String, String>(), namesFromJson("not json"))
+    }
+
+    @Test
+    fun letterStripDimsLettersThatLeadNowhere() {
+        val labels = listOf("Music", "Maps", "Cinema")
+        assertEquals(setOf('u', 'a'), nextLetters(labels, "m"))
+        // Anywhere in a name, as search matches
+        assertEquals(setOf('n'), nextLetters(labels, "ci"))
+        assertEquals(emptySet<Char>(), nextLetters(labels, "zz"))
+        assertTrue('c' in nextLetters(labels, ""))
+    }
+
+    @Test
+    fun updatesFromGitHubReleases() {
+        assertTrue(isNewer("3.1", "3.0"))
+        assertTrue(isNewer("3.10", "3.9"))
+        assertTrue(isNewer("4", "3.9"))
+        assertFalse(isNewer("3.0", "3.0"))
+        assertFalse(isNewer("2.9", "3.0"))
+        val json = """{"name":"Pill Launcher 3.1 (latest)","body":"Install with Downloader\n\n## 3.1 (November 2026)\n\n- **Widget stack**: several widgets in one place.\n- Rename apps in the launcher.\n- Search with a strip of `letters`.\n- Fourth\n\n## 3.0\n- old",""" +
+            """"assets":[{"name":"launcher.apk","browser_download_url":"https://x/launcher.apk","size":1},""" +
+            """{"name":"pill-launcher-3.1.apk","browser_download_url":"https://x/pill-launcher-3.1.apk","size":9100000}]}"""
+        val release = parseRelease(json)!!
+        assertEquals("3.1", release.version)
+        assertEquals("https://x/pill-launcher-3.1.apk", release.apkUrl)
+        assertEquals(listOf("Widget stack: several widgets in one place.", "Rename apps in the launcher.", "Search with a strip of letters."), release.notes)
+        assertNull(parseRelease("""{"assets":[{"name":"launcher.apk","browser_download_url":"u"}]}"""))
+    }
+
+    private fun liveMatch(us: Int?, them: Int?, status: String, kickoff: Instant, opponent: String = "Togo") = Match(
+        id = "77", home = Side(AlgeriaId, "Algeria", null), away = Side("136484", opponent, null), homeScore = us, awayScore = them,
+        competition = "African Cup of Nations Qualifying", leagueId = null, season = null, kickoff = kickoff, status = status, venue = null, teamId = AlgeriaId,
+    )
+
+    @Test
+    fun goalsAndWinsBetweenFetches() {
+        val now = Instant.parse("2026-11-01T18:10:00Z")
+        val kickoff = Instant.parse("2026-11-01T17:00:00Z")
+        fun f(m: Match, at: Instant = now) = listOf(Fixtures(Algeria, m.takeIf { !it.isFinished }, m.takeIf { it.isFinished }, at))
+        val goal = footballMoments(f(liveMatch(0, 0, "2H", kickoff)), f(liveMatch(1, 0, "2H", kickoff)), now).single()
+        assertEquals(MomentKind.Goal, goal.kind)
+        assertEquals(56, goal.minute)
+        assertEquals("Goal · Algeria 56'", momentText(goal, compact = false))
+        assertEquals("Goal · 56'", momentText(goal, compact = true))
+        // The other side scoring is no moment; nor is the first load
+        assertTrue(footballMoments(f(liveMatch(1, 0, "2H", kickoff)), f(liveMatch(1, 1, "2H", kickoff)), now).isEmpty())
+        assertTrue(footballMoments(f(liveMatch(0, 0, "2H", kickoff), Instant.EPOCH), f(liveMatch(1, 0, "2H", kickoff)), now).isEmpty())
+        // Full time with Algeria ahead is a win, once
+        val win = footballMoments(f(liveMatch(2, 1, "2H", kickoff)), f(liveMatch(2, 1, "FT", kickoff)), now).single()
+        assertEquals(MomentKind.Win, win.kind)
+        assertEquals("Algeria win 2–1", momentText(win, compact = false))
+        assertTrue(footballMoments(f(liveMatch(2, 1, "FT", kickoff)), f(liveMatch(2, 1, "FT", kickoff)), now).isEmpty())
+        // The minute from kick-off: first half, half-time, second half
+        assertEquals(30, matchMinute(liveMatch(0, 0, "1H", kickoff), kickoff.plusSeconds(29 * 60)))
+        assertEquals(45, matchMinute(liveMatch(0, 0, "HT", kickoff), kickoff.plusSeconds(52 * 60)))
+        assertEquals(90, matchMinute(liveMatch(0, 0, "2H", kickoff), kickoff.plusSeconds(130 * 60)))
+        assertNull(matchMinute(liveMatch(0, 0, "NS", kickoff), kickoff.minusSeconds(60)))
+    }
 }
