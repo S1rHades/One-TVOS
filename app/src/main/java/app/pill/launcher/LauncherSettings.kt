@@ -38,6 +38,10 @@ data class LauncherSettings(
     val matchDay: MatchDayMode = MatchDayMode.All,
     /** What the headlines widget picks stories about. */
     val newsTopics: Set<NewsTopic> = NewsTopic.Defaults,
+    /** The widgets inside the widget stack, in the order they take turns. */
+    val stack: List<WidgetKind> = DefaultStack,
+    /** Look for a newer Pill Launcher on GitHub every few hours. */
+    val checkUpdates: Boolean = true,
 ) {
     companion object {
         val IntervalOptions = listOf(10, 20, 30, 60)
@@ -81,6 +85,8 @@ class SettingsStore(context: Context) {
         newsTopics = prefs.getString("newsTopics", null)
             ?.let { stored -> stored.split(",").mapNotNull { name -> NewsTopic.entries.firstOrNull { it.name == name } }.toSet() }
             ?: NewsTopic.Defaults,
+        stack = parseStack(prefs.getString("stack", null)) ?: DefaultStack,
+        checkUpdates = prefs.getBoolean("checkUpdates", true),
     ).let { if (it.weather == WeatherMode.Off) it.copy(weather = defaultWeatherMode()) else it }
 
     fun save(settings: LauncherSettings) {
@@ -100,6 +106,8 @@ class SettingsStore(context: Context) {
             .putString("teams", teamsToJson(settings.teams))
             .putString("matchDay", settings.matchDay.name)
             .putString("newsTopics", settings.newsTopics.joinToString(",") { it.name })
+            .putString("stack", settings.stack.toStored())
+            .putBoolean("checkUpdates", settings.checkUpdates)
             .apply()
     }
 
@@ -109,4 +117,32 @@ class SettingsStore(context: Context) {
     fun savePins(pins: List<String>) {
         prefs.edit().putString("pins", pins.joinToString(",")).apply()
     }
+
+    /** Names given to apps in the launcher, by package. The apps themselves keep theirs. */
+    fun readNames(): Map<String, String> = namesFromJson(prefs.getString("names", null))
+
+    fun saveNames(names: Map<String, String>) {
+        prefs.edit().putString("names", namesToJson(names)).apply()
+    }
+
+    /** The release whose update card was put off with Later, so it doesn't come back. */
+    var updateDismissed: String?
+        get() = prefs.getString("updateDismissed", null)
+        set(value) { prefs.edit().putString("updateDismissed", value).apply() }
 }
+
+fun namesFromJson(text: String?): Map<String, String> = runCatching {
+    val o = org.json.JSONObject(text ?: return emptyMap())
+    o.keys().asSequence().associateWith { o.getString(it) }.filterValues { it.isNotBlank() }
+}.getOrDefault(emptyMap())
+
+fun namesToJson(names: Map<String, String>): String = org.json.JSONObject(names.filterValues { it.isNotBlank() }).toString()
+
+/**
+ * The name to show for an app: [name] trimmed and kept short, or the app's own name when
+ * it is blank or the same. Null means "use the app's own name".
+ */
+fun cleanName(name: String, original: String): String? =
+    name.trim().replace(Regex("\\s+"), " ").take(MaxNameLength).takeIf { it.isNotEmpty() && it != original }
+
+const val MaxNameLength = 30

@@ -30,7 +30,16 @@ data class AppEntry(
     val iconLayers: IconLayers? = null,
     /** What kind of app it is, for the chips above All apps. */
     val category: AppCategory = AppCategory.Other,
+    /** The app's own name when it has been renamed in the launcher; null otherwise. */
+    val originalLabel: String? = null,
 )
+
+/** [apps] with the names given in the launcher in place of their own. */
+fun withNames(apps: List<AppEntry>, names: Map<String, String>): List<AppEntry> = apps.map { app ->
+    val own = app.originalLabel ?: app.label
+    val given = names[app.pkg]?.let { cleanName(it, own) }
+    if (given == null) app.copy(label = own, originalLabel = null) else app.copy(label = given, originalLabel = own)
+}.sortedBy { it.label.lowercase() }
 
 /** The kinds the All apps chips filter by. */
 enum class AppCategory(val title: String) { Video("Video"), Music("Music"), Games("Games"), Other("Other") }
@@ -137,4 +146,26 @@ fun loadApps(pm: PackageManager, self: String): List<AppEntry> {
         }
     }
     return seen.values.sortedBy { it.label.lowercase() }
+}
+
+/**
+ * The characters (lower case) that some name continues with after [query], wherever it
+ * appears in the name, so the search's letter strip can dim the letters that lead nowhere.
+ */
+fun nextLetters(labels: List<String>, query: String): Set<Char> {
+    val q = query.lowercase()
+    val out = mutableSetOf<Char>()
+    for (label in labels) {
+        val name = label.lowercase()
+        if (q.isEmpty()) {
+            out += name.toSet()
+            continue
+        }
+        var i = name.indexOf(q)
+        while (i >= 0) {
+            name.getOrNull(i + q.length)?.let { out += it }
+            i = name.indexOf(q, i + 1)
+        }
+    }
+    return out
 }

@@ -123,7 +123,7 @@ fun ForecastPage(weather: Weather, mode: WeatherMode, onDismiss: () -> Unit) {
         }
         Spacer(Modifier.height(12.dp))
 
-        Row(Modifier.fillMaxWidth().height(318.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(Modifier.fillMaxWidth().height(PageBodyHeight - 94.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             PageCard(5, Modifier.weight(1f).fillMaxSize()) {
                 PageLabel("${days.size} days")
                 if (days.isNotEmpty()) {

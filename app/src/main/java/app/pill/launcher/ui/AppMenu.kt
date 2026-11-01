@@ -63,12 +63,12 @@ private val CardShape = RoundedCornerShape(26.dp)
 private val ItemShape = RoundedCornerShape(16.dp)
 private val OkKeys = setOf(Key.DirectionCenter, Key.Enter, Key.NumPadEnter, Key.ButtonA)
 
-/** What the app menu offers; [canMove] only for favourites, [canUninstall] only for removable apps. */
-enum class MenuAction { TogglePin, Move, AppInfo, Uninstall }
+/** What the app menu offers: Move only for favourites, Uninstall only for removable apps. */
+enum class MenuAction { TogglePin, Move, Rename, AppInfo, Uninstall }
 
 /**
  * An app's menu, opened by holding OK (or Menu, or a long-press): add to or remove from
- * Favorites, move it along the favourites row, its system info page, and uninstall.
+ * Favorites, move it along the favourites row, rename it, its system info page, and uninstall.
  * [okHeld] means the OK press that opened it is still down: its release (and any key
  * repeats before it) is ignored, so it can't pick the first item by itself.
  */
@@ -140,7 +140,8 @@ fun AppMenu(
                         Modifier.focusRequester(first),
                     )
                     if (pinned) MenuItem("Move", { choose(MenuAction.Move) }, hint = "Left / Right along Favorites")
-                    MenuItem("App info", { choose(MenuAction.AppInfo) })
+                    MenuItem("Rename…", { choose(MenuAction.Rename) }, hint = app.originalLabel?.let { "Its own name: $it" })
+                    MenuItem("App info", { choose(MenuAction.AppInfo) }, hint = "In the TV's settings")
                     if (app.removable) MenuItem("Uninstall", { choose(MenuAction.Uninstall) }, warning = true)
                 }
             }

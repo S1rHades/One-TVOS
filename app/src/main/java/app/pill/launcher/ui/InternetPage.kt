@@ -128,13 +128,13 @@ fun InternetPage(onOpenNetworkSettings: () -> Unit, onDismiss: () -> Unit) {
     }
     val running = phase != null
 
-    OverlayPage(onDismiss = onDismiss, width = 880.dp, framed = false) { _ ->
+    OverlayPage(onDismiss = onDismiss, width = 880.dp, framed = false, nav = NavItem.Internet) { _ ->
         LaunchedEffect(Unit) {
             delay(60)
             runCatching { startFocus.requestFocus() }
         }
         PageTitle("Internet", "Test your connection · Back to close", Modifier.reveal(0))
-        Row(Modifier.fillMaxWidth().height(404.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(Modifier.fillMaxWidth().height(PageBodyHeight), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             PageCard(1, Modifier.weight(1.1f).fillMaxHeight()) {
                 PageLabel(if (phase == SpeedPhase.Upload) "Upload" else "Download")
                 Box(Modifier.fillMaxWidth().height(200.dp).padding(top = 12.dp), contentAlignment = Alignment.Center) {

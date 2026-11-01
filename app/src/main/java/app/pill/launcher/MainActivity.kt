@@ -27,9 +27,17 @@ import app.pill.launcher.ui.describe
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.rememberCoroutineScope
 
 private const val REFRESH_MS = 30 * 60 * 1000L
 private const val LIVE_REFRESH_MS = 3 * 60 * 1000L
+private const val UPDATE_FIRST_CHECK_MS = 45 * 1000L
+private const val UPDATE_CHECK_MS = 6 * 60 * 60 * 1000L
 /** Waits between attempts while the weather cannot be fetched (no network yet at boot, say). */
 private val RetryDelaysMs = listOf(10_000L, 30_000L, 60_000L, 2 * 60_000L, 5 * 60_000L)
 
@@ -65,14 +73,18 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             // null until the first scan finishes; later refreshes keep the old list on screen
-            val apps by produceState<List<AppEntry>?>(null, refresh) {
+            val scanned by produceState<List<AppEntry>?>(null, refresh) {
                 value = withContext(Dispatchers.Default) { loadApps(packageManager, packageName) }
             }
+            // Names given in the launcher replace the apps' own everywhere it shows them
+            var names by remember { mutableStateOf(store.readNames()) }
+            val apps = remember(scanned, names) { scanned?.let { withNames(it, names) } }
             var pins by remember { mutableStateOf(store.readPins()) }
             var settings by remember { mutableStateOf(store.load()) }
             // Refreshed every 30 minutes while a widget needs it; the last reading stays up if a refresh fails,
             // and the saved one shows at once after a restart. Sunrise and sunset need only the location.
-            val weatherOn = WidgetKind.Weather in settings.widgets || WidgetKind.Daylight in settings.widgets
+            val active = settings.activeWidgets()
+            val weatherOn = WidgetKind.Weather in active || WidgetKind.Daylight in active
             var weatherError by remember { mutableStateOf<String?>(null) }
             val savedWeather = remember { weatherSource.cached() }
             val weather by produceState(savedWeather, weatherOn) {
@@ -87,7 +99,7 @@ class MainActivity : ComponentActivity() {
 
             // The followed teams' fixtures: the saved copies at once, then fresh ones every 30 minutes,
             // every 3 around a match. A team's own failure keeps its saved copy, marked.
-            val footballOn = WidgetKind.Fennecs in settings.widgets
+            val footballOn = WidgetKind.Fennecs in active
             val teams = settings.teams
             val savedFootball = remember { teams.map { footballSource.cached(it) ?: Fixtures(it, null, null, Instant.EPOCH, fromCache = true) } }
             val football by produceState(savedFootball, footballOn, teams) {
@@ -114,7 +126,7 @@ class MainActivity : ComponentActivity() {
             }
 
             // Headlines from both sources every 30 minutes while the widget is on; the saved ones at once
-            val newsOn = WidgetKind.Headlines in settings.widgets
+            val newsOn = WidgetKind.Headlines in active
             val savedNews = remember { newsFeed.cached() }
             val news by produceState(savedNews, newsOn) {
                 var failures = 0
@@ -137,6 +149,39 @@ class MainActivity : ComponentActivity() {
                     result.onFailure { failures++ }
                     delay(if (result.isSuccess) 6 * 60 * 60 * 1000L else RetryDelaysMs[(failures - 1).coerceAtMost(RetryDelaysMs.lastIndex)])
                 }
+            }
+
+            // Updates from GitHub: checked a little after start and every 6 hours while allowed
+            val updater = remember { Updater(this) }
+            val version = remember { runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull() ?: "0" }
+            var update by remember { mutableStateOf(UpdateState()) }
+            var updateDismissed by remember { mutableStateOf(store.updateDismissed) }
+            var updateJob by remember { mutableStateOf<Job?>(null) }
+            val updateScope = rememberCoroutineScope()
+            val busy = { update.phase == UpdatePhase.Downloading || update.phase == UpdatePhase.Installing }
+            suspend fun checkForUpdate() {
+                if (busy()) return
+                update = update.copy(phase = UpdatePhase.Checking, message = null)
+                val now = Instant.now()
+                updater.latest()
+                    .onSuccess { r ->
+                        update = if (isNewer(r.version, version)) UpdateState(UpdatePhase.Available, r, checkedAt = now)
+                        else UpdateState(UpdatePhase.UpToDate, checkedAt = now)
+                    }
+                    .onFailure { update = update.copy(phase = if (update.release != null) UpdatePhase.Available else UpdatePhase.Failed, message = "Can't reach GitHub right now", checkedAt = now) }
+            }
+            LaunchedEffect(settings.checkUpdates) {
+                if (!settings.checkUpdates) return@LaunchedEffect
+                delay(UPDATE_FIRST_CHECK_MS)
+                while (true) {
+                    checkForUpdate()
+                    delay(UPDATE_CHECK_MS)
+                }
+            }
+            // A failed or cancelled install comes back from Android's installer
+            val installProblem by installProblems.collectAsState()
+            LaunchedEffect(installProblem) {
+                installProblem?.let { update = update.copy(phase = UpdatePhase.Failed, message = it); installProblems.value = null }
             }
 
             // Re-checked whenever the launcher comes back (e.g. from the Home app settings)
@@ -182,6 +227,11 @@ class MainActivity : ComponentActivity() {
                         store.savePins(pins)
                     }
                 },
+                onRename = { app, name ->
+                    val own = app.originalLabel ?: app.label
+                    names = cleanName(name, own)?.let { names + (app.pkg to it) } ?: (names - app.pkg)
+                    store.saveNames(names)
+                },
                 onUninstall = { app ->
                     // The system asks to confirm; the app list refreshes when the launcher resumes
                     tryStartActivity(Intent(Intent.ACTION_DELETE, Uri.parse("package:${app.pkg}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
@@ -196,6 +246,46 @@ class MainActivity : ComponentActivity() {
                     // TVs differ in which of these screens they have
                     listOf(Settings.ACTION_WIFI_SETTINGS, Settings.ACTION_WIRELESS_SETTINGS, Settings.ACTION_SETTINGS)
                         .firstOrNull { tryStartActivity(Intent(it).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                },
+                update = update,
+                version = version,
+                updateDismissed = updateDismissed,
+                onCheckUpdate = { updateScope.launch { checkForUpdate() } },
+                onStartUpdate = start@{
+                    val release = update.release ?: return@start
+                    if (busy()) return@start
+                    if (!updater.canInstall()) {
+                        val opened = updater.askToInstall()
+                        update = update.copy(
+                            message = if (opened) "Allow Pill Launcher to install apps, then choose Update again"
+                            else "Allow it in the TV's Settings → Apps → Special app access → Install unknown apps",
+                        )
+                        return@start
+                    }
+                    updateJob = updateScope.launch {
+                        update = update.copy(phase = UpdatePhase.Downloading, progress = 0f, message = null)
+                        try {
+                            var shown = 0f
+                            val apk = updater.download(release) { p ->
+                                if (p - shown >= 0.01f || p >= 1f) {
+                                    shown = p
+                                    update = update.copy(progress = p)
+                                }
+                            }
+                            update = update.copy(phase = UpdatePhase.Installing, progress = 1f)
+                            updater.install(apk)
+                        } catch (e: CancellationException) {
+                            update = update.copy(phase = UpdatePhase.Available, progress = 0f)
+                            throw e
+                        } catch (e: Exception) {
+                            update = update.copy(phase = UpdatePhase.Failed, message = "The download stopped: check the connection and try again")
+                        }
+                    }
+                },
+                onCancelUpdate = { updateJob?.cancel() },
+                onLaterUpdate = {
+                    updateDismissed = update.release?.version
+                    store.updateDismissed = updateDismissed
                 },
                 onOpenSystemSettings = {
                     try {

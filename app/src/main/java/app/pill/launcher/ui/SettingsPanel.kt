@@ -94,6 +94,23 @@ import app.pill.launcher.WeatherMode
 import app.pill.launcher.WidgetKind
 import app.pill.launcher.moved
 import app.pill.launcher.toggled
+import app.pill.launcher.withRowToggled
+import app.pill.launcher.withStackToggled
+import app.pill.launcher.withStackMoved
+import app.pill.launcher.stackShown
+import app.pill.launcher.StackTurnSec
+import app.pill.launcher.UpdatePhase
+import app.pill.launcher.UpdateState
+import kotlin.math.roundToInt
+import androidx.compose.ui.input.key.KeyEvent
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 
 private const val PANEL_MS = 320
@@ -127,6 +144,16 @@ fun SettingsPanel(
     onMakeDefault: () -> String? = { null },
     onHomeHelper: () -> String? = { null },
     onAllowAutostart: () -> String? = { null },
+    /** True while a Widgets page is open, so the home screen can stand beside the panel as a live preview. */
+    onCustomizing: (Boolean) -> Unit = {},
+    /** The stack widget focused on the Widget stack page, to hold it in view on the home screen. */
+    onStackPreview: (WidgetKind?) -> Unit = {},
+    /** Updates from GitHub, for the Updates page. */
+    update: UpdateState = UpdateState(),
+    version: String = "",
+    onCheckUpdate: () -> Unit = {},
+    onStartUpdate: () -> Unit = {},
+    onCancelUpdate: () -> Unit = {},
 ) {
     // A message from the last attempt, shown under the row until the panel closes
     var defaultNote by remember { mutableStateOf<String?>(null) }
@@ -149,7 +176,20 @@ fun SettingsPanel(
     val categoryFocus = remember { SettingsPage.entries.associateWith { FocusRequester() } }
     // Rows on a page that open a page of their own (Widgets → Football teams, Headlines)
     val visible = remember { MutableTransitionState(false).apply { targetState = true } }
-    val close = { visible.targetState = false }
+    // The widget being moved in the stack (hold OK, then Left / Right); Back puts it down
+    var movingStackItem by remember { mutableStateOf<WidgetKind?>(null) }
+    val close = {
+        visible.targetState = false
+        onCustomizing(false)
+        onStackPreview(null)
+    }
+    // On the Widgets pages the home screen is the preview, so it isn't dimmed
+    val customizing = page?.root == SettingsPage.Widgets
+    LaunchedEffect(customizing) { onCustomizing(customizing) }
+    LaunchedEffect(page) {
+        movingStackItem = null
+        if (page != SettingsPage.Stack) onStackPreview(null)
+    }
 
     // Focus follows the page: its first row going in, the category it came from coming back
     LaunchedEffect(page) {
@@ -173,16 +213,28 @@ fun SettingsPanel(
         if (visible.isIdle && !visible.currentState) onDismiss()
     }
 
-    val scrimAlpha by animateFloatAsState(if (visible.targetState) 1f else 0f, tween(PANEL_MS), label = "scrimAlpha")
+    val scrimAlpha by animateFloatAsState(
+        if (visible.targetState && !customizing) 1f else 0f,
+        tween(if (customizing) Motion.Page else PANEL_MS, easing = Motion.EnterEasing),
+        label = "scrimAlpha",
+    )
     val motion = tween<Float>(PANEL_MS, easing = FastOutSlowInEasing)
 
     Dialog(
         // Back on a page returns to the list of categories; on the list it closes the panel
-        onDismissRequest = { if (page != null) page = page?.parent else close() },
+        onDismissRequest = {
+            when {
+                movingStackItem != null -> movingStackItem = null
+                page != null -> page = page?.parent
+                else -> close()
+            }
+        },
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         Box(Modifier.fillMaxSize()) {
             Box(Modifier.fillMaxSize().alpha(scrimAlpha).background(Palette.Scrim))
+            // The bar stays at the top right; the panel starts below it
+            TopNav(NavItem.Settings)
             AnimatedVisibility(
                 visibleState = visible,
                 modifier = Modifier.align(Alignment.CenterEnd),
@@ -191,7 +243,7 @@ fun SettingsPanel(
             ) {
                 Column(
                     Modifier
-                        .padding(vertical = 16.dp, horizontal = 24.dp)
+                        .padding(top = NavRoom, bottom = 16.dp, start = 24.dp, end = 24.dp)
                         .width(440.dp)
                         .fillMaxHeight()
                         .shadow(32.dp, PanelShape)
@@ -226,7 +278,7 @@ fun SettingsPanel(
                                     for (category in SettingsPage.entries.filter { it.parent == null }) {
                                         SettingRow(
                                             title = category.title,
-                                            subtitle = summaryOf(category, settings, home),
+                                            subtitle = summaryOf(category, settings, home, update, version),
                                             onClick = { page = category },
                                             modifier = Modifier.focusRequester(categoryFocus.getValue(category)),
                                         ) { focused -> Chevron(focused) }
@@ -284,14 +336,17 @@ fun SettingsPanel(
                                             on && kind == WidgetKind.Weather && weatherError != null -> "Can't get the weather: $weatherError"
                                             on && kind == WidgetKind.Fennecs && football.firstOrNull()?.error != null -> "Can't get fixtures: ${football.first().error}"
                                             on && kind == WidgetKind.Headlines && news != null && news.headlines.isEmpty() -> "Can't get headlines · see Headlines below"
+                                            on && kind == WidgetKind.Stack && settings.stackShown().isEmpty() -> "Empty · choose its widgets below"
                                             on && settings.widgets.size > 1 -> "Position ${position + 1} of ${settings.widgets.size} · Left / Right to move"
+                                            !on && kind in settings.stackShown() && WidgetKind.Stack in settings.widgets ->
+                                                if (full) "In the widget stack" else "In the widget stack · OK shows it by itself"
                                             full -> "Turn another widget off first"
                                             else -> kind.description
                                         },
                                         dimmed = full,
                                         modifier = if (kind == ordered.first()) Modifier.focusRequester(pageFirst) else Modifier,
                                         onClick = {
-                                            if (full) limitToasts++ else onChange(settings.copy(widgets = settings.widgets.toggled(kind)))
+                                            if (full) limitToasts++ else onChange(settings.withRowToggled(kind))
                                         },
                                         onStep = if (!on) null else { by -> onChange(settings.copy(widgets = settings.widgets.moved(kind, by))) },
                                     ) { focused -> Switch(checked = on, focused = focused) }
@@ -299,6 +354,13 @@ fun SettingsPanel(
                             }
                                     }
                                     Group(null) {
+                                        SettingRow(
+                                            title = SettingsPage.Stack.title,
+                                            subtitle = settings.stack.joinToString(", ") { it.title }.ifEmpty { "Empty" } +
+                                                if (WidgetKind.Stack in settings.widgets) "" else " · turn on Widget stack above to show it",
+                                            onClick = { page = SettingsPage.Stack },
+                                            modifier = Modifier.focusRequester(categoryFocus.getValue(SettingsPage.Stack)),
+                                        ) { focused -> Chevron(focused) }
                                         SettingRow(
                                             title = SettingsPage.Football.title,
                                             subtitle = settings.teams.joinToString(", ") { it.name } + " · match day: " + settings.matchDay.title.lowercase(),
@@ -444,8 +506,26 @@ fun SettingsPanel(
                             }
                                 }
                                 SettingsPage.System -> SystemPage(onSystemAction, Modifier.focusRequester(pageFirst))
+                                SettingsPage.Updates -> UpdatesPage(
+                                    settings = settings,
+                                    onChange = onChange,
+                                    update = update,
+                                    version = version,
+                                    onCheck = onCheckUpdate,
+                                    onStart = onStartUpdate,
+                                    onCancel = onCancelUpdate,
+                                    firstModifier = Modifier.focusRequester(pageFirst),
+                                )
                                 SettingsPage.Football -> FootballPage(settings, onChange, football, searchTeams, Modifier.focusRequester(pageFirst))
                                 SettingsPage.News -> NewsPage(settings, onChange, news, Modifier.focusRequester(pageFirst))
+                                SettingsPage.Stack -> StackPage(
+                                    settings = settings,
+                                    onChange = onChange,
+                                    moving = movingStackItem,
+                                    onMoving = { movingStackItem = it },
+                                    onPreview = onStackPreview,
+                                    firstModifier = Modifier.focusRequester(pageFirst),
+                                )
                             }
                         }
                     }
@@ -515,6 +595,10 @@ private fun SettingRow(
     /** Looks unavailable but still takes focus and clicks (to explain why). */
     dimmed: Boolean = false,
     onStep: ((Int) -> Unit)? = null,
+    /** Sees keys before the row does (holding OK on the Widget stack page). */
+    onPreviewKey: ((KeyEvent) -> Boolean)? = null,
+    /** Being moved: a white edge while it travels. */
+    moving: Boolean = false,
     trailing: @Composable (focused: Boolean) -> Unit,
 ) {
     val interaction = remember { MutableInteractionSource() }
@@ -535,7 +619,9 @@ private fun SettingRow(
             .alpha(if (enabled && !dimmed) 1f else 0.4f)
             .clip(RowShape)
             .background(bg)
+            .then(if (moving) Modifier.border(2.dp, Palette.Accent, RowShape) else Modifier)
             .onFocusChanged { focused = it.isFocused }
+            .then(if (onPreviewKey == null) Modifier else Modifier.onPreviewKeyEvent(onPreviewKey))
             .then(
                 if (onStep == null) Modifier else Modifier.onKeyEvent { event ->
                     if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
@@ -637,6 +723,8 @@ enum class SettingsPage(val title: String, val parent: SettingsPage? = null) {
     Idle("Idle screen"),
     Home("Home & startup"),
     System("TV & system"),
+    Updates("Updates"),
+    Stack("Widget stack", Widgets),
     Football("Football teams", Widgets),
     News("Headlines", Widgets),
     ;
@@ -646,7 +734,8 @@ enum class SettingsPage(val title: String, val parent: SettingsPage? = null) {
 }
 
 /** One line under each category, saying what it is set to now. */
-private fun summaryOf(page: SettingsPage, settings: LauncherSettings, home: HomeStatus): String = when (page) {
+private fun summaryOf(page: SettingsPage, settings: LauncherSettings, home: HomeStatus, update: UpdateState = UpdateState(), version: String = ""): String = when (page) {
+    SettingsPage.Updates -> updateSummary(update, version)
     SettingsPage.Background -> listOf(
         if (settings.onlinePhotos) "Online nature photos" else "Built-in photos",
         if (settings.slideshow) "every ${formatInterval(settings.intervalSec)}" else "slideshow off",
@@ -663,6 +752,7 @@ private fun summaryOf(page: SettingsPage, settings: LauncherSettings, home: Home
     SettingsPage.System -> "Free up memory, network, display, sound, updates, uninstall"
     SettingsPage.Football -> settings.teams.joinToString(", ") { it.name }
     SettingsPage.News -> settings.newsTopics.joinToString(", ") { it.title }
+    SettingsPage.Stack -> settings.stack.joinToString(", ") { it.title }
 }
 
 /** Shortcuts on the TV & system page: one action here, the rest open the TV's own screens. */
@@ -893,4 +983,197 @@ private fun TeamSearchField(value: String, onChange: (String) -> Unit) {
             }
         },
     )
+}
+
+private val StackOkKeys = setOf(Key.DirectionCenter, Key.Enter, Key.NumPadEnter, Key.ButtonA)
+
+/**
+ * Settings → Widgets → Widget stack: which widgets take turns in the stack, and in what
+ * order. OK adds or removes one. Moving works like moving a favourite: hold OK (or press
+ * Menu) on one in the stack, then Left / Right (or Up / Down) moves it, and OK or Back
+ * puts it down. The home screen beside the panel shows the focused one.
+ */
+@Composable
+private fun StackPage(
+    settings: LauncherSettings,
+    onChange: (LauncherSettings) -> Unit,
+    moving: WidgetKind?,
+    onMoving: (WidgetKind?) -> Unit,
+    onPreview: (WidgetKind?) -> Unit,
+    firstModifier: Modifier,
+) {
+    val scope = rememberCoroutineScope()
+    var holdJob by remember { mutableStateOf<Job?>(null) }
+    // A move started by holding OK: the release that follows doesn't put it down
+    var heldMove by remember { mutableStateOf(false) }
+    val inStack = settings.stack
+    val others = WidgetKind.entries.filter { it != WidgetKind.Stack && it !in inStack }
+    val label = when {
+        moving != null -> "Moving ${moving.title} · Left / Right, then OK"
+        inStack.isEmpty() -> "Empty · OK adds a widget"
+        else -> "${inStack.size} take turns · hold OK to move one"
+    }
+    Group(label) {
+        for (kind in inStack + others) {
+            key(kind) {
+                val on = kind in inStack
+                val position = inStack.indexOf(kind)
+                val onHome = !on && kind in settings.widgets
+                SettingRow(
+                    title = kind.title,
+                    subtitle = when {
+                        moving == kind -> "Position ${position + 1} of ${inStack.size}"
+                        on -> "Position ${position + 1} of ${inStack.size}" + if (inStack.size > 1) " · hold OK to move" else ""
+                        onHome -> "On the home screen by itself · OK moves it into the stack"
+                        else -> kind.description
+                    },
+                    moving = moving == kind,
+                    modifier = (if (kind == (inStack + others).first()) firstModifier else Modifier)
+                        .onFocusChanged { if (it.isFocused) onPreview(kind.takeIf { k -> k in settings.stack }) },
+                    onClick = { if (moving == null) onChange(settings.withStackToggled(kind)) },
+                    onPreviewKey = { event ->
+                        val down = event.type == KeyEventType.KeyDown
+                        val up = event.type == KeyEventType.KeyUp
+                        val ok = event.key in StackOkKeys
+                        when {
+                            moving == kind -> {
+                                when (event.key) {
+                                    Key.DirectionLeft, Key.DirectionUp -> if (down) onChange(settings.withStackMoved(kind, -1))
+                                    Key.DirectionRight, Key.DirectionDown -> if (down) onChange(settings.withStackMoved(kind, 1))
+                                    else -> if (up && (ok || event.key == Key.Back || event.key == Key.Escape || event.key == Key.ButtonB)) {
+                                        if (heldMove) heldMove = false else onMoving(null)
+                                    }
+                                }
+                                true
+                            }
+                            moving != null || !on -> false
+                            event.key == Key.Menu -> { if (down) onMoving(kind); true }
+                            ok && down && event.nativeKeyEvent.repeatCount > 0 -> true
+                            ok && down -> {
+                                // Many remotes never repeat a held key, so the hold is timed here
+                                holdJob?.cancel()
+                                holdJob = scope.launch {
+                                    delay(HoldToMoveMs)
+                                    heldMove = true
+                                    onMoving(kind)
+                                }
+                                false
+                            }
+                            ok && up -> { holdJob?.cancel(); false }
+                            else -> false
+                        }
+                    },
+                ) { focused ->
+                    if (moving == kind) MoveMarks() else Switch(checked = on, focused = focused)
+                }
+            }
+        }
+    }
+    Note("The stack shows one widget at a time and slides up to the next every $StackTurnSec seconds. On the home screen, Up / Down flips through it by hand.")
+}
+
+private const val HoldToMoveMs = 550L
+
+/** The two round arrows a widget being moved carries, gently nudging apart, as on a favourite being moved. */
+@Composable
+private fun MoveMarks() {
+    val nudge by rememberInfiniteTransition(label = "stackMove").animateFloat(
+        0f, 1f, infiniteRepeatable(tween(700, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "stackMoveNudge",
+    )
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        for (left in listOf(true, false)) {
+            Box(
+                Modifier
+                    .graphicsLayer { translationX = (if (left) -1f else 1f) * 3.dp.toPx() * nudge }
+                    .size(26.dp)
+                    .background(Palette.Ink, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(if (left) "‹" else "›", color = Palette.Focus, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            }
+            if (left) Spacer(Modifier.width(6.dp))
+        }
+    }
+}
+
+/** One line on where updates stand, for the category list and the check row. */
+private fun updateSummary(update: UpdateState, version: String): String {
+    val release = update.release
+    val v = if (version.isNotEmpty()) "Version $version" else "This version"
+    return when (update.phase) {
+        UpdatePhase.Checking -> "Checking GitHub…"
+        UpdatePhase.Downloading -> "Downloading ${release?.version} · ${(update.progress * 100).roundToInt()}%"
+        UpdatePhase.Installing -> "Installing ${release?.version}"
+        UpdatePhase.Available -> "${release?.version} is ready to install"
+        UpdatePhase.Failed -> update.message ?: "Couldn't check for updates"
+        UpdatePhase.UpToDate -> "$v · up to date" + (update.checkedAt?.let { " · checked ${ageText(it).lowercase()}" } ?: "")
+        UpdatePhase.Idle -> "$v · not checked yet"
+    }
+}
+
+/**
+ * Settings → Updates: check GitHub for a newer Pill Launcher, install it (with the same
+ * progress as the card on the home screen), and whether to check by itself. What's new
+ * in the newer version is listed under it.
+ */
+@Composable
+private fun UpdatesPage(
+    settings: LauncherSettings,
+    onChange: (LauncherSettings) -> Unit,
+    update: UpdateState,
+    version: String,
+    onCheck: () -> Unit,
+    onStart: () -> Unit,
+    onCancel: () -> Unit,
+    firstModifier: Modifier,
+) {
+    val release = update.release
+    Group(null) {
+        SettingRow(
+            title = "Check for updates",
+            subtitle = updateSummary(update, version).takeIf { release == null || update.phase == UpdatePhase.Checking }
+                ?: "Version $version · ${release?.version} is out",
+            onClick = onCheck,
+            enabled = update.phase != UpdatePhase.Downloading && update.phase != UpdatePhase.Installing,
+            modifier = firstModifier,
+        ) { focused -> Chevron(focused) }
+        if (release != null) {
+            SettingRow(
+                title = when (update.phase) {
+                    UpdatePhase.Downloading -> "Downloading ${release.version}"
+                    UpdatePhase.Installing -> "Installing ${release.version}"
+                    UpdatePhase.Failed -> "Try ${release.version} again"
+                    else -> "Update to ${release.version}"
+                },
+                subtitle = when (update.phase) {
+                    UpdatePhase.Downloading -> "OK cancels"
+                    UpdatePhase.Installing -> "Confirm on the screen Android shows"
+                    else -> update.message ?: "About ${(release.sizeBytes / 1_000_000).coerceAtLeast(1)} MB · settings and favourites stay"
+                },
+                onClick = { if (update.phase == UpdatePhase.Downloading) onCancel() else onStart() },
+                enabled = update.phase != UpdatePhase.Installing,
+            ) { focused ->
+                if (update.phase == UpdatePhase.Downloading) {
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text("${(update.progress * 100).roundToInt()}%", color = if (focused) Palette.Ink else Palette.TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.height(4.dp))
+                        ProgressLine(update.progress, Modifier.width(72.dp))
+                    }
+                } else {
+                    DownloadIcon(if (focused) Palette.Ink else Palette.TextPrimary, 20.dp)
+                }
+            }
+        }
+        SettingRow(
+            title = "Check automatically",
+            subtitle = if (settings.checkUpdates) "Every few hours, and a card on the home screen when one is out" else "Only when you check here",
+            onClick = { onChange(settings.copy(checkUpdates = !settings.checkUpdates)) },
+        ) { focused -> Switch(checked = settings.checkUpdates, focused = focused) }
+    }
+    if (release != null && release.notes.isNotEmpty()) {
+        Group("What's new in ${release.version}") {
+            for (line in release.notes) Note("• $line")
+        }
+    }
+    Note("Updates come from Pill Launcher's releases on GitHub and are signed with the same key, so settings and favourites stay. Android asks you to confirm each install, and the first time to allow Pill Launcher to install apps.")
 }
