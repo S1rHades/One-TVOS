@@ -16,80 +16,113 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/home.png" width="100%" alt="The home screen: a rail of icons down the left, a greeting with the date above the clock and weather cards, over a photo of a lake, and five favourite apps along the bottom with the first one focused">
+  <img src="docs/screenshots/home.png" width="100%" alt="The home screen: a glass rail of icons down the left, Good night with the date and Lisbon above the clock, weather and football cards, over a photo of a lake, and favourite apps along the bottom with Cinema focused">
 </p>
 
 ## Highlights
 
 - **Just your apps.** The home screen shows only your favourites; everything else waits one press below, as colour cards you can filter by kind (video, music, games).
-- **Glass motion.** Pages arrive frosted and come into focus in a wave, the photo softens behind them, and markers glide; a slim rail down the left leads to Home, All apps, Search, the Internet test and Settings.
+- **Glass motion.** Pages arrive frosted and come into focus in a wave, the photo softens behind them, and markers glide from one item to the next.
+- **A rail for the rest.** A slim glass rail down the left leads to Home, All apps, Search, the Internet page and Settings.
 - **Tinted by the photo.** Glass, card edges and the glow under the app you're on take a little of each photo's own colour, changing slowly with the slideshow.
-- **Widgets you choose.** Up to four frosted-glass cards across the top: clock (OK opens the clock page: seconds, the Islamic date, this month and world clocks), weather (OK opens a weather dashboard), sunrise & sunset, system info, headlines from Al Jazeera English and RT English by topic, and football for Algeria and the teams you follow, with a match-day countdown and a kick-off reminder.
-- **Built for the remote.** Focused apps lift and get a crisp white ring, every move animates smoothly, and every action is one or two presses of the D-pad.
-- **A fresh view.** The background cross-fades between full-screen photos, and the next one is loaded before it appears, so it never flashes.
+- **Widgets that open up.** Up to four frosted-glass cards across the top. OK on the clock, weather, football or headlines card opens a full page for it.
+- **Built for the remote.** Focused apps lift and get a crisp white ring, and every action is one or two presses of the D-pad.
 - **Light on the TV.** One small app, written in Jetpack Compose, with no background services and no tracking.
 
 Coming next: [planned features](docs/PLANNED.md), with mockups.
 
-## Screenshots
+## A tour
+
+### Home screen
+
+A greeting for the time of day, with the date and your town, sits above the widgets. Your favourites run along the bottom, and the photo behind them changes every few seconds, cross-fading to the next only once it has loaded, so it never flashes.
+
+Favourites can scroll in one row or wrap onto more rows (**Settings → Favorites row → Layout**), as big banners or small icons.
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/all-apps.png" alt="All apps: chips above a grid of app cards in each app's colour, the photo dimmed behind it"><br><sub><b>All apps</b>: press down for every app, as cards in their own colours.</sub></td>
-    <td width="50%"><img src="docs/screenshots/settings.png" alt="The settings card on the right: Photo slideshow switch, Change photo every 20 s, Weather in °C, and Android TV settings"><br><sub><b>Settings</b>: a floating card for the slideshow, the weather and the TV's own settings.</sub></td>
+    <td width="50%"><img src="docs/screenshots/favorites-scroll.png" alt="The favourites row scrolled along, with Maps focused and the apps either side faded at the edges"><br><sub><b>Scroll</b>: one row that slides along as you move.</sub></td>
+    <td width="50%"><img src="docs/screenshots/favorites-wrap.png" alt="Six favourites on two rows: Cinema, Live TV and Music, then Photos, Podcasts and Radio"><br><sub><b>Wrap</b>: every favourite at once, on as many rows as it takes.</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/screenshots/menu.png" alt="The app menu for Maps over the dimmed home screen: Add to Favorites, App info and Uninstall"><br><sub><b>App menu</b>: hold OK on any app to pin it, move it, see its info or uninstall it.</sub></td>
-    <td width="50%"><img src="docs/screenshots/first-launch.png" alt="First launch with no favourites: a hint explains how to pin apps, with the settings button focused"><br><sub><b>First launch</b>: a hint shows how to fill Favorites.</sub></td>
+    <td width="50%"><img src="docs/screenshots/move.png" alt="Cinema being moved along the favourites row, with white arrows either side of it"><br><sub><b>Reorder</b>: app menu → Move, then Left / Right, then OK.</sub></td>
+    <td width="50%"><img src="docs/screenshots/first-launch.png" alt="First launch with no favourites: a hint says go down to All apps and hold OK on an app to pin it here"><br><sub><b>First launch</b>: a hint shows how to fill Favorites.</sub></td>
   </tr>
 </table>
 
+### The rail and glass motion
+
+The rail down the left holds **Home**, **Apps**, **Search**, **Internet** and **Settings**. Press **Left** from the first favourite to reach it. A white marker glides to the icon you're on, its name shows briefly beside it, and a softer marker stays on the section you're in. The Internet icon turns red when the TV is offline.
+
+Every page opens the same way. The photo behind blurs and dims, the page dissolves in from frosted glass, and its parts come into focus one after another in reading order. Back reverses it. The blur needs Android 12 or later; older TVs get the same timing as a plain fade.
+
+### All apps
+
+Press **Down** from Favorites, or **Apps** on the rail, for every app as a card in its own colour. Chips above the grid show only the video, music or game apps: move to a chip and press **OK**. The kind comes from what each app says about itself, then from its name.
+
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/move.png" alt="Cinema being moved along the favourites row, with white arrows either side of it"><br><sub><b>Reorder favourites</b>: Move, then Left / Right, then OK.</sub></td>
+    <td width="50%"><img src="docs/screenshots/all-apps.png" alt="All apps: 18 apps as colour cards under chips for All, Video, Music, Games and Other, with Files focused and pinned apps marked with a star"><br><sub><b>All apps</b>: every app, with a star on the ones in Favorites.</sub></td>
+    <td width="50%"><img src="docs/screenshots/all-apps-video.png" alt="All apps filtered to Video: the Video chip selected and only the video apps' cards below"><br><sub><b>Chips</b>: only the video, music or game apps.</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/menu.png" alt="The app menu for Maps over the dimmed home screen: Add to Favorites, App info and Uninstall"><br><sub><b>App menu</b>: hold OK on any app to pin it, move it, see its info or uninstall it.</sub></td>
     <td width="50%"><img src="docs/screenshots/pin.png" alt="Maps focused in the All apps grid with a message saying Added Maps to Favorites"><br><sub><b>Pinned</b>: a short confirmation, and the app joins Favorites.</sub></td>
   </tr>
 </table>
 
+### Search
+
+**Search** on the rail opens a panel that finds any app by name as you type with the TV keyboard.
+
+<p align="center"><img src="docs/screenshots/search.png" width="70%" alt="The search panel with m typed, showing Maps, Music, Cinema and Games"></p>
+
+### Widgets
+
+Up to four cards across the top: clock, weather, sunrise & sunset, system info, headlines and football. Switch them on and off and reorder them under **Settings → Widgets**. With two on, the cards are roomy; with four, they switch to compact layouts.
+
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/widgets.png" alt="Four widget cards across the top: the clock, Algeria's next match with the last result, sunrise and sunset on an arc, and system info"><br><sub><b>Widgets</b>: up to four cards; with four on they switch to compact layouts.</sub></td>
-    <td width="50%"><img src="docs/screenshots/widget-settings.png" alt="Settings with the Widgets group: four widgets on with their positions, System info dimmed, and a message saying Maximum of 4 widgets can be active at once"><br><sub><b>Widget settings</b>: switch widgets on and off and move them with Left / Right.</sub></td>
+    <td width="50%"><img src="docs/screenshots/two-widgets.png" alt="Two wide widget cards: the clock, and the weather reading 22 degrees, Lisbon, Partly cloudy"><br><sub><b>Two widgets</b>: wide cards with room for the full place and sky.</sub></td>
+    <td width="50%"><img src="docs/screenshots/widgets.png" alt="Four compact widget cards: the clock, the weather, Algeria v Togo with the last result, and system info"><br><sub><b>Four widgets</b>: the most at once, in compact layouts.</sub></td>
   </tr>
 </table>
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/match-day.png" alt="Match day: the football card is green and counts down to Algeria v Togo's kick-off"><br><sub><b>Match day</b>: the football card counts down to kick-off.</sub></td>
-    <td width="50%"><img src="docs/screenshots/kickoff-banner.png" alt="A banner at the bottom: Les Fennecs kick off in 8 minutes, Algeria v Togo, AFCON qualifier"><br><sub><b>Kick-off reminder</b>: ten minutes before, a banner that never gets in the way.</sub></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="docs/screenshots/football-hub.png" alt="The football page: chips for Algeria and Arsenal, Arsenal's next match and latest result, and the top five of the Premier League"><br><sub><b>Football page</b>: OK on the card for the next match, the latest result and the table.</sub></td>
-    <td width="50%"><img src="docs/screenshots/settings-football.png" alt="Settings, Football teams: Algeria and Arsenal followed, a search for alg listing MC Alger"><br><sub><b>Follow teams</b>: search for a club or country and add up to five beside Algeria.</sub></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="docs/screenshots/forecast.png" alt="The forecast page: now, the next twelve hours with icons and chance of rain, and seven days with temperature bars"><br><sub><b>Forecast</b>: OK on the weather card for the next hours and days.</sub></td>
-    <td width="50%"><img src="docs/screenshots/headlines.png" alt="Four widgets with a headlines card showing a Russia story from RT"><br><sub><b>Headlines</b>: one story at a time, picked by topic.</sub></td>
+    <td width="50%"><img src="docs/screenshots/widget-settings.png" alt="Settings with the Widgets group: four widgets on with their positions, System info dimmed, and a message saying Maximum of 4 widgets can be active at once"><br><sub><b>Widget settings</b>: OK switches a widget; Left / Right moves it.</sub></td>
+    <td width="50%"><img src="docs/screenshots/weather-icons.png" alt="The weather widget's icons: clear, partly cloudy, cloudy, fog, rain, snow, thunderstorm, clear night and partly cloudy night"><br><sub><b>Weather icons</b>: drawn by the app, with a little movement (sun rays turn, rain falls).</sub></td>
   </tr>
 </table>
+
+OK on the clock card opens the clock page: the time with seconds, the date in the Gregorian and Islamic calendars, the week and day of the year, this month, and world clocks.
+
+<p align="center"><img src="docs/screenshots/clock.png" width="100%" alt="The clock page: 12:00:09 AM, Saturday, October 31, 2026, Jumada I 20, 1448 AH, Week 44, day 304 of 365, the October calendar with the 31st circled, and world clocks for Algiers, London, Mecca, Moscow and New York"></p>
+
+The weather, football and headlines pages are described in their own sections below.
+
+### Internet
+
+**Internet** on the rail opens a speed test and a way into the TV's network settings. See [Internet speed test](#internet-speed-test).
+
+<p align="center"><img src="docs/screenshots/internet.png" width="100%" alt="The Internet page: a speed dial reading 0.0 Mbps with Press OK to start, Start test and Network settings buttons, and a results card for ping, download and upload"></p>
+
+### Settings
+
+**Settings** at the bottom of the rail opens a floating card for the photos, widgets, favourites, idle screen, how the launcher becomes the home screen, and the TV's own settings. **TV & system** frees memory and opens the TV's network, display, sound, storage and update screens.
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/internet.png" alt="The Internet page: a speed dial reading 0.0 Mbps with Start test and Network settings buttons, and a results card for ping, download and upload"><br><sub><b>Internet</b>: a speed test and the TV's network settings, from the rail.</sub></td>
-    <td width="50%"><img src="docs/screenshots/all-apps-video.png" alt="All apps filtered to Video: the Video chip selected and only the video apps' cards below"><br><sub><b>Chips</b>: only the video, music or game apps.</sub></td>
+    <td width="50%"><img src="docs/screenshots/settings.png" alt="The settings card on the right: Background, Widgets, Favorites row, Idle screen, Home and startup, and TV and system, each with its current choice underneath"><br><sub><b>Settings</b>: each row shows its current choice.</sub></td>
+    <td width="50%"><img src="docs/screenshots/settings-system.png" alt="Settings, TV and system: Free up memory focused, then Network and Wi-Fi, Display, Sound, Storage and System update"><br><sub><b>TV & system</b>: the TV's own screens, one press away.</sub></td>
   </tr>
 </table>
 
-<p align="center"><img src="docs/screenshots/weather-icons.png" width="620" alt="The weather widget's icons: clear, partly cloudy, cloudy, fog, rain, snow, thunderstorm, clear night and partly cloudy night"></p>
+### Idle screen
 
-<table>
-  <tr>
-    <td width="50%"><img src="docs/screenshots/idle.png" alt="The idle screen: only the clock and weather over a slowly zooming mountain photo"><br><sub><b>Idle screen</b>: after a while without a key press, only the widgets stay.</sub></td>
-    <td width="50%"><img src="docs/screenshots/search.png" alt="The search panel with m typed, showing Maps, Music, Cinema and Games"><br><sub><b>Search</b>: find any app by name with the TV keyboard.</sub></td>
-  </tr>
-</table>
+After a while without a key press (two minutes by default, under **Settings → Idle screen**), everything but the widgets fades away and the photo slowly zooms. The corner names where the photo was taken and who took it. Any key brings the home screen back.
 
-<sub>Screenshots are rendered at 1920×1080 from the app's own interface code by <code>.github/workflows/screenshots.yml</code>. The app names and icons in them are stand-ins; on your TV you'll see your installed apps. Photos: <a href="https://picsum.photos">Lorem Picsum</a> (Unsplash licence).</sub>
+<p align="center"><img src="docs/screenshots/idle.png" width="100%" alt="The idle screen: only the clock, weather and football cards over a slowly zooming photo of snowy mountains"></p>
 
 ## Install
 
@@ -103,6 +136,8 @@ Many TVs, most Google TV devices among them, don't let any app replace the home 
 
 Until one of these is set up, the home screen shows a reminder with a **Set up** button, which tries the first way and then the second. **Not now** hides it.
 
+<p align="center"><img src="docs/screenshots/home-prompt.png" width="70%" alt="A reminder above the favourites: Closing an app takes you to the TV's own home screen, with Set up and Not now buttons"></p>
+
 If a TV allows neither, a computer with [ADB](https://developer.android.com/tools/adb) connected to the TV can make Pill Launcher the home screen:
 
 ```
@@ -113,7 +148,7 @@ On TVs that ignore that command, turning off the stock launcher works too (turn 
 
 The `latest` release is rebuilt automatically every time `main` changes, so installing it again always gets you the newest version.
 
-Every version also keeps its own release, named after it (**Pill Launcher 2.7**, tag `v2.7`, file `pill-launcher-2.7.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v2.7/pill-launcher-2.7.apk`. The newest is titled **Pill Launcher 2.7 (latest)** and holds the same file under its version's name (`pill-launcher-2.7.apk`), plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
+Every version also keeps its own release, named after it (**Pill Launcher 3.0**, tag `v3.0`, file `pill-launcher-3.0.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v3.0/pill-launcher-3.0.apk`. The newest is titled **Pill Launcher 3.0 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
 
 ### Uninstalling
 
@@ -126,9 +161,10 @@ If the launcher won't open, use the TV's own **Settings → Apps → Pill Launch
 | To | Press |
 | --- | --- |
 | Open an app | **OK** |
+| Reach the rail | **Left** from the first favourite |
 | See all apps | **Down** from Favorites, or **Apps** on the rail |
-| Show only video, music or game apps | **Down** to the chips above All apps, then **Left** / **Right** |
-| Find an app | **Search** on the rail (**Left** from the first app), then type |
+| Show only video, music or game apps | **Down** to the chips above All apps, **Left** / **Right**, then **OK** |
+| Find an app | **Search** on the rail, then type |
 | Test the internet speed, or open Wi-Fi settings | **Internet** on the rail, then **Start test** or **Network settings** |
 | See if a VPN is on | The Internet page says so |
 | Change how favourites are laid out | **Settings → Favorites row → Layout**: Scroll or Wrap |
@@ -140,13 +176,15 @@ If the launcher won't open, use the TV's own **Settings → Apps → Pill Launch
 | Change how often the photo changes, or the weather unit | In settings, **Left** / **Right** on that row |
 | Turn widgets on or off | **Settings → Widgets**, **OK** on a widget (up to four at once) |
 | Reorder widgets | **Settings → Widgets**, **Left** / **Right** on a widget that's on |
-| See the clock page, the forecast, the football page or a headline's summary | Go up to that widget, then **OK** (**Back** closes it) |
+| Open the clock page, the weather dashboard, the football page or the news page | Go up to that widget, then **OK** (**Back** closes it) |
+| Pick a day on the weather dashboard | **Left** / **Right** |
+| Pick a team on the football page, or a story on the news page | **Up** / **Down** |
 | Follow more teams, or change match day | **Settings → Widgets → Football teams** |
 | Choose headline topics | **Settings → Widgets → Headlines** |
 | Hide the kick-off reminder | **Back** (it also goes by itself after 30 seconds) |
 | Free up memory, or open the TV's network, display, sound or update screens | **Settings → TV & system** |
 | Uninstall Pill Launcher (OK twice, then confirm) | **Settings → TV & system → Uninstall Pill Launcher** |
-| Close settings | **Back** |
+| Close a page or settings | **Back** |
 
 Settings and favourites are saved on the TV and survive restarts and updates.
 
@@ -154,21 +192,65 @@ Settings and favourites are saved on the TV and survive restarts and updates.
 
 The widget finds the TV's approximate location from its internet address with [GeoJS](https://www.geojs.io/) and gets the forecast from [Open-Meteo](https://open-meteo.com/), or from [MET Norway](https://api.met.no/) if Open-Meteo can't be reached. None of them needs an account or key. It refreshes every 30 minutes. Choose °C or °F in settings. Turn off both the Weather and the Sunrise & sunset widgets, and the launcher contacts none of these services. If the weather can't load, Settings shows why under the Weather widget's row. Sunrise and sunset are worked out on the TV from the same location.
 
-OK on the weather card opens the weather dashboard: "feels like" (with the next day's trend), humidity, wind and UV; the week as a chart of each day's range (**Left** / **Right** picks a day); and a Today list with the next sunrise or sunset, when rain is likely, the warmest or coolest hour to come, and tomorrow. MET Norway gives no "feels like", UV or chance of rain, so with it the page shows the expected rain in mm instead. The last reading is saved on the TV, so the card and the forecast show at once after a restart and while offline.
+OK on the weather card opens the weather dashboard:
+
+- **Now**: "feels like" (with a line for the next day's temperatures), humidity, wind with its direction, and the UV index.
+- **7 days**: each day's range as a bar. **Left** / **Right** picks a day, and its bar lights up in the photo's colour with the range above it.
+- **Today**: the next sunrise or sunset, when rain is likely, the warmest or coolest hour to come, and tomorrow.
+
+<p align="center"><img src="docs/screenshots/forecast.png" width="100%" alt="The weather dashboard for Lisbon: feels like 21 degrees with a trend line, humidity 64 percent, wind 14 km/h north-west, UV 3; seven days of range bars with today highlighted, 16 to 25 degrees; and a Today list with sunrise, rain likely 8 to 10 AM, warmest 25 degrees at 5 AM, and tomorrow"></p>
+
+MET Norway gives no "feels like", UV or chance of rain, so with it the page shows the expected rain in mm instead. The last reading is saved on the TV, so the card and the dashboard show at once after a restart and while offline.
 
 ### Football
 
-The football widget follows Algeria's men's team (always first) and up to five more teams you add under **Settings → Widgets → Football teams**: search for a club or a country. The card takes turns between them every 20 seconds, each with its next fixture (competition, crests and kick-off in the TV's time zone) and latest result, marked W, D or L. During a match it shows **LIVE** and the score. OK on the card opens the football page: your teams down the left (**Up** / **Down** picks one), the next match with its venue and a countdown, the latest result, and the team with the top of its league table where there is one.
+The football widget follows Algeria's men's team (always first) and up to five more teams you add under **Settings → Widgets → Football teams**: search for a club or a country. The card takes turns between them every 20 seconds, each with its next fixture (competition, crests and kick-off in the TV's time zone) and latest result, marked W, D or L. During a match it shows **LIVE** and the score.
+
+OK on the card opens the football page in three columns: your teams (**Up** / **Down** picks one); the next match with a countdown and the latest result; and the team's crest, league place and points, with the top of its league table.
+
+<p align="center"><img src="docs/screenshots/football-hub.png" width="100%" alt="The football page: Algeria and Arsenal down the left with Arsenal selected; Liverpool v Arsenal on Sunday at Anfield, 1 day 16 hours 30 minutes away, and the latest result Arsenal 2-0 Everton; and Arsenal, 2nd in the Premier League with 21 points, above the top five"></p>
 
 **Match day**: on the day a followed team plays, the card stays on that team and counts down to kick-off, and ten minutes before, a banner says so (it never takes focus: **Back** hides it, and it goes by itself after 30 seconds). Choose all teams, Algeria only, or off under **Football teams → Match day**.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/match-day.png" alt="Match day: the football card is green and counts down to Algeria v Togo's kick-off"><br><sub><b>Match day</b>: the football card counts down to kick-off.</sub></td>
+    <td width="50%"><img src="docs/screenshots/kickoff-banner.png" alt="A banner at the bottom: Les Fennecs kick off in 8 minutes, Algeria v Togo, AFCON qualifier"><br><sub><b>Kick-off reminder</b>: ten minutes before, a banner that never gets in the way.</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/settings-football.png" alt="Settings, Football teams: Algeria and Arsenal followed, a search for alg listing MC Alger"><br><sub><b>Follow teams</b>: search for a club or country and add up to five beside Algeria.</sub></td>
+    <td width="50%"></td>
+  </tr>
+</table>
 
 The data comes from [TheSportsDB](https://www.thesportsdb.com/)'s free API, with no account needed. The free data has one next match and one latest result per team, and only the top five of a table. Many TVs can't reach TheSportsDB (its Cloudflare protection turns some away), so the **Fixtures mirror** workflow (`.github/workflows/fixtures.yml`, `.github/scripts/mirror.py`) keeps copies on the `fixtures-data` branch for Algeria (every 30 minutes) and for about 120 clubs and national teams listed in `.github/mirror/teams.txt` (each every few hours, and every 30 minutes around its matches). Search shows which teams work on any network; others need the TV to reach TheSportsDB directly. To add a team for every network, add its name to `teams.txt`. The widget refreshes every 30 minutes, and every 3 minutes around a match. Each team's last good copy is saved on the TV.
 
 ### Headlines
 
-The headlines widget shows one story at a time from [Al Jazeera English](https://www.aljazeera.com/) and [RT English](https://www.rt.com/), newest first, a new one every 20 seconds. OK opens the news page: every headline in a list, with the story beside it; **Up** / **Down** moves through them. Neither site has feeds by topic, so the launcher picks stories itself, by section and by words in the headline and summary, for the topics on under **Settings → Widgets → Headlines**: Algeria, Russia and International politics by default, plus Africa & Middle East, Economy and Sport. If nothing matches, it shows the newest stories as top stories.
+The headlines widget shows one story at a time from [Al Jazeera English](https://www.aljazeera.com/) and [RT English](https://www.rt.com/), newest first, a new one every 20 seconds.
+
+OK opens the news page: every picked headline in a list on the left, and the story beside it, with its topic, source, age and summary. **Up** / **Down** moves through the list, and the story dissolves to the next.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/headlines.png" alt="Four widgets with a headlines card showing a Russia story from RT"><br><sub><b>Headlines card</b>: one story at a time, picked by topic.</sub></td>
+    <td width="50%"><img src="docs/screenshots/headline-page.png" alt="The news page: eight stories listed on the left with the first selected in white, and on the right its story from RT about Russia's weapons, with its summary and 1 of 8"><br><sub><b>News page</b>: the whole list, with the story beside it.</sub></td>
+  </tr>
+</table>
+
+Neither site has feeds by topic, so the launcher picks stories itself, by section and by words in the headline and summary, for the topics on under **Settings → Widgets → Headlines**: Algeria, Russia and International politics by default, plus Africa & Middle East, Economy and Sport. If nothing matches, it shows the newest stories as top stories.
 
 Al Jazeera is read from its RSS feed, or from a copy the Fixtures mirror keeps on `fixtures-data` (headline, link, date and short summary only). RT is only ever read directly by the TV: it is banned from distribution in the EU and blocked in some other countries, so it is never copied to GitHub. Where it is blocked, Settings says "Not available on this network" and the widget carries on with Al Jazeera.
+
+### Internet speed test
+
+**Internet** on the rail opens the Internet page (pictured [above](#internet)). **Start test** measures the connection against [Cloudflare's speed test](https://speed.cloudflare.com/) service:
+
+1. **Ping**: the quickest of a few tiny requests, in milliseconds.
+2. **Download**: about seven seconds of downloading. The dial follows the speed live.
+3. **Upload**: about five seconds of uploading.
+
+When it's done, a chip says in plain words what the speed is good for: 4K streaming (25 Mbps or more), HD streaming (10 or more), standard video (4 or more), or slow. The results card shows all three numbers, the network (with its signal on Wi-Fi, and whether a VPN is on) and when the last test ran. The last result is saved on the TV. Nothing is measured until you press **Start test**, and Back stops a test at once. **Network settings** opens the TV's own Wi-Fi and network screen.
 
 ### Online photos
 
@@ -177,6 +259,8 @@ By default the slideshow shows a new set of 24 landscape photos each day from [W
 ### Your own photos
 
 The twelve built-in nature photos (used offline, or with **Online nature photos** off) are part of the app (`app/src/main/assets/photos`), so they show even without internet. To change them, edit the Lorem Picsum ids in `BackgroundSources` (`app/src/main/java/app/pill/launcher/ui/BackgroundSlideshow.kt`) and in `.github/workflows/photos.yml`, then run the **Bundle photos** workflow. `BackgroundSources` also accepts direct `https://` image links.
+
+<sub>Screenshots are rendered at 1920×1080 from the app's own interface code by <code>.github/workflows/screenshots.yml</code>. The app names and icons in them are stand-ins; on your TV you'll see your installed apps. Photos: <a href="https://picsum.photos">Lorem Picsum</a> (Unsplash licence).</sub>
 
 ## Development
 
@@ -187,7 +271,7 @@ gradle assembleDebug                                   # app/build/outputs/apk/d
 gradle :app:testDebugUnitTest --tests '*Screenshots*'  # re-render docs/screenshots
 ```
 
-**Builds are automated.** `.github/workflows/build.yml` builds the APK for every pull request and push; builds of `main` publish a release for the version in `app/build.gradle.kts` (`v2.6`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; run it from the Actions tab after changing the interface.
+**Builds are automated.** `.github/workflows/build.yml` builds the APK for every pull request and push; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v3.0`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab.
 
 <details>
 <summary><b>Architecture</b></summary>
@@ -195,22 +279,31 @@ gradle :app:testDebugUnitTest --tests '*Screenshots*'  # re-render docs/screensh
 ```
 app/src/main/java/app/pill/launcher/
   MainActivity.kt        launcher activity: loads apps, opens them, keeps pins and settings
-  AppModel.kt            lists launchable apps (TV apps first) with their icons
+  AppModel.kt            lists launchable apps with their icons and kinds (video, music, games)
   LauncherSettings.kt    settings and pinned apps in SharedPreferences
   Weather.kt             location and forecast lookup, condition names and units
   Widgets.kt             the widget kinds, the four-widget limit, toggling and reordering
-  Fixtures.kt            Algeria's fixtures from TheSportsDB, with an offline copy
+  Football.kt            followed teams' fixtures and tables from TheSportsDB or the mirror
+  MatchDay.kt            match-day countdown and the kick-off reminder
+  News.kt                headlines from Al Jazeera and RT, picked by topic
+  SpeedTest.kt           ping, download and upload against Cloudflare's speed test
+  PhotoFeed.kt           the daily Wikimedia photo set and its credits
   Daylight.kt            sunrise and sunset from latitude and longitude
+  HomeSetup.kt, HomeRedirectService.kt   becoming the home screen, and the Home button helper
   ui/
-    LauncherScreen.kt    the home screen: a first page with the clock and favourites, All apps below, page scrolling
-    AppTile.kt           a focusable squircle app tile
-    BackgroundSlideshow.kt  photo cross-fade and the readability scrim
-    SettingsPanel.kt     the floating settings card (its own dialog window, so focus stays inside)
-    SettingsPill.kt      the round gear button and the gear icon
+    LauncherScreen.kt    the home screen: greeting, widgets, favourites, All apps below, page scrolling
+    SideRail.kt          the glass rail (Home, Apps, Search, Internet, Settings) and the greeting
+    Motion.kt            glass motion: durations, easing, dissolve, the reading-order wave, glide
+    Overlay.kt           full-screen pages: blurred backdrop, open and close motion
+    PageParts.kt         shared page title, cards and sparkline
+    AllApps.kt           kind chips and colour app cards
+    ClockPage.kt, ForecastPage.kt, FootballHub.kt, HeadlinePage.kt, InternetPage.kt   the pages
     WidgetCards.kt       the header's glass widget cards and their row
     WeatherWidget.kt     the weather card's content, with drawn condition icons
-    Theme.kt             shared colours and spacing
-    Squircle.kt          the superellipse tile shape
+    FavoritesRow.kt, AppTile.kt, BannerTile.kt   the favourites row and its tiles
+    SearchPanel.kt, SettingsPanel.kt, AppMenu.kt   panels over the home screen
+    BackgroundSlideshow.kt  photo cross-fade, tint and the readability scrim
+    Glass.kt, Theme.kt, Squircle.kt   frosted glass, shared colours and spacing, the tile shape
 app/src/test/.../Screenshots.kt   Robolectric + Roborazzi renders for this README
 ```
 
