@@ -374,9 +374,13 @@ class Screenshots {
         stack.assertExists()
         stack.requestFocus()
         settle()
+        // Part way through the slide to the next widget
+        compose.mainClock.autoAdvance = false
         stack.performKeyInput { pressKey(Key.DirectionDown) }
-        compose.mainClock.advanceTimeBy(300)
+        repeat(3) { compose.mainClock.advanceTimeByFrame() }
+        compose.mainClock.advanceTimeBy(220)
         captureScreenRoboImage(File(out, "widget-stack-turning.png").path)
+        compose.mainClock.autoAdvance = true
         settle()
         compose.onNodeWithContentDescription("Widget stack: Headlines").assertExists()
         compose.onRoot().captureRoboImage(File(out, "widget-stack.png").path)
