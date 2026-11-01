@@ -3,6 +3,18 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 3.1 (November 2026)
+
+The five planned features, a navigation bar at the top right, and a quieter greeting.
+
+- **Navigation bar**: Home, Search, then a divider, Wi-Fi and Settings, in a glass bar at the top right that stays put on every page and panel. Pages, Settings and Search now start below it, so nothing sits under it. Up from the widgets reaches it. All apps has no button any more: it is where it always was, below Favorites.
+- **Greeting**: just "Good evening" (or morning, afternoon, night), level with the bar. The date and place were already on the clock and weather cards.
+- **Rename apps**: the app menu has **Rename…**. The new name shows everywhere in the launcher (Favorites, All apps, search); the app itself keeps its own, and **Use its own name** brings it back. **App info** stays in the menu.
+- **Widget stack**: a new widget that holds several others and slides up to the next every 8 seconds, with dots down its side. With it focused, **Up** / **Down** flips through by hand and OK opens the page of the one showing. Choose what goes in it under **Settings → Widgets → Widget stack**; hold OK on one, then **Left** / **Right**, to move it, the same way as moving a favourite. While Settings → Widgets is open, the home screen steps aside to the left as a live preview, undimmed.
+- **Update from the launcher**: when a newer release is on GitHub, a card above Favorites says so. **Update** downloads it with a progress bar, then Android asks to confirm; settings and favourites stay. **Settings → Updates** checks by hand, shows what's new, and turns the automatic check off.
+- **Letter strip search**: Search opens on a strip of letters. **Left** / **Right** and OK spell a name without the keyboard, the results narrow as you go, and letters no app's name continues with are dimmed. The TV keyboard is still on the search field.
+- **Goals and wins**: when a team you follow scores, its football card flashes green, the score flips to the new one and the card says "Goal · Algeria 78'". A win ends at full time in a short burst of confetti. A widget stack holding the football card brings it forward. Everything stays inside the card: long team names give way with an ellipsis before the score does, and nothing moves on the idle screen.
+
 ## 3.0 (October 2026)
 
 A new look, built from the 3.0 mockup video.
