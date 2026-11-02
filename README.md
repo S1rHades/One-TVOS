@@ -120,7 +120,7 @@ The weather, football and headlines pages are described in their own sections be
 
 **Wi-Fi** in the bar opens the Internet page: a speed test and a way into the TV's network settings. See [Internet speed test](#internet-speed-test).
 
-<p align="center"><img src="docs/screenshots/internet.png" width="100%" alt="The Internet page: a Network settings button at the top left, level with the bar; below the Internet title, a speed dial reading 0.0 Mbps with Press OK to start and a Start test button, and a results card for ping, download and upload"></p>
+<p align="center"><img src="docs/screenshots/internet.png" width="100%" alt="The Internet page: a Network settings button at the top left, level with the bar; below the Internet title, a speed dial reading 0.0 Mbps with Choose Start test to begin and a Start test button, and a results card for ping, download and upload"></p>
 
 ### Settings
 
@@ -291,7 +291,7 @@ Al Jazeera is read from its RSS feed, or from a copy the Fixtures mirror keeps o
 2. **Download**: about seven seconds of downloading. The dial follows the speed live.
 3. **Upload**: about five seconds of uploading.
 
-When it's done, a chip says in plain words what the speed is good for: 4K streaming (25 Mbps or more), HD streaming (10 or more), standard video (4 or more), or slow. The results card shows all three numbers, the network (with its signal on Wi-Fi, and whether a VPN is on) and when the last test ran. The last result is saved on the TV. Nothing is measured until you press **Start test**, and Back stops a test at once. **Network settings**, at the top left of the page, opens the TV's own Wi-Fi and network screen.
+When it's done, a chip says in plain words what the speed is good for: 4K streaming (25 Mbps or more), HD streaming (10 or more), standard video (4 or more), or slow. The results card shows all three numbers, the network (with its signal on Wi-Fi, and whether a VPN is on) and when the last test ran. The last result is saved on the TV. Nothing is measured until you press **Start test**, and Back stops a test at once. **Network settings**, at the top left of the page and focused when it opens (**Down** goes to Start test), opens the TV's own Wi-Fi and network screen.
 
 ### Online photos
 

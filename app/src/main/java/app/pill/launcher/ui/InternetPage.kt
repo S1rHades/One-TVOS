@@ -93,6 +93,8 @@ fun InternetPage(onOpenNetworkSettings: () -> Unit, onDismiss: () -> Unit) {
     val samples = remember { mutableStateListOf<Double>() }
     var job by remember { mutableStateOf<Job?>(null) }
     val startFocus = remember { FocusRequester() }
+    // The page opens on Network settings at the top left; Down goes to Start test
+    val networkFocus = remember { FocusRequester() }
 
     fun start() {
         if (job?.isActive == true) return
@@ -136,14 +138,14 @@ fun InternetPage(onOpenNetworkSettings: () -> Unit, onDismiss: () -> Unit) {
         nav = NavItem.Internet,
         // The TV's own network settings, at the top left level with the bar
         topLeft = {
-            PageButton("Network settings", onClick = onOpenNetworkSettings) { tint ->
+            PageButton("Network settings", onClick = onOpenNetworkSettings, modifier = Modifier.focusRequester(networkFocus)) { tint ->
                 WifiIcon(NetworkStatus(Link.WiFi, 4, false), tint, 18.dp)
             }
         },
     ) { _ ->
         LaunchedEffect(Unit) {
             delay(60)
-            runCatching { startFocus.requestFocus() }
+            runCatching { networkFocus.requestFocus() }
         }
         PageTitle("Internet", "Test your connection · Back to close", Modifier.reveal(0))
         Row(Modifier.fillMaxWidth().height(PageBodyHeight), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -167,7 +169,7 @@ fun InternetPage(onOpenNetworkSettings: () -> Unit, onDismiss: () -> Unit) {
                         phase == SpeedPhase.Upload -> "Testing upload…"
                         error != null -> error!!
                         result != null -> "Tested just now"
-                        else -> "Press OK to start"
+                        else -> "Choose Start test to begin"
                     },
                     color = Palette.TextSecondary, fontSize = 14.sp, maxLines = 1,
                     modifier = Modifier.align(Alignment.CenterHorizontally),

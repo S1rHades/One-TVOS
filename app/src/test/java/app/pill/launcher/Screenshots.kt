@@ -801,7 +801,12 @@ class Screenshots {
         settle()
         compose.onNodeWithText("Start test").assertIsDisplayed()
         compose.onNodeWithText("Network settings").assertIsDisplayed()
+        // The page opens on Network settings; Down goes to Start test
+        compose.onNode(isFocused() and hasText("Network settings")).assertExists()
         captureScreenRoboImage(File(out, "internet.png").path)
+        compose.onNode(isFocused() and hasText("Network settings")).performKeyInput { pressKey(Key.DirectionDown) }
+        settle()
+        compose.onNode(isFocused() and hasText("Start test")).assertExists()
     }
 
     /** Down to the chips above All apps, then OK on Video: only the video apps, waved in. */

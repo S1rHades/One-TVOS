@@ -9,6 +9,7 @@ Pill Launcher is built from `main` on every change; the newest build is always t
 - **Football page**: the league table column is gone (the free data has nothing worth showing there); the next match and the latest result fill the page.
 - **All apps**: going down into it is now a page turn. The first page fades and settles back, All apps rises into place and its apps wave in, and the scroll eases in more slowly. The line beside the All apps title, which ran under the bar, is gone.
 - **Chips**: the focused chip lifts and glows, instead of the dark ring.
+- **Internet page**: it opens with focus on **Network settings**; **Down** goes to **Start test**.
 
 ## 3.1.2 (November 2026)
 
