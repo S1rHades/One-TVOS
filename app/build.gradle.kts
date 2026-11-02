@@ -12,8 +12,8 @@ android {
         applicationId = "app.pill.launcher"
         minSdk = 26
         targetSdk = 34
-        versionCode = 24
-        versionName = "3.1.1"
+        versionCode = 25
+        versionName = "3.1.2"
     }
 
     // CI signs with one permanent key (from repository secrets, see build.yml) so each new

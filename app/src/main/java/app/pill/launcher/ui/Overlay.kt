@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -51,6 +52,8 @@ fun OverlayPage(
     framed: Boolean = true,
     /** The bar item this page belongs to (the Internet page's), marked in the bar at the top. */
     nav: NavItem? = null,
+    /** A button for the top left, level with the bar and above the page's title. */
+    topLeft: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.(close: () -> Unit) -> Unit,
 ) {
     var showing by remember { mutableStateOf(true) }
@@ -78,6 +81,17 @@ fun OverlayPage(
                 }
                 // Pages sit below the bar at the top right, which stays usable on every page
                 TopNav(nav)
+                topLeft?.let { button ->
+                    Box(
+                        Modifier
+                            .align(Alignment.TopCenter)
+                            .padding(top = NavTop)
+                            .width(width)
+                            .height(NavHeight)
+                            .reveal(0),
+                        contentAlignment = Alignment.CenterStart,
+                    ) { button() }
+                }
                 Column(
                     Modifier
                         .align(Alignment.Center)

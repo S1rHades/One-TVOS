@@ -120,7 +120,7 @@ The weather, football and headlines pages are described in their own sections be
 
 **Wi-Fi** in the bar opens the Internet page: a speed test and a way into the TV's network settings. See [Internet speed test](#internet-speed-test).
 
-<p align="center"><img src="docs/screenshots/internet.png" width="100%" alt="The Internet page: a speed dial reading 0.0 Mbps with Press OK to start, Start test and Network settings buttons, and a results card for ping, download and upload"></p>
+<p align="center"><img src="docs/screenshots/internet.png" width="100%" alt="The Internet page: a Network settings button at the top left, level with the bar; below the Internet title, a speed dial reading 0.0 Mbps with Press OK to start and a Start test button, and a results card for ping, download and upload"></p>
 
 ### Settings
 
@@ -176,7 +176,7 @@ On TVs that ignore that command, turning off the stock launcher works too (turn 
 
 The `latest` release is rebuilt automatically every time `main` changes, so installing it again always gets you the newest version.
 
-Every version also keeps its own release, named after it (**Pill Launcher 3.1.1**, tag `v3.1.1`, file `pill-launcher-3.1.1.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v3.1.1/pill-launcher-3.1.1.apk`. The newest is titled **Pill Launcher 3.1.1 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
+Every version also keeps its own release, named after it (**Pill Launcher 3.1.2**, tag `v3.1.2`, file `pill-launcher-3.1.2.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v3.1.2/pill-launcher-3.1.2.apk`. The newest is titled **Pill Launcher 3.1.2 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
 
 ### Uninstalling
 
@@ -286,7 +286,7 @@ Al Jazeera is read from its RSS feed, or from a copy the Fixtures mirror keeps o
 2. **Download**: about seven seconds of downloading. The dial follows the speed live.
 3. **Upload**: about five seconds of uploading.
 
-When it's done, a chip says in plain words what the speed is good for: 4K streaming (25 Mbps or more), HD streaming (10 or more), standard video (4 or more), or slow. The results card shows all three numbers, the network (with its signal on Wi-Fi, and whether a VPN is on) and when the last test ran. The last result is saved on the TV. Nothing is measured until you press **Start test**, and Back stops a test at once. **Network settings** opens the TV's own Wi-Fi and network screen.
+When it's done, a chip says in plain words what the speed is good for: 4K streaming (25 Mbps or more), HD streaming (10 or more), standard video (4 or more), or slow. The results card shows all three numbers, the network (with its signal on Wi-Fi, and whether a VPN is on) and when the last test ran. The last result is saved on the TV. Nothing is measured until you press **Start test**, and Back stops a test at once. **Network settings**, at the top left of the page, opens the TV's own Wi-Fi and network screen.
 
 ### Online photos
 
@@ -307,7 +307,7 @@ gradle assembleDebug                                   # app/build/outputs/apk/d
 gradle :app:testDebugUnitTest --tests '*Screenshots*'  # re-render docs/screenshots
 ```
 
-**Builds are automated.** `.github/workflows/build.yml` builds the APK for every pull request and push; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v3.1.1`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
+**Builds are automated.** `.github/workflows/build.yml` builds the APK for every pull request and push; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v3.1.2`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
 
 <details>
 <summary><b>Architecture</b></summary>

@@ -3,6 +3,10 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 3.1.2 (November 2026)
+
+- **Internet page**: **Network settings** moved to the top left, level with the bar and above the Internet title. **Start test** stays in the dial's card.
+
 ## 3.1.1 (November 2026)
 
 - **Fix**: Down from the bar at the top right now always moves: to the widgets when one takes focus, else the first favourite, and to the top of All apps when that is on screen (or there is nothing else). Before, focus stayed stuck on the bar.
