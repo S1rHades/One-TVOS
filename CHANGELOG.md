@@ -3,6 +3,14 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 3.2 (November 2026)
+
+- **Football card**: a thin line along its bottom fills up until the next team takes over. With the card focused it waits, and **Left** / **Right** switch between the teams by hand (also inside a widget stack).
+- **Football page**: the league table column is gone (the free data has nothing worth showing there); the next match and the latest result fill the page.
+- **All apps**: going down into it is now a page turn. The first page fades and settles back, All apps rises into place and its apps wave in, and the scroll eases in more slowly. The line beside the All apps title, which ran under the bar, is gone.
+- **Chips**: the focused chip lifts and glows, instead of the dark ring.
+- **Internet page**: it opens with focus on **Network settings**; **Down** goes to **Start test**.
+
 ## 3.1.2 (November 2026)
 
 - **Internet page**: **Network settings** moved to the top left, level with the bar and above the Internet title. **Start test** stays in the dial's card.

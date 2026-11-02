@@ -98,7 +98,6 @@ import app.pill.launcher.AppCategory
 import app.pill.launcher.AppEntry
 import androidx.compose.animation.core.LinearEasing
 import app.pill.launcher.Fixtures
-import app.pill.launcher.LeagueTable
 import app.pill.launcher.MatchDayMode
 import app.pill.launcher.News
 import app.pill.launcher.Team
@@ -147,8 +146,6 @@ fun LauncherScreen(
     football: List<Fixtures> = emptyList(),
     /** Headlines from both sources, and why a source failed; null until the first fetch. */
     news: News? = null,
-    /** The top of a league's table for a season, for the football page; null when there is none. */
-    loadTable: suspend (leagueId: String, season: String) -> LeagueTable? = { _, _ -> null },
     /** Teams matching a search, for Settings → Football. */
     searchTeams: suspend (String) -> List<TeamHit> = { emptyList() },
     /** Today's online nature photos; empty until loaded, or when unavailable. */
@@ -363,6 +360,13 @@ fun LauncherScreen(
         gridClock.animateTo(Motion.RevealMs.toFloat(), tween(Motion.RevealMs, easing = LinearEasing))
     }
     val gridReveal = remember { derivedStateOf { gridClock.value } }
+    // Arriving in All apps, its cards wave in, the same as a new chip's
+    val inAllApps by remember { derivedStateOf { scroll.value > 0 } }
+    LaunchedEffect(inAllApps) {
+        if (!inAllApps) return@LaunchedEffect
+        gridClock.snapTo(0f)
+        gridClock.animateTo(Motion.RevealMs.toFloat(), tween(Motion.RevealMs + 200, easing = LinearEasing))
+    }
 
     // Back in All apps returns to the first page (on the first page, Back does nothing)
     val scrolled by remember { derivedStateOf { scroll.value > 0 } }
@@ -538,7 +542,25 @@ fun LauncherScreen(
                             .padding(start = Spacing.ScreenH, end = Spacing.ScreenH, top = Spacing.ScreenV, bottom = 48.dp),
                     ) {
                         // First page: the greeting, the widgets and favourites only. The grid starts below the fold.
-                        Column(Modifier.fillMaxWidth().height(pageHeight)) {
+                        // Going down into All apps it dissolves: fading, drifting more slowly than the
+                        // scroll and settling back a little, so All apps comes forward over it.
+                        Column(
+                            Modifier
+                                .fillMaxWidth()
+                                .height(pageHeight)
+                                .graphicsLayer {
+                                    val d = depth
+                                    if (d > 0f) {
+                                        val t = (d * 1.6f).coerceIn(0f, 1f)
+                                        alpha = 1f - t * t * (3f - 2f * t)
+                                        translationY = scroll.value * 0.35f
+                                        val sc = 1f - 0.05f * t
+                                        scaleX = sc
+                                        scaleY = sc
+                                        transformOrigin = TransformOrigin(0.5f, 0f)
+                                    }
+                                },
+                        ) {
                             // Level with the bar at the top right, which has the rest of the line to itself
                             Box(
                                 Modifier
@@ -655,8 +677,20 @@ fun LauncherScreen(
                             Spacer(Modifier.height(pageEdge))
                         }
 
-                        // All apps fills at least a screen, so it scrolls to the top even with a short filter
-                        Column(Modifier.fillMaxWidth().heightIn(min = screenHeight - Spacing.ScreenV - 48.dp)) {
+                        // All apps fills at least a screen, so it scrolls to the top even with a short filter.
+                        // It rises into place and comes into focus as the first page dissolves.
+                        val rise = with(LocalDensity.current) { 28.dp.toPx() }
+                        Column(
+                            Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = screenHeight - Spacing.ScreenV - 48.dp)
+                                .graphicsLayer {
+                                    val t = ((depth - 0.25f) / 0.6f).coerceIn(0f, 1f)
+                                    val e = 1f - (1f - t) * (1f - t) * (1f - t)
+                                    alpha = 0.15f + 0.85f * e
+                                    translationY = (1f - e) * rise
+                                },
+                        ) {
                         SectionTitle(
                             "All apps",
                             hint = apps?.let { if (it.size == 1) "1 app" else "${it.size} apps" },
@@ -810,7 +844,7 @@ fun LauncherScreen(
                 ForecastPage(weather, settings.weather, onDismiss = { forecastOpen = false })
             }
             hubTeam?.let { team ->
-                FootballHub(football, team, loadTable, onDismiss = { hubTeam = null })
+                FootballHub(football, team, onDismiss = { hubTeam = null })
             }
             headlineAt?.let { start ->
                 HeadlinePage(headlines, start, onDismiss = { headlineAt = null })
@@ -853,7 +887,11 @@ private class PageScrollSpec(
 ) : BringIntoViewSpec {
     private var target = 0f
 
-    override val scrollAnimationSpec: AnimationSpec<Float> = tween(300, easing = FastOutSlowInEasing)
+    // Between the first page and All apps the move is a page turn: longer, easing out gently.
+    // Inside the grid, a row at a time, it stays quick.
+    private var pageTurn = false
+    override val scrollAnimationSpec: AnimationSpec<Float>
+        get() = if (pageTurn) tween(Motion.Page + 100, easing = Motion.EnterEasing) else tween(300, easing = FastOutSlowInEasing)
 
     override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float {
         val current = scroll.value.toFloat()
@@ -862,6 +900,7 @@ private class PageScrollSpec(
         val top = current + offset
         val bottom = top + size
         val edge = containerSize * PAGE_EDGE
+        val from = target
         target = when {
             top < firstPageEnd -> 0f
             // Coming down from the first page into All apps: its title goes to the top
@@ -870,6 +909,8 @@ private class PageScrollSpec(
             top > target -> top - edge
             else -> bottom - (containerSize - edge)
         }.coerceIn(0f, scroll.maxValue.toFloat())
+        // Crossing the fold either way is a page turn
+        pageTurn = (from < firstPageEnd - 1f) != (target < firstPageEnd - 1f)
         return target - current
     }
 }
@@ -984,15 +1025,6 @@ private fun SectionTitle(text: String, hint: String? = null, modifier: Modifier 
                 modifier = Modifier.padding(bottom = 3.dp),
             )
         }
-        // A thin rule fading to the right, setting the section apart without a box
-        Spacer(Modifier.width(16.dp))
-        Box(
-            Modifier
-                .weight(1f)
-                .padding(bottom = 10.dp)
-                .height(1.dp)
-                .background(Brush.horizontalGradient(listOf(Color(0x47FFFFFF), Color.Transparent))),
-        )
     }
 }
 

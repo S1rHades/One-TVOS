@@ -454,6 +454,39 @@ class Screenshots {
         check(focusedName().contains("Cinema")) { "Home from a page goes to the first favourite: ${focusedName()}" }
     }
 
+    /**
+     * The football card with two teams: a line fills along its bottom until the next team takes
+     * over; with the card focused, Right and Left flip between the teams by hand.
+     */
+    @Test
+    fun footballCardTurns() {
+        show("canyon-river", pins = favorites, football = matchDay(inMinutes = 60 * 24 * 3))
+        val card = compose.onNode(hasClickAction() and (hasText("Algeria", substring = true) or hasText("ALG", substring = true) or hasText("Arsenal", substring = true) or hasText("ARS", substring = true)))
+        // Which team the card is on (its countdown can tick, so compare teams, not text)
+        fun text(): String {
+            val t = card.fetchSemanticsNode().config.getOrElseNullable(androidx.compose.ui.semantics.SemanticsProperties.Text) { null }?.joinToString(" ").orEmpty()
+            return if (t.contains("Algeria") || t.contains("ALG") || t.contains("Fennecs")) "Algeria" else "Arsenal"
+        }
+        // Part way to the next team
+        compose.mainClock.advanceTimeBy(9_000)
+        settle()
+        card.captureRoboImage(File(out, "football-card.png").path)
+        card.requestFocus()
+        settle()
+        val first = text()
+        card.performKeyInput { pressKey(Key.DirectionRight) }
+        settle()
+        val second = text()
+        check(second != first) { "Right shows the other team: $first / $second" }
+        card.performKeyInput { pressKey(Key.DirectionLeft) }
+        settle()
+        check(text() == first) { "Left comes back: ${text()}" }
+        // While it has focus the card waits for you
+        compose.mainClock.advanceTimeBy(25_000)
+        settle()
+        check(text() == first) { "no turn while focused: ${text()}" }
+    }
+
     /** Settings from the bar on a page opens over the page; closing Settings shows the page again. */
     @Test
     fun navigationSettingsOverAPage() {
@@ -717,11 +750,9 @@ class Screenshots {
             .performSemanticsAction(SemanticsActions.OnClick)
         settle()
         compose.onNodeWithText("LATEST RESULT").assertIsDisplayed()
-        if (compose.onAllNodesWithText("Manchester City").fetchSemanticsNodes().isEmpty()) {
-            compose.onNodeWithText("LATEST RESULT").performKeyInput { pressKey(Key.DirectionDown) }
-            settle()
-        }
-        compose.onNodeWithText("Manchester City").assertIsDisplayed()
+        // No table any more: the match fills the page
+        compose.onNodeWithText("NEXT MATCH").assertIsDisplayed()
+        compose.onNodeWithText("Manchester City").assertDoesNotExist()
         captureScreenRoboImage(File(out, "football-hub.png").path)
     }
 
@@ -770,7 +801,12 @@ class Screenshots {
         settle()
         compose.onNodeWithText("Start test").assertIsDisplayed()
         compose.onNodeWithText("Network settings").assertIsDisplayed()
+        // The page opens on Network settings; Down goes to Start test
+        compose.onNode(isFocused() and hasText("Network settings")).assertExists()
         captureScreenRoboImage(File(out, "internet.png").path)
+        compose.onNode(isFocused() and hasText("Network settings")).performKeyInput { pressKey(Key.DirectionDown) }
+        settle()
+        compose.onNode(isFocused() and hasText("Start test")).assertExists()
     }
 
     /** Down to the chips above All apps, then OK on Video: only the video apps, waved in. */
@@ -831,9 +867,6 @@ class Screenshots {
                 weather = weather,
                 football = footballNow,
                 news = news,
-                loadTable = { league, _ ->
-                    if (league == "4328") parseTable(data("table-epl.json")).let { t -> t.copy(rows = t.rows.map { it.copy(badge = null) }) } else null
-                },
                 searchTeams = { q -> searchTeams(listOf(Algeria, arsenal, Team("139283", "MC Alger", league = "Algerian Ligue 1", country = "Algeria"), Team("1", "Algeria U23", country = "Algeria")), q).map { TeamHit(it, it.id != "1") } },
                 pins = pinned,
                 settings = current,

@@ -120,6 +120,10 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.KeyEvent
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.animation.core.withInfiniteAnimationFrameMillis
+import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -264,7 +268,7 @@ private class WidgetContent(
         when (kind) {
             WidgetKind.Clock -> ClockCard(compact, modifier, onOpenClock)
             WidgetKind.Weather -> WeatherCard(weather, weatherError, mode, compact, animate, modifier, onOpenWeather.takeIf { weather?.forecast != null })
-            WidgetKind.Fennecs -> FootballCard(football, matchDay, compact, modifier, onOpenFootball, moment.takeIf { animate })
+            WidgetKind.Fennecs -> FootballCard(football, matchDay, compact, modifier, onOpenFootball, moment.takeIf { animate }, animate)
             WidgetKind.Daylight -> DaylightCard(weather, compact, modifier)
             WidgetKind.System -> SystemCard(compact, modifier)
             WidgetKind.Headlines -> HeadlinesCard(headlines, headlinesStatus, compact, modifier, onOpenHeadline)
@@ -280,6 +284,8 @@ private class WidgetContent(
 private class StackSlot {
     var action by mutableStateOf<(() -> Unit)?>(null)
     var focused by mutableStateOf(false)
+    /** Left / Right for the card on show (the football card's teams). */
+    var keys by mutableStateOf<((KeyEvent) -> Boolean)?>(null)
 }
 
 private val LocalStackSlot = compositionLocalOf<StackSlot?> { null }
@@ -327,6 +333,10 @@ private fun StackCard(stack: List<WidgetKind>, preview: WidgetKind?, content: Wi
             }
             .onFocusChanged { focused = it.isFocused }
             .onPreviewKeyEvent { event ->
+                // Left / Right belong to the card on show when it uses them (the football card's teams)
+                if (event.key == Key.DirectionLeft || event.key == Key.DirectionRight) {
+                    return@onPreviewKeyEvent shown?.let { slots[it]?.keys?.invoke(event) } == true
+                }
                 // Up / Down flip through the stack; past either end focus moves on as usual
                 val step = when (event.key) {
                     Key.DirectionUp -> -1
@@ -408,6 +418,10 @@ private fun WidgetCard(
     wash: Float = 0.2f,
     /** Extra wash on top, already animated (a goal's flash). */
     flash: Float = 0f,
+    /** Keys for the card while it has focus (the football card's Left / Right). */
+    onKey: ((KeyEvent) -> Boolean)? = null,
+    /** Told when the card gains or loses focus. */
+    onFocusChange: ((Boolean) -> Unit)? = null,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val interaction = remember { MutableInteractionSource() }
@@ -415,8 +429,12 @@ private fun WidgetCard(
     var ownFocus by remember { mutableStateOf(false) }
     // In a stack, the stack holds focus and does the growing; the card shows the edge
     val slot = LocalStackSlot.current
-    if (slot != null) SideEffect { slot.action = onClick }
+    if (slot != null) SideEffect {
+        slot.action = onClick
+        slot.keys = onKey
+    }
     val focused = slot?.focused ?: ownFocus
+    LaunchedEffect(focused) { onFocusChange?.invoke(focused) }
     val lift by animateFloatAsState(if (hovered || focused) 1f else 0f, FocusSpring, label = "widgetLift")
     val focusLift by animateFloatAsState(if (focused) 1f else 0f, FocusSpring, label = "widgetFocus")
     val washColor by animateColorAsState(accent, tween(900), label = "widgetWash")
@@ -438,7 +456,10 @@ private fun WidgetCard(
             .hoverable(interaction)
             .then(
                 if (onClick == null || slot != null) Modifier
-                else Modifier.onFocusChanged { ownFocus = it.isFocused }.clickable(interactionSource = interaction, indication = null, onClick = onClick),
+                else Modifier
+                    .then(if (onKey != null) Modifier.onPreviewKeyEvent(onKey) else Modifier)
+                    .onFocusChanged { ownFocus = it.isFocused }
+                    .clickable(interactionSource = interaction, indication = null, onClick = onClick),
             )
             .glass(CardShape)
             .background(Brush.linearGradient(listOf(washColor.copy(alpha = (washAlpha + flash + 0.08f * lift).coerceAtMost(1f)), Color.Transparent), start = Offset.Zero, end = Offset(520f, 360f)))
@@ -534,6 +555,8 @@ private fun FootballCard(
     modifier: Modifier,
     onClick: ((Team) -> Unit)?,
     moment: FootballMoment? = null,
+    /** False on the idle screen, where the turn line is left out (nothing moves there). */
+    animate: Boolean = true,
 ) {
     val zone = ZoneId.systemDefault()
     // Ticks every second while a countdown is on screen, otherwise twice a minute
@@ -547,16 +570,64 @@ private fun FootballCard(
         }
     }
     val shown = cardTeams(football, matchDay, now, zone)
+    // Which team is on show. Every 20 seconds the next takes over, a line along the bottom
+    // filling up until then; while the card has focus it waits, and Left / Right flip by hand.
     var turn by remember { mutableIntStateOf(0) }
-    LaunchedEffect(shown.size) {
-        while (shown.size > 1) {
-            delay(20_000)
-            turn++
+    var cardFocused by remember { mutableStateOf(false) }
+    val count = shown.size
+    val index = if (count == 0) 0 else turn.mod(count)
+    var turnProgress by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(count, turn, cardFocused, moment) {
+        if (count < 2 || moment != null) {
+            turnProgress = 0f
+            return@LaunchedEffect
+        }
+        if (cardFocused) return@LaunchedEffect
+        // Frame by frame from where it got to; an endless animation as far as Compose is concerned
+        val from = turnProgress
+        var start = -1L
+        while (true) {
+            val p = withInfiniteAnimationFrameMillis { ms ->
+                if (start < 0) start = ms
+                from + (ms - start) / TeamTurnMs.toFloat()
+            }
+            if (p >= 1f) {
+                turnProgress = 0f
+                turn++
+                break
+            }
+            turnProgress = p
+        }
+    }
+    val flip = { by: Int ->
+        val to = index + by
+        if (count > 1 && to in 0 until count) {
+            turn = to
+            true
+        } else {
+            false
+        }
+    }
+    val keys: (KeyEvent) -> Boolean = { event ->
+        val by = when (event.key) {
+            Key.DirectionLeft -> -1
+            Key.DirectionRight -> 1
+            else -> 0
+        }
+        // Past the first or last team, Left / Right move on to the next widget as usual
+        when {
+            by == 0 || count < 2 || (index + by) !in 0 until count -> false
+            event.type == KeyEventType.KeyDown -> {
+                flip(by)
+                turnProgress = 0f
+                true
+            }
+            else -> true
         }
     }
     // A goal or a win brings its team forward for as long as it lasts
     val celebrated = moment?.let { m -> football.firstOrNull { it.team.id == m.team.id } }
-    val current = celebrated ?: shown.getOrNull(turn % shown.size.coerceAtLeast(1))
+    val current = celebrated ?: shown.getOrNull(index)
     val phase = current?.takeIf { matchDayApplies(it.team, matchDay) }?.let { matchPhase(it, now, zone) } ?: MatchPhase.None
     val countdown = phase == MatchPhase.Today || phase == MatchPhase.Soon
     // The green flash: up at once on a goal, then easing back over a few seconds
@@ -575,6 +646,8 @@ private fun FootballCard(
         onClick = current?.let { c -> onClick?.let { open -> { open(c.team) } } },
         wash = if (countdown || phase == MatchPhase.Live || moment != null) 0.42f else 0.2f,
         flash = 0.5f * flash.value,
+        onKey = keys,
+        onFocusChange = { cardFocused = it },
     ) {
         Crossfade(current, animationSpec = tween(600), label = "footballTeam", modifier = Modifier.align(Alignment.Center)) { f ->
             Box(Modifier.fillMaxSize().clipToBounds(), contentAlignment = Alignment.CenterStart) {
@@ -586,7 +659,33 @@ private fun FootballCard(
             }
         }
         if (moment?.kind == MomentKind.Win) Confetti(moment.at, Modifier.matchParentSize())
-        if (shown.size > 1 && moment == null) PageDots(shown.size, turn % shown.size, Modifier.align(Alignment.TopEnd))
+        if (count > 1 && moment == null) {
+            PageDots(count, index, Modifier.align(Alignment.TopEnd))
+            if (animate) TurnLine({ turnProgress }, Modifier.align(Alignment.BottomCenter).offset(y = 8.dp))
+        }
+    }
+}
+
+/** How long each followed team stays on the football card. */
+private const val TeamTurnMs = 20_000
+
+/**
+ * A hairline along the bottom of the card filling up until the next team takes over.
+ * Read in the draw phase, so it moves without recomposing the card.
+ */
+@Composable
+private fun TurnLine(progress: () -> Float, modifier: Modifier = Modifier) {
+    Canvas(modifier.fillMaxWidth().height(3.dp)) {
+        val r = size.height / 2
+        drawRoundRect(Color(0x24FFFFFF), cornerRadius = androidx.compose.ui.geometry.CornerRadius(r, r))
+        val p = progress().coerceIn(0f, 1f)
+        if (p > 0f) {
+            drawRoundRect(
+                Color(0x99FFFFFF),
+                size = Size(size.width * p, size.height),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(r, r),
+            )
+        }
     }
 }
 
