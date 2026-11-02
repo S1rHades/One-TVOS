@@ -382,7 +382,8 @@ class Screenshots {
         settle()
         gear.performKeyInput { pressKey(Key.DirectionDown) }
         settle()
-        compose.onNode(isFocused()).assert(hasText("Background") or hasText("Widgets") or hasText("Favorites row"))
+        // The home screen behind keeps its own focused tile; the panel's focus is on its first row
+        compose.onNode(isFocused() and (hasText("Background") or hasText("Widgets") or hasText("Favorites row"))).assertExists()
     }
 
     /** Menu → Rename… on the first favourite: the name changes only in the launcher. */

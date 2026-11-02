@@ -12,6 +12,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -93,6 +98,8 @@ fun NavBar(
     onSelect: (NavItem) -> Unit,
     modifier: Modifier = Modifier,
     settingsFocus: FocusRequester? = null,
+    /** Where Down from the bar goes; without it, to whatever is below. */
+    onDown: (() -> Unit)? = null,
 ) {
     val network by rememberNetworkStatus()
     // The focused item, or -1 while focus is elsewhere
@@ -124,7 +131,13 @@ fun NavBar(
     }
     val labelShown by animateFloatAsState(if (tip) 1f else 0f, tween(Motion.Quick), label = "navLabel")
 
-    Box(modifier) {
+    Box(
+        modifier.onPreviewKeyEvent { event ->
+            if (onDown == null || event.key != Key.DirectionDown) return@onPreviewKeyEvent false
+            if (event.type == KeyEventType.KeyDown) onDown()
+            true
+        },
+    ) {
         Box(Modifier.glass(RoundedCornerShape(50)).padding(BarPad)) {
             Box(
                 Modifier

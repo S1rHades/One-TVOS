@@ -280,6 +280,19 @@ fun LauncherScreen(
         runCatching { pillFocus.requestFocus() }
     }
 
+    // Down from the bar at the top right: the first favourite, or the top of All apps when
+    // that is on screen (or there are no favourites). Left to itself, focus search from the
+    // corner can settle on nothing, since the widgets under the bar don't all take focus.
+    fun leaveBar() {
+        scope.launch {
+            if (scroll.value == 0) {
+                val first = currentPinned.firstOrNull()?.let { favoriteFocus[it.pkg] }
+                if (first != null && runCatching { first.requestFocus() }.isSuccess) return@launch
+            }
+            runCatching { chipFocus.requestFocus() }
+        }
+    }
+
     LaunchedEffect(apps != null) {
         if (apps == null || initialFocusDone) return@LaunchedEffect
         focusFirstPage()
@@ -664,6 +677,7 @@ fun LauncherScreen(
                 current = if (scrolled) null else NavItem.Home,
                 onSelect = { navigate(it) },
                 settingsFocus = pillFocus,
+                onDown = { leaveBar() },
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(top = NavTop, end = Spacing.ScreenH)
