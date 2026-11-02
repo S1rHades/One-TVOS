@@ -599,6 +599,9 @@ private fun SettingRow(
     onPreviewKey: ((KeyEvent) -> Boolean)? = null,
     /** Being moved: a white edge while it travels. */
     moving: Boolean = false,
+    /** A line of text to read rather than a setting: smaller, wrapping title. */
+    small: Boolean = false,
+    subtitleLines: Int = 2,
     trailing: @Composable (focused: Boolean) -> Unit,
 ) {
     val interaction = remember { MutableInteractionSource() }
@@ -638,9 +641,9 @@ private fun SettingRow(
         horizontalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Column(Modifier.weight(1f)) {
-            Text(title, color = textColor, fontSize = 19.sp, fontWeight = FontWeight.Medium)
+            Text(title, color = textColor, fontSize = if (small) 16.sp else 19.sp, fontWeight = if (small) FontWeight.Normal else FontWeight.Medium)
             if (subtitle != null) {
-                Text(subtitle, color = textColor.copy(alpha = 0.6f), fontSize = 14.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(subtitle, color = textColor.copy(alpha = 0.6f), fontSize = 14.sp, maxLines = subtitleLines, overflow = TextOverflow.Ellipsis)
             }
         }
         trailing(active)
@@ -1170,10 +1173,20 @@ private fun UpdatesPage(
             onClick = { onChange(settings.copy(checkUpdates = !settings.checkUpdates)) },
         ) { focused -> Switch(checked = settings.checkUpdates, focused = focused) }
     }
+    // Rows that take focus, so Down scrolls through everything (plain text can't be reached)
     if (release != null && release.notes.isNotEmpty()) {
         Group("What's new in ${release.version}") {
-            for (line in release.notes) Note("• $line")
+            for (line in release.notes) {
+                SettingRow(title = line, subtitle = null, onClick = {}, small = true) { }
+            }
         }
     }
-    Note("Updates come from Pill Launcher's releases on GitHub and are signed with the same key, so settings and favourites stay. Android asks you to confirm each install, and the first time to allow Pill Launcher to install apps.")
+    Group(null) {
+        SettingRow(
+            title = "About updates",
+            subtitle = "From Pill Launcher's releases on GitHub, signed with the same key, so settings and favourites stay. Android asks you to confirm each install, and the first time to allow Pill Launcher to install apps.",
+            onClick = {},
+            subtitleLines = 4,
+        ) { }
+    }
 }

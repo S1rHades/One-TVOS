@@ -263,21 +263,26 @@ class MainActivity : ComponentActivity() {
                     }
                     updateJob = updateScope.launch {
                         update = update.copy(phase = UpdatePhase.Downloading, progress = 0f, message = null)
-                        try {
+                        val apk = try {
                             var shown = 0f
-                            val apk = updater.download(release) { p ->
+                            updater.download(release) { p ->
                                 if (p - shown >= 0.01f || p >= 1f) {
                                     shown = p
                                     update = update.copy(progress = p)
                                 }
                             }
-                            update = update.copy(phase = UpdatePhase.Installing, progress = 1f)
-                            updater.install(apk)
                         } catch (e: CancellationException) {
                             update = update.copy(phase = UpdatePhase.Available, progress = 0f)
                             throw e
                         } catch (e: Exception) {
-                            update = update.copy(phase = UpdatePhase.Failed, message = "The download stopped: check the connection and try again")
+                            update = update.copy(phase = UpdatePhase.Failed, message = "Couldn't download it: " + updateProblem(e))
+                            return@launch
+                        }
+                        update = update.copy(phase = UpdatePhase.Installing, progress = 1f)
+                        // Android's installer in the background, else its own install screen
+                        val started = runCatching { updater.install(apk) }
+                        if (started.isFailure && !updater.installWithSystemScreen(apk)) {
+                            update = update.copy(phase = UpdatePhase.Failed, message = "Couldn't start the install: " + updateProblem(started.exceptionOrNull()!!))
                         }
                     }
                 },

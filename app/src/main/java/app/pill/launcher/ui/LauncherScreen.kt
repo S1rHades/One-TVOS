@@ -610,7 +610,8 @@ fun LauncherScreen(
                             val updateShown = update.release != null && update.release.version != updateDismissed &&
                                 update.phase in setOf(UpdatePhase.Available, UpdatePhase.Downloading, UpdatePhase.Installing, UpdatePhase.Failed)
                             AnimatedVisibility(
-                                visible = updateShown,
+                                // Never on the idle screen, which shows only the widgets and the photo
+                                visible = updateShown && !idle,
                                 enter = fadeIn(tween(Motion.Enter, easing = Motion.EnterEasing)) + expandVertically(tween(Motion.Enter, easing = Motion.EnterEasing)),
                                 exit = fadeOut(tween(Motion.Exit)) + shrinkVertically(tween(Motion.Exit + 80, easing = Motion.ExitEasing)),
                             ) {
@@ -625,7 +626,7 @@ fun LauncherScreen(
 
                             // Until the launcher is the home screen (or helped), closing apps leads elsewhere
                             AnimatedVisibility(
-                                visible = !updateShown && !home.isDefault && !home.redirectOn && !settings.homePromptDismissed,
+                                visible = !idle && !updateShown && !home.isDefault && !home.redirectOn && !settings.homePromptDismissed,
                                 enter = fadeIn(),
                                 exit = fadeOut() + shrinkVertically(),
                             ) {

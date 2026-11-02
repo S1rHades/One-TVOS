@@ -3,6 +3,12 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 3.2.1 (November 2026)
+
+- **Updates**: downloading tries a second link (the version's own release), waits longer on slow connections, and says what went wrong, separately for the download and the install. If Android's background installer refuses, its own install screen opens instead.
+- **Settings → Updates**: every line of what's new can be reached with **Down**, so the page scrolls to the end.
+- **Idle screen**: the update card and the home-screen reminder no longer show over the widgets.
+
 ## 3.2 (November 2026)
 
 - **Football card**: a thin line along its bottom fills up until the next team takes over. With the card focused it waits, and **Left** / **Right** switch between the teams by hand (also inside a widget stack).
