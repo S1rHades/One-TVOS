@@ -159,7 +159,12 @@ fun NavBar(
                         when (item) {
                             NavItem.Home -> HomeIcon(tint, 22.dp)
                             NavItem.Search -> SearchIcon(tint, 22.dp)
-                            NavItem.Internet -> WifiIcon(network, if (network.link == Link.Offline && !on) OfflineRed else tint, 22.dp)
+                            // Always the plain Wi-Fi symbol (wired or not), crossed out and red when offline
+                            NavItem.Internet -> WifiIcon(
+                                if (network.link == Link.Offline) network else NetworkStatus(Link.WiFi, 4, false),
+                                if (network.link == Link.Offline && !on) OfflineRed else tint,
+                                22.dp,
+                            )
                             NavItem.Settings -> GearIcon(tint, 23.dp)
                         }
                     }
