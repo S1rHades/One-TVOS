@@ -53,7 +53,7 @@ Favourites can scroll in one row or wrap onto more rows (**Settings → Favorite
 
 ### The bar and glass motion
 
-The bar at the top right holds **Home** and **Search**, then a divider, **Wi-Fi** (the Internet page) and **Settings**. Press **Up** from the widgets to reach it, and **Down** to go back to the widgets (or the first favourite, or All apps when you are there). A white marker glides to the icon you're on, and a softer marker stays on the section you're in. The Wi-Fi icon turns red when the TV is offline. The bar stays in the same place on every page and panel, which all start below it, and it works from there too: Home closes whatever is open.
+The bar at the top right holds **Home** and **Search**, then a divider, **Wi-Fi** (the Internet page) and **Settings**. Press **Up** from the widgets to reach it, and **Down** to go back to the widgets (or the first favourite, or All apps when you are there). A white disc follows focus along the bar, while a grey disc stays on the section you're in. Settings opens over whatever page is showing, and Back returns to it. The Wi-Fi icon turns red when the TV is offline. The bar stays in the same place on every page and panel, which all start below it, and it works from there too: Home closes whatever is open.
 
 Every page opens the same way. The photo behind blurs and dims, the page dissolves in from frosted glass, and its parts come into focus one after another in reading order. Back reverses it. The blur needs Android 12 or later; older TVs get the same timing as a plain fade.
 

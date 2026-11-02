@@ -454,6 +454,25 @@ class Screenshots {
         check(focusedName().contains("Cinema")) { "Home from a page goes to the first favourite: ${focusedName()}" }
     }
 
+    /** Settings from the bar on a page opens over the page; closing Settings shows the page again. */
+    @Test
+    fun navigationSettingsOverAPage() {
+        show("pine-forest", pins = favorites)
+        compose.onNodeWithContentDescription("Internet", substring = true).performSemanticsAction(SemanticsActions.OnClick)
+        compose.mainClock.advanceTimeBy(1200)
+        settle()
+        compose.onAllNodesWithContentDescription("Settings").onLast().performSemanticsAction(SemanticsActions.OnClick)
+        compose.mainClock.advanceTimeBy(600)
+        settle()
+        compose.onNodeWithText("Background").assertExists()
+        compose.onNodeWithText("Start test").assertExists()
+        androidx.test.espresso.Espresso.pressBack()
+        compose.mainClock.advanceTimeBy(800)
+        settle()
+        compose.onNodeWithText("Background").assertDoesNotExist()
+        compose.onNodeWithText("Start test").assertExists()
+    }
+
     /** OK on a widget opens its page; closing it puts focus back on that widget. */
     @Test
     fun navigationBackFromAWidgetPage() {

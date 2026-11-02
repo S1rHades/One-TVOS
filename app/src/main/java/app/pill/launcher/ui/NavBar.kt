@@ -105,19 +105,15 @@ fun NavBar(
     // The focused item, or -1 while focus is elsewhere
     var focused by remember { mutableIntStateOf(-1) }
     val active = focused >= 0
-    val at = if (active) focused else current?.ordinal ?: -1
-    var lastAt by remember { mutableIntStateOf(at.coerceAtLeast(0)) }
-    if (at >= 0) lastAt = at
-    val markerX by animateDpAsState(BarPad + itemX(lastAt), Motion.glide(), label = "navMarker")
-    val markerColor by animateColorAsState(
-        when {
-            active -> Palette.Focus
-            at >= 0 -> Color(0x38FFFFFF)
-            else -> Color.Transparent
-        },
-        tween(Motion.Quick),
-        label = "navMarkerColor",
-    )
+    // Two discs: a grey one that stays on the page you're on, and a white one that follows
+    // focus while the bar has it (setting off from the current page, so it glides out of it)
+    val here = current?.ordinal ?: -1
+    val hereX by animateDpAsState(BarPad + itemX(here.coerceAtLeast(0)), Motion.glide(), label = "navHere")
+    val hereAlpha by animateFloatAsState(if (here >= 0) 1f else 0f, tween(Motion.Quick), label = "navHereAlpha")
+    var lastFocus by remember { mutableIntStateOf(here.coerceAtLeast(0)) }
+    if (active) lastFocus = focused else if (here >= 0) lastFocus = here
+    val focusX by animateDpAsState(BarPad + itemX(lastFocus), Motion.glide(), label = "navFocus")
+    val focusAlpha by animateFloatAsState(if (active) 1f else 0f, tween(Motion.Quick), label = "navFocusAlpha")
     Box(
         modifier.onPreviewKeyEvent { event ->
             if (onDown == null || event.key != Key.DirectionDown) return@onPreviewKeyEvent false
@@ -128,10 +124,18 @@ fun NavBar(
         Box(Modifier.glass(RoundedCornerShape(50)).padding(BarPad)) {
             Box(
                 Modifier
-                    .offset(x = markerX - BarPad)
+                    .offset(x = hereX - BarPad)
                     .size(ItemSize)
+                    .graphicsLayer { alpha = hereAlpha }
+                    .background(Color(0x38FFFFFF), CircleShape),
+            )
+            Box(
+                Modifier
+                    .offset(x = focusX - BarPad)
+                    .size(ItemSize)
+                    .graphicsLayer { alpha = focusAlpha }
                     .shadow(if (active) 12.dp else 0.dp, CircleShape, ambientColor = Color.White, spotColor = Color.White)
-                    .background(markerColor, CircleShape),
+                    .background(Palette.Focus, CircleShape),
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
                 for (item in NavItem.entries) {

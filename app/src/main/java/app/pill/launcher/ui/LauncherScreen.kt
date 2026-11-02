@@ -415,28 +415,36 @@ fun LauncherScreen(
     val tintTarget = remember(backdrop) { backdrop?.let { wallpaperTint(it) } ?: NeutralTint }
     val wallpaperTint = animateColorAsState(tintTarget, tween(3000, easing = FastOutSlowInEasing), label = "wallpaperTint")
 
-    // The bar at the top right leads anywhere from anywhere: it closes what is open first
+    // The bar at the top right leads anywhere from anywhere. Settings opens over whatever is
+    // showing (a page, All apps, Search), so Back returns there; the others close what is
+    // open first, and Home goes back to the first page.
     fun navigate(item: NavItem) {
+        if (item == NavItem.Settings) {
+            panelOpen = true
+            return
+        }
+        // Leaving Settings by the bar: its close mustn't send focus back to the gear
+        if (panelOpen) {
+            panelLeftByBar = true
+            panelOpen = false
+        }
         val already = when (item) {
-            NavItem.Home -> false
             NavItem.Search -> searchOpen
             NavItem.Internet -> internetOpen
-            NavItem.Settings -> panelOpen
+            else -> false
         }
         if (already) return
-        if (panelOpen) panelLeftByBar = true
         forecastOpen = false
         clockOpen = false
         hubTeam = null
         headlineAt = null
         internetOpen = false
         searchOpen = false
-        panelOpen = false
         when (item) {
             NavItem.Home -> scope.launch { focusFirstPage() }
             NavItem.Search -> searchOpen = true
             NavItem.Internet -> internetOpen = true
-            NavItem.Settings -> panelOpen = true
+            NavItem.Settings -> Unit
         }
     }
     val navBar: @Composable (NavItem?) -> Unit = { current -> NavBar(current, onSelect = { navigate(it) }) }
