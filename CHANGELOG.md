@@ -8,6 +8,7 @@ Pill Launcher is built from `main` on every change; the newest build is always t
 - **Fix**: Down from the bar at the top right now always moves: to the widgets when one takes focus, else the first favourite, and to the top of All apps when that is on screen (or there is nothing else). Before, focus stayed stuck on the bar.
 - **Fix**: Home in the bar while Settings is open now goes to the first favourite, rather than back to the gear.
 - **Bar**: the name no longer pops up under the focused icon; the white disc shows where you are.
+- **Idle screen**: no more text on the photo. The place and photographer moved off the screen; the full credit and licence are still under **Settings → Background**.
 
 ## 3.1 (November 2026)
 

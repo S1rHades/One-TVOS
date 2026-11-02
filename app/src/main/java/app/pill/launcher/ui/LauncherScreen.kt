@@ -196,8 +196,6 @@ fun LauncherScreen(
     var photoError by remember { mutableStateOf<String?>(null) }
     // Who took the photo on screen (online photos only), shown on the idle screen and in settings
     var photoCredit by remember { mutableStateOf<String?>(null) }
-    // Where it was taken and by whom, the short form shown while idle
-    var photoCaption by remember { mutableStateOf<String?>(null) }
     var backdrop by remember { mutableStateOf<ImageBitmap?>(null) }
     var initialFocusDone by remember { mutableStateOf(false) }
     var toast by remember { mutableStateOf<Toast?>(null) }
@@ -471,7 +469,6 @@ fun LauncherScreen(
                 fallback = if (settings.onlinePhotos && onlinePhotos.isNotEmpty()) BackgroundSources.photos else emptyList(),
                 onShown = {
                     photoCredit = it.credit
-                    photoCaption = it.caption
                 },
                 intervalMs = settings.intervalSec * 1000L,
                 enabled = settings.slideshow,
@@ -701,21 +698,6 @@ fun LauncherScreen(
                     .padding(top = NavTop, end = Spacing.ScreenH)
                     .dissolveStep({ 1f - idleFade }, step = 0, steps = 3),
             )
-
-            // Where the photo was taken and who took it, while the screen rests
-            photoCaption?.let { caption ->
-                Text(
-                    caption,
-                    color = Palette.TextTertiary,
-                    fontSize = 13.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(start = Spacing.ScreenH, end = Spacing.ScreenH, bottom = 20.dp)
-                        .graphicsLayer { alpha = idleFade },
-                )
-            }
 
             AnimatedVisibility(
                 visible = banner != null,

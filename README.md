@@ -148,7 +148,7 @@ When a newer Pill Launcher is on GitHub, a card above Favorites says so, with th
 
 ### Idle screen
 
-After a while without a key press (two minutes by default, under **Settings → Idle screen**), everything but the widgets fades away and the photo slowly zooms. The corner names where the photo was taken and who took it. Any key brings the home screen back.
+After a while without a key press (two minutes by default, under **Settings → Idle screen**), everything but the widgets fades away and the photo slowly zooms. Nothing else is on the photo: no captions or credits. Any key brings the home screen back.
 
 <p align="center"><img src="docs/screenshots/idle.png" width="100%" alt="The idle screen: only the clock, weather and football cards over a slowly zooming photo of snowy mountains"></p>
 
@@ -290,7 +290,7 @@ When it's done, a chip says in plain words what the speed is good for: 4K stream
 
 ### Online photos
 
-By default the slideshow shows a new set of 24 landscape photos each day from [Wikimedia Commons' Featured Pictures](https://commons.wikimedia.org/wiki/Commons:Featured_pictures) (mountains, lakes, forests, waterfalls and coasts). The **Photo feed** workflow (`.github/workflows/photo-feed.yml`, `.github/scripts/photo_feed.py`) picks them each morning, resizes them to 1920×1080 and publishes them with their credits on the `photos-data` branch. The TV reads them from `raw.githubusercontent.com`. The photos are freely licensed (mostly CC BY-SA): the idle screen names where the photo on screen was taken and who took it, and Settings shows its full credit and licence. Offline, the TV uses the last set it saw and the built-in photos.
+By default the slideshow shows a new set of 24 landscape photos each day from [Wikimedia Commons' Featured Pictures](https://commons.wikimedia.org/wiki/Commons:Featured_pictures) (mountains, lakes, forests, waterfalls and coasts). The **Photo feed** workflow (`.github/workflows/photo-feed.yml`, `.github/scripts/photo_feed.py`) picks them each morning, resizes them to 1920×1080 and publishes them with their credits on the `photos-data` branch. The TV reads them from `raw.githubusercontent.com`. The photos are freely licensed (mostly CC BY-SA): **Settings → Background** shows the photo on screen's full credit and licence. Offline, the TV uses the last set it saw and the built-in photos.
 
 ### Your own photos
 
