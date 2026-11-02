@@ -373,6 +373,8 @@ class Screenshots {
         show("misty-valley", pins = favorites)
         check(focusedName().contains("Cinema")) { "starts on the first favourite: ${focusedName()}" }
         press(Key.DirectionUp)
+        check(focusedName().contains("All caught up")) { "Up from Favorites reaches the notification bar: ${focusedName()}" }
+        press(Key.DirectionUp)
         val widget = focusedName()
         check(barItems.none { widget.startsWith(it) } && !widget.contains("Cinema")) { "Up from Favorites reaches a widget: $widget" }
         press(Key.DirectionUp)
@@ -384,7 +386,15 @@ class Screenshots {
             check(barItems.none { below.startsWith(it) } && !below.contains("Cinema")) { "Down from $item reaches the widgets: $below" }
         }
         press(Key.DirectionDown)
-        check(focusedName().contains("Cinema") || focusedName().contains("Live TV") || focusedName().contains("Music")) { "Down from the widgets reaches Favorites: ${focusedName()}" }
+        check(focusedName().contains("All caught up") || focusedName().startsWith("Notifications")) { "Down from the widgets reaches the notification bar: ${focusedName()}" }
+        focusOn("Notifications")
+        press(Key.DirectionRight)
+        check(focusedName().startsWith("Share files")) { "Right from the bell reaches Files: ${focusedName()}" }
+        press(Key.DirectionLeft)
+        press(Key.DirectionLeft)
+        check(focusedName().contains("All caught up")) { "Left along the bar reaches the message: ${focusedName()}" }
+        press(Key.DirectionDown)
+        check(focusedName().contains("Cinema") || focusedName().contains("Live TV") || focusedName().contains("Music")) { "Down from the notification bar reaches Favorites: ${focusedName()}" }
         focusOn("Cinema")
         press(Key.DirectionDown)
         check(focusedName().contains("All")) { "Down from Favorites reaches the chips: ${focusedName()}" }
@@ -400,19 +410,24 @@ class Screenshots {
     fun navigationWithQuietWidgets() {
         show("misty-valley", pins = favorites, settings = LauncherSettings(weather = WeatherMode.Celsius, widgets = listOf(WidgetKind.Daylight, WidgetKind.System)))
         press(Key.DirectionUp)
-        check(barItems.any { focusedName().startsWith(it) } || focusedName().startsWith("Internet")) { "Up from Favorites reaches the bar: ${focusedName()}" }
+        check(focusedName().contains("All caught up")) { "Up from Favorites reaches the notification bar: ${focusedName()}" }
+        press(Key.DirectionUp)
+        check(barItems.any { focusedName().startsWith(it) } || focusedName().startsWith("Internet")) { "Up again reaches the bar at the top: ${focusedName()}" }
         focusOn("Home")
         press(Key.DirectionDown)
-        check(focusedName().contains("Cinema")) { "Down from the bar reaches Favorites: ${focusedName()}" }
+        check(focusedName().startsWith("Notifications")) { "Down from the bar reaches the notification bar: ${focusedName()}" }
     }
 
-    /** No favourites and no widget that takes focus: Down from the bar goes to All apps. */
+    /** No favourites and no widget that takes focus: Down from the bar goes to the notification bar, then All apps. */
     @Test
     fun navigationWithNothingAbove() {
         show("misty-valley", pins = emptyList(), settings = LauncherSettings(weather = WeatherMode.Celsius, widgets = listOf(WidgetKind.Daylight)))
         focusOn("Home")
         press(Key.DirectionDown)
-        check(focusedName().contains("All")) { "Down from the bar reaches All apps: ${focusedName()}" }
+        check(focusedName().startsWith("Notifications")) { "Down from the bar reaches the notification bar: ${focusedName()}" }
+        press(Key.DirectionDown)
+        val below = focusedName()
+        check(below.contains("All") || apps.any { below.contains(it.label) }) { "Down from the notification bar reaches All apps: $below" }
     }
 
     /** In Settings the bar stays at the top; Down from it goes back into the panel, and Home closes it. */
@@ -510,6 +525,8 @@ class Screenshots {
     @Test
     fun navigationBackFromAWidgetPage() {
         show("canyon-river", pins = favorites, weather = forecastWeather)
+        // Up past the notification bar to the widgets
+        press(Key.DirectionUp)
         press(Key.DirectionUp)
         val widget = focusedName()
         press(Key.DirectionCenter)
@@ -617,18 +634,28 @@ class Screenshots {
         compose.onRoot().captureRoboImage(File(out, "goal.png").path)
     }
 
-    /** A newer release: the card above Favorites, and Settings → Updates. */
+    /** Some of each kind of notification, newest first after any update. */
+    private fun sampleNotices(now: java.time.Instant) = listOf(
+        Notice("app:1", NoticeKind.App, "New episode", "Season 2 of The Coast is out", now.minusSeconds(5 * 60), pkg = pkg("Cinema")),
+        fileNotice("holiday.jpg", 3_400_000, "an iPhone", now.minusSeconds(20 * 60)),
+        updatedNotice("3.3", listOf("Notifications under the widgets", "Files from your phone"), now.minusSeconds(2 * 3600)),
+        Notice("goal:77:2-1", NoticeKind.Football, "Goal · Algeria 78'", "Algeria 2–1 Togo", now.minusSeconds(26 * 3600), target = "134516"),
+    )
+
+    private val newRelease = Release("3.4", "https://example.com/pill-launcher-3.4.apk", 9_100_000, listOf("Widget stack: several widgets in one place", "Rename apps in the launcher"))
+
+    /** A newer release: the newest notice in the bar under the widgets, and Settings → Updates. */
     @Test
-    fun updateCard() {
-        val release = Release("3.1", "https://example.com/pill-launcher-3.1.apk", 9_100_000, listOf("Widget stack: several widgets in one place", "Rename apps in the launcher"))
-        show("canyon-river", pins = favorites, update = UpdateState(UpdatePhase.Available, release, checkedAt = java.time.Instant.now()))
-        compose.onNodeWithText("Pill Launcher 3.1 is ready").assertIsDisplayed()
-        compose.onRoot().captureRoboImage(File(out, "update-card.png").path)
+    fun notificationBar() {
+        val now = java.time.Instant.now()
+        show("canyon-river", pins = favorites, update = UpdateState(UpdatePhase.Available, newRelease, checkedAt = now), notices = sampleNotices(now))
+        compose.onNodeWithText("Pill Launcher 3.4 is ready", substring = true).assertIsDisplayed()
+        compose.onRoot().captureRoboImage(File(out, "notification-bar.png").path)
         compose.onNodeWithContentDescription("Settings").performSemanticsAction(SemanticsActions.OnClick)
         settle()
         compose.onNodeWithText("Updates").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
         settle()
-        compose.onNodeWithText("Update to 3.1").assertExists()
+        compose.onNodeWithText("Update to 3.4").assertExists()
         captureScreenRoboImage(File(out, "settings-updates.png").path)
         // Down reaches every line of what's new, so the page scrolls to the end
         var reached = false
@@ -640,16 +667,76 @@ class Screenshots {
         check(reached) { "what's new can be reached with Down" }
     }
 
-    /** The update card stays off the idle screen, which shows only the widgets and the photo. */
+    /** OK on the bell opens the bar into the list; holding OK dismisses one; Back folds it up. */
     @Test
-    fun updateCardNotWhileIdle() {
-        val release = Release("3.1", "https://example.com/pill-launcher-3.1.apk", 9_100_000, listOf("Widget stack"))
-        show("canyon-river", pins = favorites, update = UpdateState(UpdatePhase.Failed, release, message = "Couldn't download it: can't reach GitHub"))
-        compose.onNodeWithText("Pill Launcher 3.1 isn't installed yet").assertExists()
+    fun notificationList() {
+        val now = java.time.Instant.now()
+        show("canyon-river", pins = favorites, update = UpdateState(UpdatePhase.Available, newRelease, checkedAt = now), notices = sampleNotices(now))
+        compose.onNodeWithContentDescription("Notifications", substring = true).performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNodeWithText("Clear all").assertExists()
+        compose.onNode(isFocused() and hasText("Pill Launcher 3.4 is ready", substring = true)).assertExists()
+        compose.onRoot().captureRoboImage(File(out, "notifications.png").path)
+        // The next one down is the film app's; holding OK on it dismisses it
+        press(Key.DirectionDown)
+        check(focusedName().contains("New episode")) { "Down moves along the list: ${focusedName()}" }
+        compose.onAllNodes(isFocused()).onFirst().performKeyInput { keyDown(Key.DirectionCenter) }
+        compose.mainClock.advanceTimeBy(800)
+        compose.onAllNodes(isRoot()).onFirst().performKeyInput { keyUp(Key.DirectionCenter) }
+        settle()
+        compose.onNodeWithText("New episode", substring = true).assertDoesNotExist()
+        check(focusedName().contains("holiday.jpg")) { "focus moves to the next notification: ${focusedName()}" }
+        press(Key.Back)
+        compose.onNodeWithText("Clear all").assertDoesNotExist()
+        check(focusedName().startsWith("Notifications")) { "Back folds the list up onto the bell: ${focusedName()}" }
+    }
+
+    /** The notification bar stays off the idle screen, which shows only the widgets and the photo. */
+    @Test
+    fun notificationsNotWhileIdle() {
+        show("canyon-river", pins = favorites, update = UpdateState(UpdatePhase.Failed, newRelease, message = "Couldn't download it: can't reach GitHub"))
+        compose.onNodeWithText("Pill Launcher 3.4 isn't installed yet", substring = true).assertExists()
         compose.mainClock.advanceTimeBy(125_000)
         compose.mainClock.advanceTimeBy(2_500)
         settle()
-        compose.onNodeWithText("Pill Launcher 3.1 isn't installed yet").assertDoesNotExist()
+        compose.onNodeWithText("Pill Launcher 3.4 isn't installed yet", substring = true).assertDoesNotExist()
+    }
+
+    /** Files, from the bar: the code to scan on the left, the TV's files as cards on the right. */
+    @Test
+    fun filesPage() {
+        val dir = java.nio.file.Files.createTempDirectory("files").toFile()
+        val day = 24 * 3600 * 1000L
+        val now = System.currentTimeMillis()
+        for ((i, f) in listOf("holiday.jpg" to 3_400_000, "match-highlights.mp4" to 2_120_000, "kinopub-2.4.apk" to 480_000, "tv-manual.pdf" to 51_000).withIndex()) {
+            File(dir, f.first).apply { writeBytes(ByteArray(f.second)); setLastModified(now - i * day) }
+        }
+        val share = FileShare(dir, page = { "" }, address = { "192.168.1.24" }, code = "7Q4M")
+        try {
+            show("canyon-river", pins = favorites, share = share)
+            compose.onNodeWithContentDescription("Share files").performSemanticsAction(SemanticsActions.OnClick)
+            settle()
+            settle()
+            compose.onNodeWithText("Scan with your phone").assertExists()
+            compose.onNodeWithText("holiday.jpg", substring = true).assertExists()
+            compose.onNodeWithText("Keep receiving: Off").assertExists()
+            captureScreenRoboImage(File(out, "files.png").path)
+        } finally {
+            share.stop()
+            dir.deleteRecursively()
+        }
+    }
+
+    /** Settings → Notifications: other apps' (once allowed), football and the connection. */
+    @Test
+    fun settingsNotifications() {
+        show("pine-forest", pins = favorites)
+        compose.onNodeWithContentDescription("Settings").performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNodeWithText("Notifications").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNodeWithText("Other apps' notifications").assertExists()
+        captureScreenRoboImage(File(out, "settings-notifications.png").path)
     }
 
     @Test
@@ -751,14 +838,13 @@ class Screenshots {
         compose.onRoot().captureRoboImage(File(out, "match-day.png").path)
     }
 
-    /** Ten minutes before kick-off, a banner that never takes focus: OK still opens the focused app. */
+    /** Ten minutes before kick-off, a notice in the bar that never takes focus: OK still opens the focused app. */
     @Test
-    fun kickoffBanner() {
+    fun kickoffNotice() {
         show("aurora-sky", pins = favorites, football = matchDay(inMinutes = 8))
         compose.onNodeWithText("Les Fennecs kick off in", substring = true).assertIsDisplayed()
-        compose.onNode(isFocused()).assertExists()
-        assertTrue("focus stays on the favourites", compose.onNode(isFocused()).fetchSemanticsNode().boundsInRoot.top > 200f)
-        compose.onRoot().captureRoboImage(File(out, "kickoff-banner.png").path)
+        check(focusedName().contains("Cinema")) { "focus stays on the favourites: ${focusedName()}" }
+        compose.onRoot().captureRoboImage(File(out, "kickoff-notice.png").path)
     }
 
     /** OK on the football card opens the football page; Right moves to the next team. */
@@ -872,6 +958,8 @@ class Screenshots {
         weather: Weather = this.weather,
         news: News? = null,
         update: UpdateState = UpdateState(),
+        notices: List<Notice> = emptyList(),
+        share: FileShare? = null,
     ) {
         check(fixtures.next != null && fixtures.last?.outcome == 'W') { "fixtures didn't parse: $fixtures" }
         currentPins = pins
@@ -882,7 +970,11 @@ class Screenshots {
             var pinned by remember { mutableStateOf(pins) }
             var current by remember { mutableStateOf(settings) }
             var names by remember { mutableStateOf(emptyMap<String, String>()) }
+            var kept by remember { mutableStateOf(notices) }
             LauncherScreen(
+                notices = kept,
+                onDismissNotice = { n -> kept = kept.filter { it.id != n.id } },
+                share = share,
                 apps = withNames(apps, names),
                 weather = weather,
                 football = footballNow,

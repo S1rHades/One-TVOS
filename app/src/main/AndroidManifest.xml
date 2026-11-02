@@ -106,6 +106,16 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/update_paths" />
         </provider>
+        <!-- Other apps' notifications for the bar under the widgets, once the TV allows it (Notification access) -->
+        <service
+            android:name=".NotificationWatcher"
+            android:exported="true"
+            android:label="@string/notification_watcher_label"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
         <!-- Android's answer to an update install: confirm, or why it failed -->
         <receiver
             android:name=".InstallResultReceiver"

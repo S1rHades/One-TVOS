@@ -154,6 +154,14 @@ fun SettingsPanel(
     onCheckUpdate: () -> Unit = {},
     onStartUpdate: () -> Unit = {},
     onCancelUpdate: () -> Unit = {},
+    /** The page to open on (Updates, from "Updated to …" in the notification bar); null for the list. */
+    startPage: SettingsPage? = null,
+    /** Whether the TV lets Pill Launcher read other apps' notifications. */
+    noticeAccess: Boolean = false,
+    /** Opens the TV's Notification access screen; a message when it can't. */
+    onNoticeAccess: () -> String? = { null },
+    /** Apps with notifications now, or muted, as (package, name). */
+    noticeApps: List<Pair<String, String>> = emptyList(),
 ) {
     // A message from the last attempt, shown under the row until the panel closes
     var defaultNote by remember { mutableStateOf<String?>(null) }
@@ -170,7 +178,7 @@ fun SettingsPanel(
         }
     }
     // null: the list of categories; otherwise that category's page
-    var page by remember { mutableStateOf<SettingsPage?>(null) }
+    var page by remember { mutableStateOf(startPage) }
     var lastPage by remember { mutableStateOf(SettingsPage.Background) }
     val pageFirst = remember { FocusRequester() }
     val categoryFocus = remember { SettingsPage.entries.associateWith { FocusRequester() } }
@@ -506,6 +514,7 @@ fun SettingsPanel(
                             }
                                 }
                                 SettingsPage.System -> SystemPage(onSystemAction, Modifier.focusRequester(pageFirst))
+                                SettingsPage.Notifications -> NotificationsPage(settings, onChange, noticeAccess, onNoticeAccess, noticeApps, Modifier.focusRequester(pageFirst))
                                 SettingsPage.Updates -> UpdatesPage(
                                     settings = settings,
                                     onChange = onChange,
@@ -725,6 +734,7 @@ enum class SettingsPage(val title: String, val parent: SettingsPage? = null) {
     Favorites("Favorites row"),
     Idle("Idle screen"),
     Home("Home & startup"),
+    Notifications("Notifications"),
     System("TV & system"),
     Updates("Updates"),
     Stack("Widget stack", Widgets),
@@ -752,6 +762,11 @@ private fun summaryOf(page: SettingsPage, settings: LauncherSettings, home: Home
         home.redirectOn -> "Home button helper on"
         else -> "Not the home screen yet"
     }
+    SettingsPage.Notifications -> listOfNotNull(
+        if (settings.appNotices) "App notifications" else null,
+        if (settings.footballNotices) "football" else null,
+        if (settings.connectionNotices) "connection" else null,
+    ).joinToString(", ").replaceFirstChar { it.uppercase() }.ifEmpty { "Updates and files only" }
     SettingsPage.System -> "Free up memory, network, display, sound, updates, uninstall"
     SettingsPage.Football -> settings.teams.joinToString(", ") { it.name }
     SettingsPage.News -> settings.newsTopics.joinToString(", ") { it.title }
@@ -941,6 +956,60 @@ private fun NewsPage(settings: LauncherSettings, onChange: (LauncherSettings) ->
             ) { focused -> if (error == null && count != null) Check(focused) else Mark("–", focused) }
         }
     }
+}
+
+/**
+ * What shows in the notification bar under the widgets: other apps' notifications (once
+ * the TV allows reading them), each app's on or off, and Pill Launcher's own football and
+ * connection notices. Updates and files always show.
+ */
+@Composable
+private fun NotificationsPage(
+    settings: LauncherSettings,
+    onChange: (LauncherSettings) -> Unit,
+    access: Boolean,
+    onAccess: () -> String?,
+    apps: List<Pair<String, String>>,
+    firstModifier: Modifier,
+) {
+    var accessNote by remember { mutableStateOf<String?>(null) }
+    Group(null) {
+        SettingRow(
+            title = "Other apps' notifications",
+            subtitle = accessNote ?: when {
+                !access -> "Needs Notification access for Pill Launcher · OK to allow it"
+                settings.appNotices -> "In the bar under the widgets"
+                else -> "Kept out of the bar"
+            },
+            onClick = {
+                if (!access) accessNote = onAccess() else onChange(settings.copy(appNotices = !settings.appNotices))
+            },
+            modifier = firstModifier,
+        ) { focused -> if (access) Switch(checked = settings.appNotices, focused = focused) else Chevron(focused) }
+        SettingRow(
+            title = "Football",
+            subtitle = "Kick-off reminders, goals and wins for the teams you follow",
+            onClick = { onChange(settings.copy(footballNotices = !settings.footballNotices)) },
+        ) { focused -> Switch(checked = settings.footballNotices, focused = focused) }
+        SettingRow(
+            title = "Connection",
+            subtitle = "When the internet drops, and how long it was gone",
+            onClick = { onChange(settings.copy(connectionNotices = !settings.connectionNotices)) },
+        ) { focused -> Switch(checked = settings.connectionNotices, focused = focused) }
+    }
+    if (access && settings.appNotices && apps.isNotEmpty()) {
+        Group("Apps") {
+            for ((pkg, name) in apps) {
+                val muted = pkg in settings.mutedApps
+                SettingRow(
+                    title = name,
+                    subtitle = if (muted) "Muted" else "Shows in the bar",
+                    onClick = { onChange(settings.copy(mutedApps = if (muted) settings.mutedApps - pkg else settings.mutedApps + pkg)) },
+                ) { focused -> Switch(checked = !muted, focused = focused) }
+            }
+        }
+    }
+    Note("Updates and files from your phone always show. Hold OK on a notification in the bar to dismiss it.")
 }
 
 @Composable

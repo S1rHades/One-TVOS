@@ -7,7 +7,6 @@ chosen so far shipped in 3.1. New ideas are shown as mockups first.
 
 Ideas shown as mockups and passed over, so they aren't suggested again:
 
-- Send to TV from your phone
 - App folders on the Favorites row
 - Jump back in row
 - Rain-soon alerts

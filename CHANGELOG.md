@@ -3,6 +3,13 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 3.3 (November 2026)
+
+- **Notification bar**: a new glass bar under the widgets, as wide as them. The newest notification is on the left (**OK** does what it says, holding **OK** dismisses it); the bell and **Files** are on the right. **OK** on the bell opens the bar downwards into every notification, with **Clear all**; a red dot marks anything new, and the bell swings when something arrives.
+- **What it shows**: Pill Launcher's own notices (an update, "Updated to …" with what was new, why an update failed, kick-off reminders, goals and wins, the connection dropping and coming back, files received) and, once the TV allows Notification access, other apps' notifications. **Settings → Notifications** sets which, and mutes single apps.
+- **Updates** and the **kick-off reminder** moved into the notification bar: the update card above Favorites and the banner at the bottom are gone.
+- **Files**: a page of its own, from the notification bar. Scan its code with a phone and send photos, videos, apps or documents from the phone's browser, with nothing to install, and save the TV's files back to the phone. Files show as cards with chips by kind; **OK** opens one (photos in the launcher's own viewer, an APK with Android's installer), and holding **OK** offers **Send to phone** and **Delete**. Sharing runs while the page is open, or 15 more minutes with **Keep receiving**, and only for the home network and the code shown on the TV.
+
 ## 3.2.1 (November 2026)
 
 - **Updates**: downloading tries a second link (the version's own release), waits longer on slow connections, and says what went wrong, separately for the download and the install. If Android's background installer refuses, its own install screen opens instead.

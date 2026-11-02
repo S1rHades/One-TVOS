@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Where downloaded updates wait to be installed (cacheDir/updates) -->
+<!-- Files other apps may open: downloaded updates (cacheDir/updates) and files sent from phones (Files) -->
 <paths>
     <cache-path name="updates" path="updates/" />
+    <external-files-path name="files" path="Files/" />
+    <files-path name="own-files" path="Files/" />
 </paths>

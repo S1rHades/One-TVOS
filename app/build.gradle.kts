@@ -12,8 +12,8 @@ android {
         applicationId = "app.pill.launcher"
         minSdk = 26
         targetSdk = 34
-        versionCode = 27
-        versionName = "3.2.1"
+        versionCode = 28
+        versionName = "3.3"
     }
 
     // CI signs with one permanent key (from repository secrets, see build.yml) so each new
@@ -78,6 +78,8 @@ dependencies {
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material3:material3")
     implementation("io.coil-kt:coil-compose:2.7.0")
+    // QR codes for the Files page (encoding only)
+    implementation("com.google.zxing:core:3.5.3")
     implementation("androidx.activity:activity-compose:1.9.2")
     implementation("androidx.core:core-ktx:1.13.1")
 

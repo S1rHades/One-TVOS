@@ -71,6 +71,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.composed
@@ -121,6 +122,17 @@ import app.pill.launcher.FavoritesLayout
 import app.pill.launcher.HomeStatus
 import app.pill.launcher.LauncherSettings
 import app.pill.launcher.Weather
+import app.pill.launcher.FileKind
+import app.pill.launcher.FileShare
+import app.pill.launcher.Notice
+import app.pill.launcher.NoticeKind
+import app.pill.launcher.backOnlineNotice
+import app.pill.launcher.fileKind
+import app.pill.launcher.kickoffNotice
+import app.pill.launcher.momentNotice
+import app.pill.launcher.offlineNotice
+import app.pill.launcher.updateNotice
+import java.io.File
 import kotlinx.coroutines.delay
 
 private val FavoriteIcon = 96.dp
@@ -187,8 +199,32 @@ fun LauncherScreen(
     onStartUpdate: () -> Unit = {},
     onCancelUpdate: () -> Unit = {},
     onLaterUpdate: () -> Unit = {},
+    /** Pill Launcher's kept notifications and other apps' current ones, newest first. */
+    notices: List<Notice> = emptyList(),
+    /** When the notification list was last opened (ms): anything newer is unread. */
+    noticesSeen: Long = 0L,
+    onNoticesSeen: () -> Unit = {},
+    /** Keeps a notification (a goal, the connection coming back). */
+    onPostNotice: (Notice) -> Unit = {},
+    /** Dismisses a kept notification, or clears another app's. */
+    onDismissNotice: (Notice) -> Unit = {},
+    /** Does what another app's notification does. */
+    onOpenAppNotice: (Notice) -> Unit = {},
+    /** Whether the TV lets Pill Launcher read other apps' notifications, and opening its setting. */
+    noticeAccess: Boolean = false,
+    onNoticeAccess: () -> String? = { null },
+    /** Files between phones and the TV; null where there is none. */
+    share: FileShare? = null,
+    /** Opens a file from the TV with its apps; a message when it can't. */
+    onOpenFile: (File) -> String? = { null },
 ) {
     var panelOpen by remember { mutableStateOf(false) }
+    // The page Settings opens on (Updates, from "Updated to …"); null for the list
+    var settingsStart by remember { mutableStateOf<SettingsPage?>(null) }
+    // The notification bar opened into its list, and the Files page
+    var noticesOpen by remember { mutableStateOf(false) }
+    var filesOpen by remember { mutableStateOf(false) }
+    val bellFocus = remember { FocusRequester() }
     var searchOpen by remember { mutableStateOf(false) }
     var photoError by remember { mutableStateOf<String?>(null) }
     // Who took the photo on screen (online photos only), shown on the idle screen and in settings
@@ -212,7 +248,9 @@ fun LauncherScreen(
     var moment by remember { mutableStateOf<FootballMoment?>(null) }
     var seenFootball by remember { mutableStateOf(football) }
     LaunchedEffect(football) {
-        footballMoments(seenFootball, football, Instant.now()).lastOrNull()?.let { moment = it }
+        val moments = footballMoments(seenFootball, football, Instant.now())
+        moments.lastOrNull()?.let { moment = it }
+        if (settings.footballNotices) moments.forEach { onPostNotice(momentNotice(it)) }
         seenFootball = football
     }
     LaunchedEffect(moment) { moment?.let { delay(momentMillis(it.kind)); moment = null } }
@@ -224,7 +262,7 @@ fun LauncherScreen(
     var headlineAt by remember { mutableStateOf<Int?>(null) }
     // The Internet page, from the rail
     var internetOpen by remember { mutableStateOf(false) }
-    val pageOpen = forecastOpen || clockOpen || hubTeam != null || headlineAt != null || internetOpen
+    val pageOpen = forecastOpen || clockOpen || hubTeam != null || headlineAt != null || internetOpen || filesOpen
     // The All apps chip picked (null: all), and the first chip, where the rail's Apps lands
     var appFilter by remember { mutableStateOf<AppCategory?>(null) }
     val chipFocus = remember { FocusRequester() }
@@ -291,6 +329,7 @@ fun LauncherScreen(
                 runCatching { widgetFocus.requestFocus() }
                 withFrameNanos { }
                 if (widgetsFocused) return@launch
+                if (runCatching { bellFocus.requestFocus() }.isSuccess) return@launch
                 val first = currentPinned.firstOrNull()?.let { favoriteFocus[it.pkg] }
                 if (first != null && runCatching { first.requestFocus() }.isSuccess) return@launch
             }
@@ -314,6 +353,8 @@ fun LauncherScreen(
         hubTeam = null
         headlineAt = null
         internetOpen = false
+        filesOpen = false
+        noticesOpen = false
         idle = false
         focusFirstPage()
     }
@@ -327,8 +368,8 @@ fun LauncherScreen(
 
     // Idle: after idleMinutes without a key press, everything but the widgets fades
     // out. Each key press restarts the timer; panels open hold it off.
-    LaunchedEffect(settings.idleMinutes, lastInput, panelOpen, searchOpen, pageOpen) {
-        if (settings.idleMinutes == 0 || panelOpen || searchOpen || pageOpen) return@LaunchedEffect
+    LaunchedEffect(settings.idleMinutes, lastInput, panelOpen, searchOpen, pageOpen, noticesOpen) {
+        if (settings.idleMinutes == 0 || panelOpen || searchOpen || pageOpen || noticesOpen) return@LaunchedEffect
         delay(settings.idleMinutes * 60_000L)
         idle = true
         // Back to the first page, with focus there too, so waking up lands somewhere visible
@@ -384,7 +425,78 @@ fun LauncherScreen(
     } else {
         null
     }
-    BackHandler(enabled = banner != null && !panelOpen) { banner?.let { bannersShown = bannersShown + it.second.id } }
+
+    // The connection: a notice while it's been gone a minute, and one saying how long once it's back
+    val network by rememberNetworkStatus()
+    val offline = network.link == Link.Offline
+    var offlineSince by remember { mutableStateOf<Instant?>(null) }
+    var offlineShown by remember { mutableStateOf(false) }
+    LaunchedEffect(offline) {
+        if (offline) {
+            val since = Instant.now()
+            offlineSince = since
+            delay(60_000)
+            offlineShown = true
+        } else {
+            val since = offlineSince
+            if (since != null && offlineShown && settings.connectionNotices) onPostNotice(backOnlineNotice(since, Instant.now()))
+            offlineSince = null
+            offlineShown = false
+        }
+    }
+
+    // Everything in the notification bar: an update, a kick-off, the connection, then what's kept
+    // and other apps' (unless muted), newest first
+    var dismissedLive by remember { mutableStateOf(setOf<String>()) }
+    val allNotices = remember(notices, update, updateDismissed, banner, offlineShown, dismissedLive, settings, bannerNow) {
+        val now = Instant.now()
+        listOfNotNull(
+            updateNotice(update, updateDismissed, now),
+            banner?.takeIf { settings.footballNotices }?.let { (team, match) -> kickoffNotice(team, match, now) },
+            offlineSince?.takeIf { offlineShown && settings.connectionNotices }?.let { offlineNotice(it) },
+        ).plus(notices.filter { it.kind != NoticeKind.App || (settings.appNotices && it.pkg !in settings.mutedApps) })
+            .filter { it.id !in dismissedLive }
+            .sortedByDescending { it.at }
+    }
+    val unread = allNotices.count { it.at.toEpochMilli() > noticesSeen }
+    val listOver by animateFloatAsState(if (noticesOpen) 1f else 0f, tween(Motion.Enter, easing = Motion.EnterEasing), label = "listOver")
+    LaunchedEffect(noticesOpen) { if (noticesOpen) onNoticesSeen() }
+    LaunchedEffect(idle) { if (idle) noticesOpen = false }
+
+    fun dismissNotice(n: Notice) {
+        when {
+            n.kind == NoticeKind.Update -> onLaterUpdate()
+            n.id.startsWith("kickoff:") -> bannersShown = bannersShown + n.id.removePrefix("kickoff:")
+            n.id.startsWith("offline:") -> dismissedLive = dismissedLive + n.id
+            else -> onDismissNotice(n)
+        }
+    }
+
+    // OK on a notification: what it's about
+    fun actOnNotice(n: Notice) {
+        when (n.kind) {
+            NoticeKind.Update -> {
+                if (update.phase == UpdatePhase.Available || update.phase == UpdatePhase.Failed) onStartUpdate()
+                return
+            }
+            NoticeKind.Updated -> {
+                settingsStart = SettingsPage.Updates
+                panelOpen = true
+            }
+            NoticeKind.Football -> (football.firstOrNull { it.team.id == n.target } ?: football.firstOrNull())?.let { hubTeam = it.team }
+            NoticeKind.Connection -> internetOpen = true
+            NoticeKind.File -> {
+                val file = n.target?.let { share?.file(it) }
+                if (file == null || fileKind(file.name) == FileKind.Photo) {
+                    filesOpen = true
+                } else {
+                    onOpenFile(file)?.let { toast = Toast(it) }
+                }
+            }
+            NoticeKind.App -> onOpenAppNotice(n)
+        }
+        noticesOpen = false
+    }
 
     // Return focus to the pill when the settings panel closes
     LaunchedEffect(panelOpen) {
@@ -423,7 +535,9 @@ fun LauncherScreen(
     // showing (a page, All apps, Search), so Back returns there; the others close what is
     // open first, and Home goes back to the first page.
     fun navigate(item: NavItem) {
+        noticesOpen = false
         if (item == NavItem.Settings) {
+            settingsStart = null
             panelOpen = true
             return
         }
@@ -443,6 +557,7 @@ fun LauncherScreen(
         hubTeam = null
         headlineAt = null
         internetOpen = false
+        filesOpen = false
         searchOpen = false
         when (item) {
             NavItem.Home -> scope.launch { focusFirstPage() }
@@ -604,29 +719,39 @@ fun LauncherScreen(
                                 )
                             }
 
-                            Spacer(Modifier.weight(1f))
+                            // The notification bar, as wide as the widgets: the newest notice, the bell and Files
+                            NotificationBar(
+                                notices = allNotices,
+                                unread = unread,
+                                open = noticesOpen,
+                                onOpenChange = { noticesOpen = it },
+                                apps = apps.orEmpty(),
+                                update = update,
+                                onPrimary = { actOnNotice(it) },
+                                onDismiss = { dismissNotice(it) },
+                                onClearAll = {
+                                    allNotices.forEach { dismissNotice(it) }
+                                    noticesOpen = false
+                                },
+                                onLaterUpdate = onLaterUpdate,
+                                onCancelUpdate = onCancelUpdate,
+                                onFiles = {
+                                    noticesOpen = false
+                                    if (share != null) filesOpen = true else toast = Toast("Files isn't available on this TV")
+                                },
+                                bellFocus = bellFocus,
+                                modifier = Modifier
+                                    .padding(start = Spacing.Tile, end = Spacing.Tile, top = 14.dp)
+                                    .dissolveStep({ 1f - idleFade }, step = 1, steps = 3)
+                                    // Nothing on the idle screen but the widgets and the photo
+                                    .then(if (idle) Modifier.clearAndSetSemantics { } else Modifier),
+                            )
 
-                            // A newer version: the card stays until Later, and comes back for the next one
-                            val updateShown = update.release != null && update.release.version != updateDismissed &&
-                                update.phase in setOf(UpdatePhase.Available, UpdatePhase.Downloading, UpdatePhase.Installing, UpdatePhase.Failed)
-                            AnimatedVisibility(
-                                // Never on the idle screen, which shows only the widgets and the photo
-                                visible = updateShown && !idle,
-                                enter = fadeIn(tween(Motion.Enter, easing = Motion.EnterEasing)) + expandVertically(tween(Motion.Enter, easing = Motion.EnterEasing)),
-                                exit = fadeOut(tween(Motion.Exit)) + shrinkVertically(tween(Motion.Exit + 80, easing = Motion.ExitEasing)),
-                            ) {
-                                UpdateCard(
-                                    update = update,
-                                    onUpdate = onStartUpdate,
-                                    onLater = onLaterUpdate,
-                                    onCancel = onCancelUpdate,
-                                    modifier = Modifier.padding(start = Spacing.Tile, bottom = 12.dp),
-                                )
-                            }
+                            Spacer(Modifier.weight(1f))
 
                             // Until the launcher is the home screen (or helped), closing apps leads elsewhere
                             AnimatedVisibility(
-                                visible = !idle && !updateShown && !home.isDefault && !home.redirectOn && !settings.homePromptDismissed,
+                                visible = !idle && !home.isDefault && !home.redirectOn && !settings.homePromptDismissed,
                                 enter = fadeIn(),
                                 exit = fadeOut() + shrinkVertically(),
                             ) {
@@ -645,10 +770,12 @@ fun LauncherScreen(
                                 )
                             }
 
+                            // Favorites step back while the notification list is open over them
                             Box(
                                 Modifier
                                     .fillMaxWidth()
                                     .heightIn(min = favoritesRowHeight(settings.favoritesStyle, FavoriteIcon))
+                                    .graphicsLayer { alpha = 1f - 0.85f * listOver }
                                     .dissolveStep({ 1f - idleFade }, step = 2, steps = 3),
                                 contentAlignment = Alignment.CenterStart,
                             ) {
@@ -743,21 +870,9 @@ fun LauncherScreen(
             )
 
             AnimatedVisibility(
-                visible = banner != null,
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 30.dp, start = Spacing.ScreenH, end = Spacing.ScreenH),
-                enter = fadeIn() + slideInVertically { it / 2 },
-                exit = fadeOut() + slideOutVertically { it / 2 },
-            ) {
-                // Keeps showing the last banner while it slides away
-                var shown by remember { mutableStateOf(banner) }
-                if (banner != null) shown = banner
-                shown?.let { (team, match) -> KickoffBanner(team, match, onDismiss = { bannersShown = bannersShown + match.id }) }
-            }
-
-            AnimatedVisibility(
                 visible = toastVisible,
-                // Bottom centre: clear of the widgets on the first page, above a kick-off banner
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = if (banner != null) 112.dp else 36.dp),
+                // Bottom centre: clear of the widgets on the first page
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 36.dp),
                 enter = fadeIn() + slideInVertically { it / 2 },
                 exit = fadeOut() + slideOutVertically { it / 2 },
             ) {
@@ -797,6 +912,13 @@ fun LauncherScreen(
                     onCheckUpdate = onCheckUpdate,
                     onStartUpdate = onStartUpdate,
                     onCancelUpdate = onCancelUpdate,
+                    startPage = settingsStart,
+                    noticeAccess = noticeAccess,
+                    onNoticeAccess = onNoticeAccess,
+                    noticeApps = (notices.filter { it.kind == NoticeKind.App }.mapNotNull { it.pkg } + settings.mutedApps)
+                        .distinct()
+                        .map { pkg -> pkg to (apps.orEmpty().firstOrNull { it.pkg == pkg }?.label ?: pkg) }
+                        .sortedBy { it.second.lowercase() },
                 )
             }
 
@@ -852,6 +974,15 @@ fun LauncherScreen(
             }
             if (internetOpen) {
                 InternetPage(onOpenNetworkSettings = onOpenNetworkSettings, onDismiss = { internetOpen = false })
+            }
+            if (filesOpen && share != null) {
+                FilesPage(
+                    share = share,
+                    keepReceiving = settings.keepReceiving,
+                    onKeepReceiving = { onSettingsChange(settings.copy(keepReceiving = it)) },
+                    onOpenFile = onOpenFile,
+                    onDismiss = { filesOpen = false },
+                )
             }
 
             if (searchOpen) {

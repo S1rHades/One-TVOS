@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -80,9 +81,42 @@ fun AppMenu(
     onAction: (MenuAction) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    MenuCard(
+        okHeld = okHeld,
+        header = {
+            Image(app.icon, contentDescription = null, modifier = Modifier.size(44.dp).clip(Squircle))
+            Spacer(Modifier.width(14.dp))
+            Text(app.label, color = Palette.TextPrimary, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        },
+        choices = buildList {
+            add(MenuChoice(if (pinned) "Remove from Favorites" else "Add to Favorites") { onAction(MenuAction.TogglePin) })
+            if (pinned) add(MenuChoice("Move", "Left / Right along Favorites") { onAction(MenuAction.Move) })
+            add(MenuChoice("Rename…", app.originalLabel?.let { "Its own name: $it" }) { onAction(MenuAction.Rename) })
+            add(MenuChoice("App info", "In the TV's settings") { onAction(MenuAction.AppInfo) })
+            if (app.removable) add(MenuChoice("Uninstall", warning = true) { onAction(MenuAction.Uninstall) })
+        },
+        onDismiss = onDismiss,
+    )
+}
+
+/** One line of a [MenuCard]: what it says, a grey hint under it, and what it does once the menu has gone. */
+class MenuChoice(val title: String, val hint: String? = null, val warning: Boolean = false, val act: () -> Unit)
+
+/**
+ * A small glass menu in the middle of the screen, over a dim: a [header], then [choices].
+ * A choice acts once the menu has gone, so a new screen doesn't open over it. When opened
+ * by holding OK ([okHeld]), the release of that press is ignored.
+ */
+@Composable
+fun MenuCard(
+    okHeld: Boolean,
+    header: @Composable RowScope.() -> Unit,
+    choices: List<MenuChoice>,
+    onDismiss: () -> Unit,
+) {
     val first = remember { FocusRequester() }
     val visible = remember { MutableTransitionState(false).apply { targetState = true } }
-    var chosen by remember { mutableStateOf<MenuAction?>(null) }
+    var chosen by remember { mutableStateOf<MenuChoice?>(null) }
     var ready by remember { mutableStateOf(!okHeld) }
     val close = { visible.targetState = false }
 
@@ -90,11 +124,10 @@ fun AppMenu(
         delay(60)
         runCatching { first.requestFocus() }
     }
-    // Act once the menu has gone, so a new screen (uninstall, app info) doesn't open over it
     LaunchedEffect(visible.isIdle, visible.currentState) {
         if (visible.isIdle && !visible.currentState) {
             onDismiss()
-            chosen?.let(onAction)
+            chosen?.act?.invoke()
         }
     }
     val scrimAlpha by animateFloatAsState(if (visible.targetState) 1f else 0f, tween(MENU_MS), label = "menuScrim")
@@ -128,21 +161,16 @@ fun AppMenu(
                         .padding(14.dp),
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
-                    Row(Modifier.padding(start = 10.dp, top = 6.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Image(app.icon, contentDescription = null, modifier = Modifier.size(44.dp).clip(Squircle))
-                        Spacer(Modifier.width(14.dp))
-                        Text(app.label, color = Palette.TextPrimary, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Row(Modifier.padding(start = 10.dp, top = 6.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically, content = header)
+                    for ((i, choice) in choices.withIndex()) {
+                        MenuItem(
+                            choice.title,
+                            { chosen = choice; close() },
+                            if (i == 0) Modifier.focusRequester(first) else Modifier,
+                            hint = choice.hint,
+                            warning = choice.warning,
+                        )
                     }
-                    val choose = { action: MenuAction -> chosen = action; close() }
-                    MenuItem(
-                        if (pinned) "Remove from Favorites" else "Add to Favorites",
-                        { choose(MenuAction.TogglePin) },
-                        Modifier.focusRequester(first),
-                    )
-                    if (pinned) MenuItem("Move", { choose(MenuAction.Move) }, hint = "Left / Right along Favorites")
-                    MenuItem("Rename…", { choose(MenuAction.Rename) }, hint = app.originalLabel?.let { "Its own name: $it" })
-                    MenuItem("App info", { choose(MenuAction.AppInfo) }, hint = "In the TV's settings")
-                    if (app.removable) MenuItem("Uninstall", { choose(MenuAction.Uninstall) }, warning = true)
                 }
             }
         }
