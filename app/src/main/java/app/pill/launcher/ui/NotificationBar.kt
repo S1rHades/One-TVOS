@@ -46,6 +46,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -130,13 +131,20 @@ fun NotificationBar(
     // Each row's focus, so dismissing one hands focus to the one that takes its place
     val rowFocus = remember { HashMap<String, FocusRequester>() }
     var refocusAt by remember { mutableStateOf<Int?>(null) }
-    LaunchedEffect(notices, refocusAt) {
+    val currentNotices by rememberUpdatedState(notices)
+    LaunchedEffect(refocusAt) {
         val at = refocusAt ?: return@LaunchedEffect
+        // A few frames for the list to lose the dismissed row
+        repeat(6) {
+            delay(30)
+            val next = currentNotices.getOrNull(at) ?: currentNotices.getOrNull(at - 1)
+            val target = next?.let { rowFocus[it.id] } ?: bellFocus
+            if (runCatching { target.requestFocus() }.isSuccess && it >= 2) {
+                refocusAt = null
+                return@LaunchedEffect
+            }
+        }
         refocusAt = null
-        delay(40)
-        val next = notices.getOrNull(at) ?: notices.getOrNull(at - 1)
-        val target = next?.let { rowFocus[it.id] } ?: bellFocus
-        runCatching { target.requestFocus() }
     }
     var holdsFocus by remember { mutableStateOf(false) }
 
