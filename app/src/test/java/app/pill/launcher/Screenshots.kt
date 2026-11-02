@@ -26,6 +26,7 @@ import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.requestFocus
 import androidx.compose.ui.test.assertIsDisplayed
@@ -341,6 +342,136 @@ class Screenshots {
         check(count("Maps") == maps + 1) { "Maps should match" }
         check(count("Music") == music) { "Music shouldn't match" }
         captureScreenRoboImage(File(out, "search.png").path)
+    }
+
+    private val barItems = setOf("Home", "Search", "Settings")
+
+    /** What has focus in the launcher's own window, by name. */
+    private fun focusedName(): String {
+        val n = compose.onAllNodes(isFocused()).fetchSemanticsNodes().first()
+        val cd = n.config.getOrElseNullable(androidx.compose.ui.semantics.SemanticsProperties.ContentDescription) { null }?.joinToString()
+        val text = n.config.getOrElseNullable(androidx.compose.ui.semantics.SemanticsProperties.Text) { null }?.joinToString()
+        return listOfNotNull(cd, text).joinToString(" / ")
+    }
+
+    private fun press(key: Key) {
+        compose.onAllNodes(isFocused()).onFirst().performKeyInput { pressKey(key) }
+        settle()
+    }
+
+    private fun focusOn(description: String) {
+        compose.onAllNodesWithContentDescription(description).onFirst().requestFocus()
+        settle()
+    }
+
+    /**
+     * The D-pad around the home screen: Up from Favorites reaches the widgets, Up again the
+     * bar; Down from the bar comes back to the widgets, then Favorites, then All apps.
+     */
+    @Test
+    fun navigationOnHome() {
+        show("misty-valley", pins = favorites)
+        check(focusedName().contains("Cinema")) { "starts on the first favourite: ${focusedName()}" }
+        press(Key.DirectionUp)
+        val widget = focusedName()
+        check(barItems.none { widget.startsWith(it) } && !widget.contains("Cinema")) { "Up from Favorites reaches a widget: $widget" }
+        press(Key.DirectionUp)
+        check(barItems.any { focusedName().startsWith(it) } || focusedName().startsWith("Internet")) { "Up from a widget reaches the bar: ${focusedName()}" }
+        for (item in listOf("Home", "Search", "Settings")) {
+            focusOn(item)
+            press(Key.DirectionDown)
+            val below = focusedName()
+            check(barItems.none { below.startsWith(it) } && !below.contains("Cinema")) { "Down from $item reaches the widgets: $below" }
+        }
+        press(Key.DirectionDown)
+        check(focusedName().contains("Cinema") || focusedName().contains("Live TV") || focusedName().contains("Music")) { "Down from the widgets reaches Favorites: ${focusedName()}" }
+        focusOn("Cinema")
+        press(Key.DirectionDown)
+        check(focusedName().contains("All")) { "Down from Favorites reaches the chips: ${focusedName()}" }
+        press(Key.DirectionUp)
+        check(focusedName().contains("Cinema")) { "Up from the chips comes back to Favorites: ${focusedName()}" }
+        // Left from the first favourite and Right from the last stay put
+        press(Key.DirectionLeft)
+        check(focusedName().contains("Cinema")) { "Left from the first favourite stays: ${focusedName()}" }
+    }
+
+    /** With no widget that takes focus, Up from Favorites and Down from the bar skip the widgets. */
+    @Test
+    fun navigationWithQuietWidgets() {
+        show("misty-valley", pins = favorites, settings = LauncherSettings(weather = WeatherMode.Celsius, widgets = listOf(WidgetKind.Daylight, WidgetKind.System)))
+        press(Key.DirectionUp)
+        check(barItems.any { focusedName().startsWith(it) } || focusedName().startsWith("Internet")) { "Up from Favorites reaches the bar: ${focusedName()}" }
+        focusOn("Home")
+        press(Key.DirectionDown)
+        check(focusedName().contains("Cinema")) { "Down from the bar reaches Favorites: ${focusedName()}" }
+    }
+
+    /** No favourites and no widget that takes focus: Down from the bar goes to All apps. */
+    @Test
+    fun navigationWithNothingAbove() {
+        show("misty-valley", pins = emptyList(), settings = LauncherSettings(weather = WeatherMode.Celsius, widgets = listOf(WidgetKind.Daylight)))
+        focusOn("Home")
+        press(Key.DirectionDown)
+        check(focusedName().contains("All")) { "Down from the bar reaches All apps: ${focusedName()}" }
+    }
+
+    /** In Settings the bar stays at the top; Down from it goes back into the panel, and Home closes it. */
+    @Test
+    fun navigationInSettings() {
+        show("pine-forest", pins = favorites)
+        compose.onNodeWithContentDescription("Settings").performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        val gear = compose.onAllNodesWithContentDescription("Settings").onLast()
+        gear.requestFocus()
+        settle()
+        gear.performKeyInput { pressKey(Key.DirectionDown) }
+        settle()
+        // The home screen behind keeps its own focused tile; the panel's focus is on its first row
+        compose.onNode(isFocused() and (hasText("Background") or hasText("Widgets") or hasText("Favorites row"))).assertExists()
+        compose.onAllNodesWithContentDescription("Home").onLast().performSemanticsAction(SemanticsActions.OnClick)
+        compose.mainClock.advanceTimeBy(600)
+        settle()
+        compose.onNodeWithText("Background").assertDoesNotExist()
+        check(focusedName().contains("Cinema")) { "Home from Settings goes to the first favourite: ${focusedName()}" }
+    }
+
+    /** A page opened from the bar: Down from the bar reaches the page, Home closes it. */
+    @Test
+    fun navigationOnAPage() {
+        show("pine-forest", pins = favorites)
+        compose.onNodeWithContentDescription("Internet", substring = true).performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        val bar = compose.onAllNodesWithContentDescription("Home").onLast()
+        bar.requestFocus()
+        settle()
+        bar.performKeyInput { pressKey(Key.DirectionDown) }
+        settle()
+        compose.onNode(isFocused() and (hasText("Start test") or hasText("Network settings"))).assertExists()
+        compose.onAllNodesWithContentDescription("Home").onLast().performSemanticsAction(SemanticsActions.OnClick)
+        compose.mainClock.advanceTimeBy(1200)
+        settle()
+        compose.onNodeWithText("Start test").assertDoesNotExist()
+        check(focusedName().contains("Cinema")) { "Home from a page goes to the first favourite: ${focusedName()}" }
+    }
+
+    /** OK on a widget opens its page; closing it puts focus back on that widget. */
+    @Test
+    fun navigationBackFromAWidgetPage() {
+        show("canyon-river", pins = favorites, weather = forecastWeather)
+        press(Key.DirectionUp)
+        val widget = focusedName()
+        press(Key.DirectionCenter)
+        compose.mainClock.advanceTimeBy(1200)
+        settle()
+        // Close it the way Back does: the page's own dismiss (Back goes to the dialog)
+        compose.onAllNodesWithContentDescription("Home").onLast().let { home ->
+            check(compose.onAllNodesWithContentDescription("Home").fetchSemanticsNodes().size == 2) { "a page with its bar opened from $widget" }
+        }
+        androidx.test.espresso.Espresso.pressBack()
+        compose.mainClock.advanceTimeBy(1200)
+        settle()
+        check(compose.onAllNodesWithContentDescription("Home").fetchSemanticsNodes().size == 1) { "the page closed" }
+        check(focusedName() == widget) { "focus back on $widget, not ${focusedName()}" }
     }
 
     /** Menu → Rename… on the first favourite: the name changes only in the launcher. */

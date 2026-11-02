@@ -80,6 +80,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.foundation.focusGroup
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
@@ -195,8 +196,6 @@ fun LauncherScreen(
     var photoError by remember { mutableStateOf<String?>(null) }
     // Who took the photo on screen (online photos only), shown on the idle screen and in settings
     var photoCredit by remember { mutableStateOf<String?>(null) }
-    // Where it was taken and by whom, the short form shown while idle
-    var photoCaption by remember { mutableStateOf<String?>(null) }
     var backdrop by remember { mutableStateOf<ImageBitmap?>(null) }
     var initialFocusDone by remember { mutableStateOf(false) }
     var toast by remember { mutableStateOf<Toast?>(null) }
@@ -232,6 +231,11 @@ fun LauncherScreen(
     // The All apps chip picked (null: all), and the first chip, where the rail's Apps lands
     var appFilter by remember { mutableStateOf<AppCategory?>(null) }
     val chipFocus = remember { FocusRequester() }
+    // The widget row, so Down from the bar can go to it; whether it holds focus right now
+    val widgetFocus = remember { FocusRequester() }
+    var widgetsFocused by remember { mutableStateOf(false) }
+    // Settings was closed by going somewhere from the bar: focus goes there, not back to the gear
+    var panelLeftByBar by remember { mutableStateOf(false) }
     // Kick-off banners already seen (by match), so each shows once
     var bannersShown by remember { mutableStateOf(setOf<String>()) }
     val headlines = remember(news, settings.newsTopics) { news?.let { pickHeadlines(it, settings.newsTopics) }.orEmpty() }
@@ -278,6 +282,23 @@ fun LauncherScreen(
             if (target != null && runCatching { target.requestFocus() }.isSuccess) return
         }
         runCatching { pillFocus.requestFocus() }
+    }
+
+    // Down from the bar at the top right. The scrolling page under it covers the whole
+    // screen, the bar's corner included, so focus search never finds it "below" the bar;
+    // this says where Down goes instead: the widgets (when one takes focus), else the
+    // first favourite, and the top of All apps when that is on screen or nothing else is.
+    fun leaveBar() {
+        scope.launch {
+            if (scroll.value == 0) {
+                runCatching { widgetFocus.requestFocus() }
+                withFrameNanos { }
+                if (widgetsFocused) return@launch
+                val first = currentPinned.firstOrNull()?.let { favoriteFocus[it.pkg] }
+                if (first != null && runCatching { first.requestFocus() }.isSuccess) return@launch
+            }
+            runCatching { chipFocus.requestFocus() }
+        }
     }
 
     LaunchedEffect(apps != null) {
@@ -363,6 +384,10 @@ fun LauncherScreen(
 
     // Return focus to the pill when the settings panel closes
     LaunchedEffect(panelOpen) {
+        if (panelLeftByBar) {
+            panelLeftByBar = false
+            return@LaunchedEffect
+        }
         if (!panelOpen && initialFocusDone) {
             delay(100)
             runCatching { pillFocus.requestFocus() }
@@ -399,6 +424,7 @@ fun LauncherScreen(
             NavItem.Settings -> panelOpen
         }
         if (already) return
+        if (panelOpen) panelLeftByBar = true
         forecastOpen = false
         clockOpen = false
         hubTeam = null
@@ -443,7 +469,6 @@ fun LauncherScreen(
                 fallback = if (settings.onlinePhotos && onlinePhotos.isNotEmpty()) BackgroundSources.photos else emptyList(),
                 onShown = {
                     photoCredit = it.credit
-                    photoCaption = it.caption
                 },
                 intervalMs = settings.intervalSec * 1000L,
                 enabled = settings.slideshow,
@@ -535,6 +560,9 @@ fun LauncherScreen(
                                     animate = !idle,
                                     modifier = Modifier
                                         .weight(1f)
+                                        .focusRequester(widgetFocus)
+                                        .onFocusChanged { widgetsFocused = it.hasFocus }
+                                        .focusGroup()
                                         .idlePresentation(focus = { idleFocus }, shift = { idleShift.value }),
                                     onOpenClock = { clockOpen = true },
                                     onOpenWeather = { forecastOpen = true },
@@ -664,26 +692,12 @@ fun LauncherScreen(
                 current = if (scrolled) null else NavItem.Home,
                 onSelect = { navigate(it) },
                 settingsFocus = pillFocus,
+                onDown = { leaveBar() },
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(top = NavTop, end = Spacing.ScreenH)
                     .dissolveStep({ 1f - idleFade }, step = 0, steps = 3),
             )
-
-            // Where the photo was taken and who took it, while the screen rests
-            photoCaption?.let { caption ->
-                Text(
-                    caption,
-                    color = Palette.TextTertiary,
-                    fontSize = 13.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(start = Spacing.ScreenH, end = Spacing.ScreenH, bottom = 20.dp)
-                        .graphicsLayer { alpha = idleFade },
-                )
-            }
 
             AnimatedVisibility(
                 visible = banner != null,

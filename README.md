@@ -53,7 +53,7 @@ Favourites can scroll in one row or wrap onto more rows (**Settings → Favorite
 
 ### The bar and glass motion
 
-The bar at the top right holds **Home** and **Search**, then a divider, **Wi-Fi** (the Internet page) and **Settings**. Press **Up** from the widgets to reach it. A white marker glides to the icon you're on, its name shows briefly under it, and a softer marker stays on the section you're in. The Wi-Fi icon turns red when the TV is offline. The bar stays in the same place on every page and panel, which all start below it, and it works from there too: Home closes whatever is open.
+The bar at the top right holds **Home** and **Search**, then a divider, **Wi-Fi** (the Internet page) and **Settings**. Press **Up** from the widgets to reach it, and **Down** to go back to the widgets (or the first favourite, or All apps when you are there). A white marker glides to the icon you're on, and a softer marker stays on the section you're in. The Wi-Fi icon turns red when the TV is offline. The bar stays in the same place on every page and panel, which all start below it, and it works from there too: Home closes whatever is open.
 
 Every page opens the same way. The photo behind blurs and dims, the page dissolves in from frosted glass, and its parts come into focus one after another in reading order. Back reverses it. The blur needs Android 12 or later; older TVs get the same timing as a plain fade.
 
@@ -148,7 +148,7 @@ When a newer Pill Launcher is on GitHub, a card above Favorites says so, with th
 
 ### Idle screen
 
-After a while without a key press (two minutes by default, under **Settings → Idle screen**), everything but the widgets fades away and the photo slowly zooms. The corner names where the photo was taken and who took it. Any key brings the home screen back.
+After a while without a key press (two minutes by default, under **Settings → Idle screen**), everything but the widgets fades away and the photo slowly zooms. Nothing else is on the photo: no captions or credits. Any key brings the home screen back.
 
 <p align="center"><img src="docs/screenshots/idle.png" width="100%" alt="The idle screen: only the clock, weather and football cards over a slowly zooming photo of snowy mountains"></p>
 
@@ -176,7 +176,7 @@ On TVs that ignore that command, turning off the stock launcher works too (turn 
 
 The `latest` release is rebuilt automatically every time `main` changes, so installing it again always gets you the newest version.
 
-Every version also keeps its own release, named after it (**Pill Launcher 3.1**, tag `v3.1`, file `pill-launcher-3.1.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v3.1/pill-launcher-3.1.apk`. The newest is titled **Pill Launcher 3.1 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
+Every version also keeps its own release, named after it (**Pill Launcher 3.1.1**, tag `v3.1.1`, file `pill-launcher-3.1.1.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v3.1.1/pill-launcher-3.1.1.apk`. The newest is titled **Pill Launcher 3.1.1 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
 
 ### Uninstalling
 
@@ -189,7 +189,7 @@ If the launcher won't open, use the TV's own **Settings → Apps → Pill Launch
 | To | Press |
 | --- | --- |
 | Open an app | **OK** |
-| Reach the bar at the top right | **Up** from the widgets |
+| Reach the bar at the top right, and leave it | **Up** from the widgets; **Down** goes back to them |
 | See all apps | **Down** from Favorites |
 | Show only video, music or game apps | **Down** to the chips above All apps, **Left** / **Right**, then **OK** |
 | Find an app | **Search** in the bar, then letters from the strip (**Left** / **Right**, OK), or **Up** to the field for the keyboard |
@@ -290,7 +290,7 @@ When it's done, a chip says in plain words what the speed is good for: 4K stream
 
 ### Online photos
 
-By default the slideshow shows a new set of 24 landscape photos each day from [Wikimedia Commons' Featured Pictures](https://commons.wikimedia.org/wiki/Commons:Featured_pictures) (mountains, lakes, forests, waterfalls and coasts). The **Photo feed** workflow (`.github/workflows/photo-feed.yml`, `.github/scripts/photo_feed.py`) picks them each morning, resizes them to 1920×1080 and publishes them with their credits on the `photos-data` branch. The TV reads them from `raw.githubusercontent.com`. The photos are freely licensed (mostly CC BY-SA): the idle screen names where the photo on screen was taken and who took it, and Settings shows its full credit and licence. Offline, the TV uses the last set it saw and the built-in photos.
+By default the slideshow shows a new set of 24 landscape photos each day from [Wikimedia Commons' Featured Pictures](https://commons.wikimedia.org/wiki/Commons:Featured_pictures) (mountains, lakes, forests, waterfalls and coasts). The **Photo feed** workflow (`.github/workflows/photo-feed.yml`, `.github/scripts/photo_feed.py`) picks them each morning, resizes them to 1920×1080 and publishes them with their credits on the `photos-data` branch. The TV reads them from `raw.githubusercontent.com`. The photos are freely licensed (mostly CC BY-SA): **Settings → Background** shows the photo on screen's full credit and licence. Offline, the TV uses the last set it saw and the built-in photos.
 
 ### Your own photos
 
@@ -307,7 +307,7 @@ gradle assembleDebug                                   # app/build/outputs/apk/d
 gradle :app:testDebugUnitTest --tests '*Screenshots*'  # re-render docs/screenshots
 ```
 
-**Builds are automated.** `.github/workflows/build.yml` builds the APK for every pull request and push; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v3.1`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
+**Builds are automated.** `.github/workflows/build.yml` builds the APK for every pull request and push; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v3.1.1`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
 
 <details>
 <summary><b>Architecture</b></summary>

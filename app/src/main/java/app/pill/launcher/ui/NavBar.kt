@@ -12,6 +12,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -85,7 +90,7 @@ fun BoxScope.TopNav(current: NavItem?) {
 /**
  * The bar at the top right of every screen: Home and Search, a divider, then Wi-Fi (the
  * Internet page) and Settings. A disc marks where you are; while the bar has focus it
- * turns white, glides to the focused item, and the item's name shows under it for a moment.
+ * turns white and glides to the focused item. Nothing shows under the bar.
  */
 @Composable
 fun NavBar(
@@ -93,6 +98,8 @@ fun NavBar(
     onSelect: (NavItem) -> Unit,
     modifier: Modifier = Modifier,
     settingsFocus: FocusRequester? = null,
+    /** Where Down from the bar goes; without it, to whatever is below. */
+    onDown: (() -> Unit)? = null,
 ) {
     val network by rememberNetworkStatus()
     // The focused item, or -1 while focus is elsewhere
@@ -111,20 +118,13 @@ fun NavBar(
         tween(Motion.Quick),
         label = "navMarkerColor",
     )
-    // The name is a tooltip: it shows as focus arrives on an item and fades after a moment
-    var labelAt by remember { mutableIntStateOf(0) }
-    if (active) labelAt = focused
-    var tip by remember { mutableStateOf(false) }
-    LaunchedEffect(focused) {
-        tip = focused >= 0
-        if (tip) {
-            delay(1800)
-            tip = false
-        }
-    }
-    val labelShown by animateFloatAsState(if (tip) 1f else 0f, tween(Motion.Quick), label = "navLabel")
-
-    Box(modifier) {
+    Box(
+        modifier.onPreviewKeyEvent { event ->
+            if (onDown == null || event.key != Key.DirectionDown) return@onPreviewKeyEvent false
+            if (event.type == KeyEventType.KeyDown) onDown()
+            true
+        },
+    ) {
         Box(Modifier.glass(RoundedCornerShape(50)).padding(BarPad)) {
             Box(
                 Modifier
@@ -159,37 +159,19 @@ fun NavBar(
                         when (item) {
                             NavItem.Home -> HomeIcon(tint, 22.dp)
                             NavItem.Search -> SearchIcon(tint, 22.dp)
-                            NavItem.Internet -> WifiIcon(network, if (network.link == Link.Offline && !on) OfflineRed else tint, 22.dp)
+                            // Always the plain Wi-Fi symbol (wired or not), crossed out and red when offline
+                            NavItem.Internet -> WifiIcon(
+                                if (network.link == Link.Offline) network else NetworkStatus(Link.WiFi, 4, false),
+                                if (network.link == Link.Offline && !on) OfflineRed else tint,
+                                22.dp,
+                            )
                             NavItem.Settings -> GearIcon(tint, 23.dp)
                         }
                     }
                 }
             }
         }
-        // The focused item's name, under the bar (outside its bounds, so it takes no room)
-        Box(
-            Modifier
-                .align(Alignment.TopStart)
-                .offset(x = BarPad + itemX(labelAt) + ItemSize / 2 - 40.dp, y = NavHeight + 8.dp)
-                .size(width = 80.dp, height = 30.dp)
-                .graphicsLayer {
-                    alpha = labelShown
-                    translationY = (1f - labelShown) * -6.dp.toPx()
-                },
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                NavItem.entries[labelAt].label,
-                color = Palette.Ink,
-                fontSize = 14.sp,
-                fontWeight = FontWeight(650),
-                maxLines = 1,
-                modifier = Modifier
-                    .shadow(10.dp, RoundedCornerShape(50))
-                    .background(Palette.Focus, RoundedCornerShape(50))
-                    .padding(horizontal = 12.dp, vertical = 5.dp),
-            )
-        }
+
     }
 }
 
