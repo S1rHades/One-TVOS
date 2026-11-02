@@ -54,6 +54,11 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -122,6 +127,17 @@ fun NotificationBar(
     }
     val top = notices.firstOrNull()
     val firstRow = remember { FocusRequester() }
+    // Each row's focus, so dismissing one hands focus to the one that takes its place
+    val rowFocus = remember { HashMap<String, FocusRequester>() }
+    var refocusAt by remember { mutableStateOf<Int?>(null) }
+    LaunchedEffect(notices, refocusAt) {
+        val at = refocusAt ?: return@LaunchedEffect
+        refocusAt = null
+        delay(40)
+        val next = notices.getOrNull(at) ?: notices.getOrNull(at - 1)
+        val target = next?.let { rowFocus[it.id] } ?: bellFocus
+        runCatching { target.requestFocus() }
+    }
     var holdsFocus by remember { mutableStateOf(false) }
 
     // Opening moves focus into the list; folding it up brings focus back to the bell
@@ -155,7 +171,19 @@ fun NotificationBar(
         )
     }
 
-    Box(modifier.fillMaxWidth().height(BarHeight).zIndex(2f).onFocusChanged { holdsFocus = it.hasFocus }) {
+    Box(
+        modifier
+            .fillMaxWidth()
+            .height(BarHeight)
+            .zIndex(2f)
+            .onFocusChanged { holdsFocus = it.hasFocus }
+            // Back folds the open list up (the remote's Back reaches the focused row first)
+            .onPreviewKeyEvent { event ->
+                if (!open || event.key != Key.Back) return@onPreviewKeyEvent false
+                if (event.type == KeyEventType.KeyUp) onOpenChange(false)
+                true
+            },
+    ) {
         val sheetShadow by animateFloatAsState(if (open) 1f else 0f, tween(Motion.Enter), label = "sheetShadow")
         Column(
             Modifier
@@ -243,10 +271,15 @@ fun NotificationBar(
                                 update = update,
                                 now = now,
                                 onOpen = { onPrimary(n) },
-                                onDismiss = { onDismiss(n) },
+                                onDismiss = {
+                                    onDismiss(n)
+                                    refocusAt = i
+                                },
                                 onLater = onLaterUpdate,
                                 onCancel = onCancelUpdate,
-                                modifier = if (i == 0) Modifier.focusRequester(firstRow) else Modifier,
+                                modifier = Modifier
+                                    .focusRequester(rowFocus.getOrPut(n.id) { FocusRequester() })
+                                    .then(if (i == 0) Modifier.focusRequester(firstRow) else Modifier),
                             )
                         }
                     }

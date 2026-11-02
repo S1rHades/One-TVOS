@@ -685,8 +685,8 @@ class Screenshots {
         compose.onAllNodes(isRoot()).onFirst().performKeyInput { keyUp(Key.DirectionCenter) }
         settle()
         compose.onNodeWithText("New episode", substring = true).assertDoesNotExist()
-        androidx.test.espresso.Espresso.pressBack()
-        settle()
+        check(focusedName().contains("holiday.jpg")) { "focus moves to the next notification: ${focusedName()}" }
+        press(Key.Back)
         compose.onNodeWithText("Clear all").assertDoesNotExist()
         check(focusedName().startsWith("Notifications")) { "Back folds the list up onto the bell: ${focusedName()}" }
     }
