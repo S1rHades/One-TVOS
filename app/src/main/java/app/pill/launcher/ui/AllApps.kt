@@ -33,6 +33,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.foundation.focusGroup
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -62,6 +65,7 @@ private val ChipShape = RoundedCornerShape(50)
  * (or coming up from the grid) never changes what's shown.
  */
 @Composable
+@OptIn(ExperimentalComposeUiApi::class)
 fun CategoryChips(
     categories: List<AppCategory?>,
     selected: AppCategory?,
@@ -74,6 +78,8 @@ fun CategoryChips(
     val placed = remember { mutableStateMapOf<Int, Pair<Float, Float>>() }
     val index = categories.indexOf(selected).coerceAtLeast(0)
     val spot = placed[index]
+    // Coming into the chips from above or below, focus lands on the one that is selected
+    val chipFocus = remember(categories.size) { List(categories.size) { FocusRequester() } }
     val x by animateDpAsState(with(density) { (spot?.first ?: 0f).toDp() }, Motion.glide(), label = "chipX")
     val w by animateDpAsState(with(density) { (spot?.second ?: 0f).toDp() }, Motion.glide(), label = "chipW")
     Box(modifier) {
@@ -86,7 +92,12 @@ fun CategoryChips(
                 .shadow(10.dp, ChipShape)
                 .background(Palette.Focus, ChipShape),
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(
+            Modifier
+                .focusProperties { enter = { chipFocus.getOrNull(index) ?: FocusRequester.Default } }
+                .focusGroup(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
             for ((i, category) in categories.withIndex()) {
                 val on = i == index
                 var focused by remember { mutableStateOf(false) }
@@ -100,7 +111,8 @@ fun CategoryChips(
                         .background(if (on) Color.Transparent else Color(0x1FFFFFFF))
                         .border(1.dp, if (on) Color.Transparent else Color(0x33FFFFFF), ChipShape)
                         .border(2.5.dp, (if (on) Palette.Ink else Palette.Focus).copy(alpha = ring), ChipShape)
-                        .then(if (i == 0) Modifier.focusRequester(firstFocus) else Modifier)
+                        .focusRequester(chipFocus[i])
+                        .then(if (i == index) Modifier.focusRequester(firstFocus) else Modifier)
                         .onFocusChanged { focused = it.isFocused }
                         .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onSelect(category) }
                         .padding(horizontal = 18.dp),
