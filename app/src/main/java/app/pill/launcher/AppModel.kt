@@ -17,8 +17,6 @@ data class AppEntry(
     val pkg: String,
     val component: ComponentName,
     val icon: ImageBitmap,
-    /** The app's 16:9 TV banner, when it ships one. */
-    val banner: ImageBitmap? = null,
     /** A vivid colour from the app's artwork (ARGB), for its glow. */
     val accent: Int = DefaultAccent,
     /** False for apps built into the TV, which can't be uninstalled. */
@@ -78,9 +76,6 @@ class IconLayers(val background: Drawable, val foreground: Drawable)
 
 const val DefaultAccent = 0xFF5B7CFA.toInt()
 
-/** Banner bitmap size: 2x the 320x180 TV banner, sharp on a 1080p screen. */
-private const val BANNER_W = 640
-private const val BANNER_H = 360
 
 /**
  * The most vivid colour in [bitmap]: sampled on a 24x24 grid, each pixel weighted by its
@@ -127,15 +122,12 @@ fun loadApps(pm: PackageManager, self: String): List<AppEntry> {
                 val fg = adaptive.foreground
                 if (bg != null && fg != null) IconLayers(bg, fg) else null
             }
-            // TV apps ship a 16:9 banner; null for phone-style apps
-            val banner = runCatching { info.activityInfo.loadBanner(pm)?.toBitmap(BANNER_W, BANNER_H) }.getOrNull()
             seen[pkg] = AppEntry(
                 label = info.loadLabel(pm).toString(),
                 pkg = pkg,
                 component = ComponentName(pkg, info.activityInfo.name),
                 icon = icon.asImageBitmap(),
-                banner = banner?.asImageBitmap(),
-                accent = runCatching { accentOf(banner ?: icon) }.getOrDefault(DefaultAccent),
+                accent = runCatching { accentOf(icon) }.getOrDefault(DefaultAccent),
                 iconLayers = layers,
                 removable = (info.activityInfo.applicationInfo.flags and ApplicationInfo.FLAG_SYSTEM) == 0,
                 category = info.activityInfo.applicationInfo.let { app ->

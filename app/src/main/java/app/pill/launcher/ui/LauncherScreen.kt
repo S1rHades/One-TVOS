@@ -52,6 +52,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -132,6 +133,7 @@ import app.pill.launcher.kickoffNotice
 import app.pill.launcher.momentNotice
 import app.pill.launcher.offlineNotice
 import app.pill.launcher.updateNotice
+import app.pill.launcher.shownNotice
 import java.io.File
 import kotlinx.coroutines.delay
 
@@ -217,6 +219,9 @@ fun LauncherScreen(
     share: FileShare? = null,
     /** Opens a file from the TV with its apps; a message when it can't. */
     onOpenFile: (File) -> String? = { null },
+    /** Why the launcher started in safe mode (after crashing twice), or null normally. */
+    safeMode: String? = null,
+    onTryNormally: () -> Unit = {},
 ) {
     var panelOpen by remember { mutableStateOf(false) }
     // The page Settings opens on (Updates, from "Updated to …"); null for the list
@@ -454,7 +459,10 @@ fun LauncherScreen(
             updateNotice(update, updateDismissed, now),
             banner?.takeIf { settings.footballNotices }?.let { (team, match) -> kickoffNotice(team, match, now) },
             offlineSince?.takeIf { offlineShown && settings.connectionNotices }?.let { offlineNotice(it) },
-        ).plus(notices.filter { it.kind != NoticeKind.App || (settings.appNotices && it.pkg !in settings.mutedApps) })
+        ).plus(
+            notices.filter { it.kind != NoticeKind.App || (settings.appNotices && it.pkg !in settings.mutedApps) }
+                .map { shownNotice(it, settings.hidePrivate) },
+        )
             .filter { it.id !in dismissedLive }
             .sortedByDescending { it.at }
     }
@@ -609,13 +617,13 @@ fun LauncherScreen(
                 val contentWidth = maxWidth - Spacing.ScreenH * 2
                 // Wrapped favourites can need more than one row; the first page grows to fit them
                 val favoriteRows = if (settings.favoritesLayout == FavoritesLayout.Wrap) {
-                    favoritesPerRow(contentWidth, settings.favoritesStyle, FavoriteIcon).let { (pinnedApps.size + it - 1) / it }.coerceAtLeast(1)
+                    favoritesPerRow(contentWidth, FavoriteIcon).let { (pinnedApps.size + it - 1) / it }.coerceAtLeast(1)
                 } else {
                     1
                 }
                 val pageHeight = maxOf(
                     maxHeight - Spacing.ScreenV,
-                    HeaderHeight + favoritesRowHeight(settings.favoritesStyle, FavoriteIcon) * favoriteRows + maxHeight * PAGE_EDGE,
+                    HeaderHeight + favoritesRowHeight(FavoriteIcon) * favoriteRows + maxHeight * PAGE_EDGE,
                 )
                 val pageEdge = maxHeight * PAGE_EDGE
                 val screenHeight = maxHeight
@@ -719,8 +727,15 @@ fun LauncherScreen(
                                 )
                             }
 
-                            // The notification bar, as wide as the widgets: the newest notice, the bell and Files
-                            NotificationBar(
+                            // The notification bar, as wide as the widgets: the newest notice, the bell and Files.
+                            // In safe mode, a note saying why instead
+                            if (safeMode != null) {
+                                SafeModeCard(
+                                    reason = safeMode,
+                                    onTryNormally = onTryNormally,
+                                    modifier = Modifier.padding(start = Spacing.Tile, end = Spacing.Tile, top = 14.dp),
+                                )
+                            } else NotificationBar(
                                 notices = allNotices,
                                 unread = unread,
                                 open = noticesOpen,
@@ -774,7 +789,7 @@ fun LauncherScreen(
                             Box(
                                 Modifier
                                     .fillMaxWidth()
-                                    .heightIn(min = favoritesRowHeight(settings.favoritesStyle, FavoriteIcon))
+                                    .heightIn(min = favoritesRowHeight(FavoriteIcon))
                                     .graphicsLayer { alpha = 1f - 0.85f * listOver }
                                     .dissolveStep({ 1f - idleFade }, step = 2, steps = 3),
                                 contentAlignment = Alignment.CenterStart,
@@ -785,7 +800,6 @@ fun LauncherScreen(
                                     FavoritesRow(
                                         apps = pinnedApps,
                                         layout = settings.favoritesLayout,
-                                        style = settings.favoritesStyle,
                                         animate = settings.favoritesAnimation,
                                         iconSize = FavoriteIcon,
                                         width = contentWidth,
@@ -915,6 +929,7 @@ fun LauncherScreen(
                     startPage = settingsStart,
                     noticeAccess = noticeAccess,
                     onNoticeAccess = onNoticeAccess,
+                    share = share,
                     noticeApps = (notices.filter { it.kind == NoticeKind.App }.mapNotNull { it.pkg } + settings.mutedApps)
                         .distinct()
                         .map { pkg -> pkg to (apps.orEmpty().firstOrNull { it.pkg == pkg }?.label ?: pkg) }
@@ -974,6 +989,30 @@ fun LauncherScreen(
             }
             if (internetOpen) {
                 InternetPage(onOpenNetworkSettings = onOpenNetworkSettings, onDismiss = { internetOpen = false })
+            }
+            // A phone typed the code: Allow or Block, over whatever is showing
+            share?.let { files ->
+                val pending = files.state.collectAsState().value.pending
+                if (pending != null) {
+                    key(pending.id) {
+                        var answered by remember { mutableStateOf(false) }
+                        if (!answered) {
+                            MenuCard(
+                                okHeld = false,
+                                header = {
+                                    FilesIcon(Palette.TextPrimary, 30.dp)
+                                    Spacer(Modifier.width(14.dp))
+                                    Text("${pending.name} wants to connect", color = Palette.TextPrimary, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, maxLines = 2)
+                                },
+                                choices = listOf(
+                                    MenuChoice("Allow", "It can send and save files for 90 days") { files.approve(pending.id) },
+                                    MenuChoice("Block", "Someone typed this TV's code on it", warning = true) { files.block(pending.id) },
+                                ),
+                                onDismiss = { answered = true },
+                            )
+                        }
+                    }
+                }
             }
             if (filesOpen && share != null) {
                 FilesPage(
@@ -1201,3 +1240,25 @@ private val PreviewMargin = 28.dp
 /** How small the first page gets so it fits left of the settings panel, as a live preview. */
 private fun previewScale(contentWidth: Dp, screenWidth: Dp): Float =
     ((screenWidth - PanelRoom - PreviewMargin * 2) / contentWidth).coerceIn(0.3f, 1f)
+
+/**
+ * Safe mode, where the notification bar would be: the launcher crashed twice in a row,
+ * so it started with only the photo and Favorites. Try normally starts it as usual.
+ */
+@Composable
+private fun SafeModeCard(reason: String, onTryNormally: () -> Unit, modifier: Modifier = Modifier) {
+    Row(
+        modifier
+            .fillMaxWidth()
+            .glass(RoundedCornerShape(22.dp))
+            .padding(start = 18.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text("Safe mode: Pill Launcher stopped unexpectedly", color = Palette.TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text("Widgets, notifications and Files are off for now · $reason", color = Palette.TextSecondary, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        Spacer(Modifier.width(12.dp))
+        PillButton("Try normally", primary = true, onClick = onTryNormally)
+    }
+}

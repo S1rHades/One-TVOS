@@ -3,6 +3,16 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 3.3.1 (November 2026)
+
+- **Icons only**: favourite banners are gone, along with the Tile style setting. Favorites are app icons, and the launcher no longer keeps every app's banner in memory.
+- **Lighter behind other apps**: the slideshow waits while another app is in front, instead of downloading and blurring photos nobody sees. The app list is read again only when an app is installed, removed or updated (and after an hour away), so Home comes back faster. One network watcher serves the whole launcher. Widget data still refreshes, so it's current the moment you return.
+- **Files pairing**: scanning the QR code pairs a phone at once (it carries a long random key); typing the new six-digit code asks **Allow** or **Block** on the TV. Paired phones stay trusted for 90 days, listed in the new **Settings → Files**, where one can be removed or every phone signed out. Sharing listens only on the TV's home-network address, answers only requests made to that address and, for changes, from its own page, and handles at most 4 connections and 2 uploads at once.
+- **Files runs while the launcher is on screen**, so a phone can send without the Files page open; **Keep receiving** now means 15 more minutes after another app comes to the front.
+- **Files tidies itself**: an APK goes once its app is installed (on by default), and optionally files go after 30 days, with a notice the day before.
+- **Hide private messages** (Settings → Notifications): another app's private notification shows as just "New notification".
+- **Safe mode**: two crashes within a minute start the launcher with only the photo and Favorites, saying what failed, with **Try normally**.
+
 ## 3.3 (November 2026)
 
 - **Notification bar**: a new glass bar under the widgets, as wide as them. The newest notification is on the left (**OK** does what it says, holding **OK** dismisses it); the bell and **Files** are on the right. **OK** on the bell opens the bar downwards into every notification, with **Clear all**; a red dot marks anything new, and the bell swings when something arrives.

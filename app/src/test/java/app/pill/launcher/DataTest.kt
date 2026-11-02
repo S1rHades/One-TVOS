@@ -563,6 +563,28 @@ class DataTest {
         assertTrue(isHomeNetwork(java.net.InetAddress.getByName("10.0.0.7")))
         assertTrue(isHomeNetwork(java.net.InetAddress.getByName("fd12:3456::1")))
         assertFalse(isHomeNetwork(java.net.InetAddress.getByName("8.8.8.8")))
-        assertEquals(4, FileShare.newCode().length)
+        assertTrue(FileShare.newCode().let { it.length == 6 && it.all(Char::isDigit) })
+        assertEquals(32, FileShare.newKey().length)
+        assertEquals("iPhone", deviceName("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)"))
+        assertEquals("Computer", deviceName("Mozilla/5.0 (Windows NT 10.0; Win64; x64)"))
+    }
+
+    @Test
+    fun twoCrashesInAMinuteMeanSafeMode() {
+        val now = 1_000_000L
+        assertFalse(shouldStartSafe(emptyList(), now))
+        assertFalse(shouldStartSafe(listOf(now - 5_000), now))
+        assertTrue(shouldStartSafe(listOf(now - 40_000, now - 5_000), now))
+        assertFalse("crashes long ago don't count", shouldStartSafe(listOf(now - 600_000, now - 500_000), now))
+    }
+
+    @Test
+    fun privateNotificationsCanHideTheirText() {
+        val n = Notice("app:1", NoticeKind.App, "Sara", "See you at 8", Instant.EPOCH, pkg = "org.telegram", isPrivate = true)
+        assertEquals("New notification", shownNotice(n, hide = true).title)
+        assertEquals("", shownNotice(n, hide = true).text)
+        assertEquals(n, shownNotice(n, hide = false))
+        val open = n.copy(isPrivate = false)
+        assertEquals(open, shownNotice(open, hide = true))
     }
 }

@@ -7,7 +7,6 @@ import java.util.Locale
 enum class FavoritesLayout { Scroll, Wrap }
 
 /** How favourites look: wide app artwork (TV banners) or square icons. */
-enum class FavoritesStyle { Banners, Icons }
 
 /** The unit the weather widget shows temperatures in. Off is only read from older settings. */
 enum class WeatherMode { Off, Celsius, Fahrenheit }
@@ -25,7 +24,6 @@ data class LauncherSettings(
     val favoritesLayout: FavoritesLayout = FavoritesLayout.Scroll,
     /** Sliding and reordering animations in the favourites row. */
     val favoritesAnimation: Boolean = true,
-    val favoritesStyle: FavoritesStyle = FavoritesStyle.Banners,
     /** Header cards, in display order; at most [MaxWidgets]. */
     val widgets: List<WidgetKind> = DefaultWidgets,
     /** "Not now" on the home-screen prompt to make Pill Launcher the home screen. */
@@ -50,8 +48,14 @@ data class LauncherSettings(
     val footballNotices: Boolean = true,
     /** The connection dropping and coming back, in the bar. */
     val connectionNotices: Boolean = true,
-    /** Files keep arriving for 15 minutes after leaving the Files page. */
+    /** Files keep arriving for 15 minutes after the launcher goes behind another app. */
     val keepReceiving: Boolean = false,
+    /** An app's APK in Files is deleted once that app is installed. */
+    val tidyInstalled: Boolean = true,
+    /** Files older than 30 days are removed, with a notice the day before. */
+    val tidyOld: Boolean = false,
+    /** Other apps' private notifications show only the app's name, not their text. */
+    val hidePrivate: Boolean = false,
 ) {
     companion object {
         val IntervalOptions = listOf(10, 20, 30, 60)
@@ -80,9 +84,6 @@ class SettingsStore(context: Context) {
             ?.let { name -> FavoritesLayout.entries.firstOrNull { it.name == name } }
             ?: FavoritesLayout.Scroll,
         favoritesAnimation = prefs.getBoolean("favoritesAnimation", true),
-        favoritesStyle = prefs.getString("favoritesStyle", null)
-            ?.let { name -> FavoritesStyle.entries.firstOrNull { it.name == name } }
-            ?: FavoritesStyle.Banners,
         // Before widgets, the weather setting had an Off choice; it maps to the widget being off
         widgets = parseWidgets(prefs.getString("widgets", null))
             ?: if (prefs.getString("weather", null) == WeatherMode.Off.name) DefaultWidgets - WidgetKind.Weather else DefaultWidgets,
@@ -102,6 +103,9 @@ class SettingsStore(context: Context) {
         footballNotices = prefs.getBoolean("footballNotices", true),
         connectionNotices = prefs.getBoolean("connectionNotices", true),
         keepReceiving = prefs.getBoolean("keepReceiving", false),
+        tidyInstalled = prefs.getBoolean("tidyInstalled", true),
+        tidyOld = prefs.getBoolean("tidyOld", false),
+        hidePrivate = prefs.getBoolean("hidePrivate", false),
     ).let { if (it.weather == WeatherMode.Off) it.copy(weather = defaultWeatherMode()) else it }
 
     fun save(settings: LauncherSettings) {
@@ -114,7 +118,6 @@ class SettingsStore(context: Context) {
             .putBoolean("idleAnimation", settings.idleAnimation)
             .putString("favoritesLayout", settings.favoritesLayout.name)
             .putBoolean("favoritesAnimation", settings.favoritesAnimation)
-            .putString("favoritesStyle", settings.favoritesStyle.name)
             .putString("widgets", settings.widgets.toStored())
             .putBoolean("homePromptDismissed", settings.homePromptDismissed)
             .putBoolean("onlinePhotos", settings.onlinePhotos)
@@ -128,6 +131,9 @@ class SettingsStore(context: Context) {
             .putBoolean("footballNotices", settings.footballNotices)
             .putBoolean("connectionNotices", settings.connectionNotices)
             .putBoolean("keepReceiving", settings.keepReceiving)
+            .putBoolean("tidyInstalled", settings.tidyInstalled)
+            .putBoolean("tidyOld", settings.tidyOld)
+            .putBoolean("hidePrivate", settings.hidePrivate)
             .apply()
     }
 

@@ -38,6 +38,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -86,8 +87,8 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import java.time.Instant
-import app.pill.launcher.FavoritesStyle
 import app.pill.launcher.HomeStatus
+import app.pill.launcher.FileShare
 import app.pill.launcher.LauncherSettings
 import app.pill.launcher.MaxWidgets
 import app.pill.launcher.WeatherMode
@@ -162,6 +163,8 @@ fun SettingsPanel(
     onNoticeAccess: () -> String? = { null },
     /** Apps with notifications now, or muted, as (package, name). */
     noticeApps: List<Pair<String, String>> = emptyList(),
+    /** Files between phones and the TV, for its trusted devices; null where there is none. */
+    share: FileShare? = null,
 ) {
     // A message from the last attempt, shown under the row until the panel closes
     var defaultNote by remember { mutableStateOf<String?>(null) }
@@ -422,19 +425,6 @@ fun SettingsPanel(
                                     focused,
                                 )
                             }
-                            val styles = FavoritesStyle.entries
-                            val styleIndex = styles.indexOf(settings.favoritesStyle)
-                            SettingRow(
-                                title = "Tile style",
-                                subtitle = if (settings.favoritesStyle == FavoritesStyle.Banners) "App artwork, or a card made from the icon" else "Square app icons",
-                                onClick = { onChange(settings.copy(favoritesStyle = styles[(styleIndex + 1) % styles.size])) },
-                                onStep = { by ->
-                                    val next = (styleIndex + by).coerceIn(0, styles.lastIndex)
-                                    if (next != styleIndex) onChange(settings.copy(favoritesStyle = styles[next]))
-                                },
-                            ) { focused ->
-                                Stepper(if (settings.favoritesStyle == FavoritesStyle.Banners) "Banners" else "Icons", styleIndex > 0, styleIndex < styles.lastIndex, focused)
-                            }
                             SettingRow(
                                 title = "Animations",
                                 subtitle = if (settings.favoritesAnimation) "Smooth sliding and rearranging" else "Instant, no motion",
@@ -514,6 +504,7 @@ fun SettingsPanel(
                             }
                                 }
                                 SettingsPage.System -> SystemPage(onSystemAction, Modifier.focusRequester(pageFirst))
+                                SettingsPage.Files -> FilesSettingsPage(settings, onChange, share, Modifier.focusRequester(pageFirst))
                                 SettingsPage.Notifications -> NotificationsPage(settings, onChange, noticeAccess, onNoticeAccess, noticeApps, Modifier.focusRequester(pageFirst))
                                 SettingsPage.Updates -> UpdatesPage(
                                     settings = settings,
@@ -735,6 +726,7 @@ enum class SettingsPage(val title: String, val parent: SettingsPage? = null) {
     Idle("Idle screen"),
     Home("Home & startup"),
     Notifications("Notifications"),
+    Files("Files"),
     System("TV & system"),
     Updates("Updates"),
     Stack("Widget stack", Widgets),
@@ -754,8 +746,7 @@ private fun summaryOf(page: SettingsPage, settings: LauncherSettings, home: Home
         if (settings.slideshow) "every ${formatInterval(settings.intervalSec)}" else "slideshow off",
     ).joinToString(", ")
     SettingsPage.Widgets -> settings.widgets.joinToString(", ") { it.title.substringBefore(" (") }.ifEmpty { "None" }
-    SettingsPage.Favorites -> "${if (settings.favoritesLayout == FavoritesLayout.Scroll) "Scroll" else "Wrap"}, " +
-        if (settings.favoritesStyle == FavoritesStyle.Banners) "banners" else "icons"
+    SettingsPage.Favorites -> if (settings.favoritesLayout == FavoritesLayout.Scroll) "Scroll" else "Wrap"
     SettingsPage.Idle -> if (settings.idleMinutes == 0) "Off" else "After ${settings.idleMinutes} min"
     SettingsPage.Home -> when {
         home.isDefault -> "Pill Launcher is the home screen"
@@ -767,6 +758,11 @@ private fun summaryOf(page: SettingsPage, settings: LauncherSettings, home: Home
         if (settings.footballNotices) "football" else null,
         if (settings.connectionNotices) "connection" else null,
     ).joinToString(", ").replaceFirstChar { it.uppercase() }.ifEmpty { "Updates and files only" }
+    SettingsPage.Files -> listOfNotNull(
+        if (settings.keepReceiving) "Keep receiving" else null,
+        if (settings.tidyInstalled) "APKs removed once installed" else null,
+        if (settings.tidyOld) "files kept 30 days" else null,
+    ).joinToString(", ").replaceFirstChar { it.uppercase() }.ifEmpty { "Phones, tidying" }
     SettingsPage.System -> "Free up memory, network, display, sound, updates, uninstall"
     SettingsPage.Football -> settings.teams.joinToString(", ") { it.name }
     SettingsPage.News -> settings.newsTopics.joinToString(", ") { it.title }
@@ -986,6 +982,13 @@ private fun NotificationsPage(
             },
             modifier = firstModifier,
         ) { focused -> if (access) Switch(checked = settings.appNotices, focused = focused) else Chevron(focused) }
+        if (access && settings.appNotices) {
+            SettingRow(
+                title = "Hide private messages",
+                subtitle = if (settings.hidePrivate) "Messages an app marks private show as \"New notification\"" else "Messages show their text",
+                onClick = { onChange(settings.copy(hidePrivate = !settings.hidePrivate)) },
+            ) { focused -> Switch(checked = settings.hidePrivate, focused = focused) }
+        }
         SettingRow(
             title = "Football",
             subtitle = "Kick-off reminders, goals and wins for the teams you follow",
@@ -1011,6 +1014,57 @@ private fun NotificationsPage(
     }
     Note("Updates and files from your phone always show. Hold OK on a notification in the bar to dismiss it.")
 }
+
+/**
+ * Files: whether sharing keeps going behind other apps, how Files tidies itself, and the
+ * phones allowed in. OK on a phone removes it; signing out every phone also makes a new code.
+ */
+@Composable
+private fun FilesSettingsPage(settings: LauncherSettings, onChange: (LauncherSettings) -> Unit, share: FileShare?, firstModifier: Modifier) {
+    Group(null) {
+        SettingRow(
+            title = "Keep receiving",
+            subtitle = if (settings.keepReceiving) "15 minutes after you leave the launcher for another app" else "Only while the launcher is on screen",
+            onClick = { onChange(settings.copy(keepReceiving = !settings.keepReceiving)) },
+            modifier = firstModifier,
+        ) { focused -> Switch(checked = settings.keepReceiving, focused = focused) }
+        SettingRow(
+            title = "Remove apps' files once installed",
+            subtitle = "An APK goes once its app is on the TV",
+            onClick = { onChange(settings.copy(tidyInstalled = !settings.tidyInstalled)) },
+        ) { focused -> Switch(checked = settings.tidyInstalled, focused = focused) }
+        SettingRow(
+            title = "Remove files after 30 days",
+            subtitle = "The notification bar says so the day before",
+            onClick = { onChange(settings.copy(tidyOld = !settings.tidyOld)) },
+        ) { focused -> Switch(checked = settings.tidyOld, focused = focused) }
+    }
+    if (share == null) return
+    val state by share.state.collectAsState()
+    Group("Trusted devices") {
+        if (state.devices.isEmpty()) {
+            Note("No phone is paired yet. Scan the code on the Files page to pair one.")
+        }
+        for (d in state.devices) {
+            key(d.id) {
+                SettingRow(
+                    title = d.name,
+                    subtitle = "Paired ${pairedDay(d.pairedAt)} · OK removes it",
+                    onClick = { share.forget(d.id) },
+                ) { focused -> Mark("✕", focused) }
+            }
+        }
+        SettingRow(
+            title = "Sign out every phone",
+            subtitle = "Code now ${state.code}. Signing out makes a new one",
+            onClick = { share.signOutAll() },
+        ) { focused -> Chevron(focused) }
+    }
+}
+
+private fun pairedDay(ms: Long): String =
+    java.time.format.DateTimeFormatter.ofPattern("MMM d", java.util.Locale.getDefault())
+        .format(java.time.Instant.ofEpochMilli(ms).atZone(java.time.ZoneId.systemDefault()))
 
 @Composable
 private fun Mark(symbol: String, focused: Boolean) {

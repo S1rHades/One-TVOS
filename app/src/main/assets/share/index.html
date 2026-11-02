@@ -31,7 +31,7 @@
   .bad { color: var(--bad); }
   .empty { color: var(--muted); padding: 16px; font-size: 15px; }
   form { display: flex; gap: 10px; }
-  form input { flex: 1; font: inherit; font-size: 22px; letter-spacing: .3em; text-transform: uppercase; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  form input { flex: 1; min-width: 0; font: inherit; font-size: 22px; letter-spacing: .3em; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
   form button { font: inherit; font-weight: 600; padding: 0 20px; border-radius: 14px; border: 0; background: var(--accent); color: var(--bg); }
 </style>
 </head>
@@ -41,9 +41,9 @@
   <p class="sub">Pill Launcher · Files</p>
 
   <section id="ask" hidden>
-    <p>Type the code shown on the TV's Files page.</p>
-    <form id="codeForm"><input id="code" maxlength="4" autocomplete="off" autocapitalize="characters" aria-label="Code"><button>Go</button></form>
-    <p id="codeBad" class="bad" hidden>That code didn't work. Check the TV and try again.</p>
+    <p id="askText">Type the six-digit code shown on the TV's Files page, or scan its QR code.</p>
+    <form id="codeForm"><input id="code" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" aria-label="Code"><button>Go</button></form>
+    <p id="codeBad" class="bad" hidden></p>
   </section>
 
   <section id="share" hidden>
@@ -58,8 +58,8 @@
   </section>
 </main>
 <script>
-  const params = new URLSearchParams(location.search);
-  let key = params.get('k') || sessionStorage.getItem('k') || '';
+  // The TV answers only its own page: every request carries this header, which other websites can't add
+  const H = { 'X-Pill': '1' };
   const $ = (id) => document.getElementById(id);
 
   function size(b) {
@@ -70,10 +70,10 @@
   function text(tag, cls, value) { const e = document.createElement(tag); if (cls) e.className = cls; e.textContent = value; return e; }
 
   async function load() {
-    const r = await fetch('/api/files?k=' + encodeURIComponent(key));
-    if (r.status === 403) { sessionStorage.removeItem('k'); showAsk(!!key); return; }
-    if (!r.ok) { $('files').replaceChildren(text('div', 'empty bad', 'The TV stopped sharing. Open Files on the TV again.')); return; }
-    sessionStorage.setItem('k', key);
+    let r;
+    try { r = await fetch('/api/files', { headers: H }); } catch (e) { showAsk('The TV isn\'t sharing right now. Open the launcher on the TV.'); return; }
+    if (r.status === 401) { showAsk(''); return; }
+    if (!r.ok) { $('files').replaceChildren(text('div', 'empty bad', 'The TV stopped sharing. Open the launcher on the TV again.')); return; }
     $('ask').hidden = true; $('share').hidden = false;
     const data = await r.json();
     const list = $('files');
@@ -83,18 +83,37 @@
       const left = text('div', 'name', '');
       left.append(text('div', '', f.name), text('div', 'meta', size(f.size)));
       const save = text('a', '', 'Save');
-      save.href = '/api/file?k=' + encodeURIComponent(key) + '&name=' + encodeURIComponent(f.name);
+      save.href = '/api/file?name=' + encodeURIComponent(f.name);
       save.setAttribute('download', f.name);
       row.append(left, save);
       return row;
     }));
   }
 
-  function showAsk(wrong) {
-    $('share').hidden = true; $('ask').hidden = false; $('codeBad').hidden = !wrong;
+  function showAsk(problem) {
+    $('share').hidden = true; $('ask').hidden = false;
+    $('codeBad').hidden = !problem; $('codeBad').textContent = problem;
     $('code').focus();
   }
-  $('codeForm').addEventListener('submit', (e) => { e.preventDefault(); key = $('code').value.trim().toUpperCase(); load(); });
+
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  $('codeForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const code = $('code').value.trim();
+    const r = await fetch('/api/pair?code=' + encodeURIComponent(code), { method: 'POST', headers: H });
+    if (r.status !== 202) { showAsk(r.status === 429 ? 'Too many wrong codes. Try again in 10 minutes.' : 'That code didn\'t work. Check the TV and try again.'); return; }
+    const id = (await r.json()).wait;
+    $('askText').textContent = 'Choose Allow on the TV…';
+    $('codeBad').hidden = true;
+    for (let i = 0; i < 45; i++) {
+      await wait(1500);
+      const c = await fetch('/api/pair?wait=' + encodeURIComponent(id), { headers: H });
+      if (c.status === 200) { $('askText').textContent = ''; load(); return; }
+      if (c.status !== 202) break;
+    }
+    $('askText').textContent = 'Type the six-digit code shown on the TV\'s Files page, or scan its QR code.';
+    showAsk('The TV didn\'t allow this phone.');
+  });
 
   function send(file) {
     return new Promise((done) => {
@@ -108,7 +127,8 @@
       if (!box.firstChild) { box.className = 'list'; box.style.marginTop = '12px'; }
       box.append(row);
       const x = new XMLHttpRequest();
-      x.open('PUT', '/api/upload?k=' + encodeURIComponent(key) + '&name=' + encodeURIComponent(file.name));
+      x.open('PUT', '/api/upload?name=' + encodeURIComponent(file.name));
+      x.setRequestHeader('X-Pill', '1');
       x.upload.onprogress = (e) => {
         if (!e.lengthComputable) return;
         fill.style.width = (100 * e.loaded / e.total) + '%';
@@ -134,7 +154,7 @@
   drop.addEventListener('dragleave', () => drop.classList.remove('over'));
   drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('over'); sendAll([...e.dataTransfer.files]); });
 
-  if (key) load(); else showAsk(false);
+  load();
 </script>
 </body>
 </html>
