@@ -74,13 +74,35 @@ fun CategoryChips(
     firstFocus: FocusRequester,
     modifier: Modifier = Modifier,
 ) {
+    ChipRow(
+        labels = categories.map { it?.title ?: "All" },
+        selected = categories.indexOf(selected).coerceAtLeast(0),
+        onSelect = { onSelect(categories[it]) },
+        firstFocus = firstFocus,
+        modifier = modifier,
+    )
+}
+
+/**
+ * A row of chips, one picked: OK on a chip picks it and a white pill glides to it; focus
+ * alone lifts it. Used above All apps and on the Files page.
+ */
+@Composable
+@OptIn(ExperimentalComposeUiApi::class)
+fun ChipRow(
+    labels: List<String>,
+    selected: Int,
+    onSelect: (Int) -> Unit,
+    firstFocus: FocusRequester,
+    modifier: Modifier = Modifier,
+) {
     val density = LocalDensity.current
     // Where each chip sits, so the pill can glide between them
     val placed = remember { mutableStateMapOf<Int, Pair<Float, Float>>() }
-    val index = categories.indexOf(selected).coerceAtLeast(0)
+    val index = selected.coerceIn(0, (labels.size - 1).coerceAtLeast(0))
     val spot = placed[index]
     // Coming into the chips from above or below, focus lands on the one that is selected
-    val chipFocus = remember(categories.size) { List(categories.size) { FocusRequester() } }
+    val chipFocus = remember(labels.size) { List(labels.size) { FocusRequester() } }
     val x by animateDpAsState(with(density) { (spot?.first ?: 0f).toDp() }, Motion.glide(), label = "chipX")
     val w by animateDpAsState(with(density) { (spot?.second ?: 0f).toDp() }, Motion.glide(), label = "chipW")
     // The chip with focus, or -1: focus shows as a lift and a soft glow, never a dark ring
@@ -107,7 +129,7 @@ fun CategoryChips(
                 .focusGroup(),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            for ((i, category) in categories.withIndex()) {
+            for ((i, label) in labels.withIndex()) {
                 val on = i == index
                 val focused = focusedChip == i
                 // An unselected chip with focus brightens and lifts; the selected one lifts with its pill
@@ -146,11 +168,11 @@ fun CategoryChips(
                         .focusRequester(chipFocus[i])
                         .then(if (i == index) Modifier.focusRequester(firstFocus) else Modifier)
                         .onFocusChanged { if (it.isFocused) focusedChip = i else if (focusedChip == i) focusedChip = -1 }
-                        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onSelect(category) }
+                        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onSelect(i) }
                         .padding(horizontal = 18.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(category?.title ?: "All", color = fg, fontSize = 16.sp, fontWeight = FontWeight(560), maxLines = 1)
+                    Text(label, color = fg, fontSize = 16.sp, fontWeight = FontWeight(560), maxLines = 1)
                 }
             }
         }

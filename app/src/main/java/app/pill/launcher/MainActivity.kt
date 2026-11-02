@@ -32,6 +32,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 
 private const val REFRESH_MS = 30 * 60 * 1000L
@@ -187,6 +188,33 @@ class MainActivity : ComponentActivity() {
             // Re-checked whenever the launcher comes back (e.g. from the Home app settings)
             val home = remember(refresh) { homeStatus() }
 
+            // Notifications: Pill Launcher's own (kept for a week) and other apps' (while they show them)
+            var notices by remember { mutableStateOf(store.readNotices()) }
+            val appNotices by NotificationWatcher.appNotices.collectAsState()
+            var noticesSeen by remember { mutableLongStateOf(store.noticesSeen) }
+            val noticeAccess = remember(refresh) { NotificationWatcher.hasAccess(this) }
+            val postNotice = { n: Notice ->
+                notices = withNotice(notices, n, Instant.now())
+                store.saveNotices(notices)
+            }
+            // After an update: "Updated to 3.3", with what was new in it
+            LaunchedEffect(Unit) {
+                val last = store.lastVersion
+                if (last != null && last != version && isNewer(version, last)) {
+                    val pending = store.pendingNotes
+                    val notes = if (pending.firstOrNull() == version) pending.drop(1) else emptyList()
+                    postNotice(updatedNotice(version, notes, Instant.now()))
+                }
+                store.lastVersion = version
+                store.pendingNotes = emptyList()
+            }
+
+            // Files from phones: received into the launcher's own folder, each one a notification
+            val share = remember { fileShare(this) }
+            LaunchedEffect(share) {
+                share.arrivals.collect { f -> postNotice(fileNotice(f.name, f.size, f.from, Instant.now())) }
+            }
+
             // A launcher never exits on Back
             BackHandler(enabled = true) { }
 
@@ -261,6 +289,7 @@ class MainActivity : ComponentActivity() {
                         )
                         return@start
                     }
+                    store.pendingNotes = listOf(release.version) + release.notes
                     updateJob = updateScope.launch {
                         update = update.copy(phase = UpdatePhase.Downloading, progress = 0f, message = null)
                         val apk = try {
@@ -291,6 +320,26 @@ class MainActivity : ComponentActivity() {
                     updateDismissed = update.release?.version
                     store.updateDismissed = updateDismissed
                 },
+                notices = (notices + appNotices).sortedByDescending { it.at },
+                noticesSeen = noticesSeen,
+                onNoticesSeen = {
+                    noticesSeen = System.currentTimeMillis()
+                    store.noticesSeen = noticesSeen
+                },
+                onPostNotice = { postNotice(it) },
+                onDismissNotice = { n ->
+                    if (n.kind == NoticeKind.App) {
+                        NotificationWatcher.dismiss(n)
+                    } else {
+                        notices = notices.filter { it.id != n.id }
+                        store.saveNotices(notices)
+                    }
+                },
+                onOpenAppNotice = { NotificationWatcher.open(this, it) },
+                noticeAccess = noticeAccess,
+                onNoticeAccess = { NotificationWatcher.askForAccess(this) },
+                share = share,
+                onOpenFile = { file -> openFile(file, updater) },
                 onOpenSystemSettings = {
                     try {
                         startActivity(
@@ -302,6 +351,29 @@ class MainActivity : ComponentActivity() {
                 },
             )
         }
+    }
+
+    /**
+     * Opens a file from the Files page with the TV's apps: an APK with Android's installer
+     * (asking for permission to install first), anything else with whatever app handles it.
+     * Returns a message when nothing can.
+     */
+    private fun openFile(file: java.io.File, updater: Updater): String? {
+        if (fileKind(file.name) == FileKind.App) {
+            if (!updater.canInstall()) {
+                return if (updater.askToInstall()) "Allow Pill Launcher to install apps, then choose Install again"
+                else "Allow it in the TV's Settings → Apps → Special app access → Install unknown apps"
+            }
+            return if (updater.installWithSystemScreen(file)) null else "This TV can't install apps from files"
+        }
+        val ext = file.extension.lowercase()
+        val type = android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext) ?: "*/*"
+        val uri = runCatching { androidx.core.content.FileProvider.getUriForFile(this, "$packageName.updates", file) }.getOrNull()
+            ?: return "The TV can't open this file"
+        val opened = tryStartActivity(
+            Intent(Intent.ACTION_VIEW).setDataAndType(uri, type).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+        return if (opened) null else "No app on this TV opens .$ext files"
     }
 
     // singleTask: pressing Home while the launcher exists arrives here

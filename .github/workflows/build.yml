@@ -53,7 +53,7 @@ jobs:
       # Fails the build if any text drops below WCAG AA contrast on any bundled photo, or if
       # the football, weather or headline parsers stop reading the saved real answers
       - name: Check text contrast and data parsing
-        run: gradle :app:testDebugUnitTest --tests '*ContrastTest*' --tests '*DataTest*' --no-daemon
+        run: gradle :app:testDebugUnitTest --tests '*ContrastTest*' --tests '*DataTest*' --tests '*FileShareTest*' --no-daemon
 
       - name: Build debug APK
         env:

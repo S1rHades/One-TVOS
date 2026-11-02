@@ -42,6 +42,16 @@ data class LauncherSettings(
     val stack: List<WidgetKind> = DefaultStack,
     /** Look for a newer Pill Launcher on GitHub every few hours. */
     val checkUpdates: Boolean = true,
+    /** Other apps' notifications in the bar under the widgets (once the TV allows reading them). */
+    val appNotices: Boolean = true,
+    /** Apps whose notifications stay out of the bar. */
+    val mutedApps: Set<String> = emptySet(),
+    /** Kick-off reminders, goals and wins in the bar. */
+    val footballNotices: Boolean = true,
+    /** The connection dropping and coming back, in the bar. */
+    val connectionNotices: Boolean = true,
+    /** Files keep arriving for 15 minutes after leaving the Files page. */
+    val keepReceiving: Boolean = false,
 ) {
     companion object {
         val IntervalOptions = listOf(10, 20, 30, 60)
@@ -87,6 +97,11 @@ class SettingsStore(context: Context) {
             ?: NewsTopic.Defaults,
         stack = parseStack(prefs.getString("stack", null)) ?: DefaultStack,
         checkUpdates = prefs.getBoolean("checkUpdates", true),
+        appNotices = prefs.getBoolean("appNotices", true),
+        mutedApps = prefs.getString("mutedApps", "").orEmpty().split(",").filter { it.isNotBlank() }.toSet(),
+        footballNotices = prefs.getBoolean("footballNotices", true),
+        connectionNotices = prefs.getBoolean("connectionNotices", true),
+        keepReceiving = prefs.getBoolean("keepReceiving", false),
     ).let { if (it.weather == WeatherMode.Off) it.copy(weather = defaultWeatherMode()) else it }
 
     fun save(settings: LauncherSettings) {
@@ -108,6 +123,11 @@ class SettingsStore(context: Context) {
             .putString("newsTopics", settings.newsTopics.joinToString(",") { it.name })
             .putString("stack", settings.stack.toStored())
             .putBoolean("checkUpdates", settings.checkUpdates)
+            .putBoolean("appNotices", settings.appNotices)
+            .putString("mutedApps", settings.mutedApps.joinToString(","))
+            .putBoolean("footballNotices", settings.footballNotices)
+            .putBoolean("connectionNotices", settings.connectionNotices)
+            .putBoolean("keepReceiving", settings.keepReceiving)
             .apply()
     }
 
@@ -129,6 +149,28 @@ class SettingsStore(context: Context) {
     var updateDismissed: String?
         get() = prefs.getString("updateDismissed", null)
         set(value) { prefs.edit().putString("updateDismissed", value).apply() }
+
+    /** Pill Launcher's own notifications (updates, goals, the connection, files), newest first. */
+    fun readNotices(): List<Notice> = noticesFromJson(prefs.getString("notices", null))
+
+    fun saveNotices(list: List<Notice>) {
+        prefs.edit().putString("notices", noticesToJson(list)).apply()
+    }
+
+    /** When the notification list was last opened: anything newer is unread. */
+    var noticesSeen: Long
+        get() = prefs.getLong("noticesSeen", 0L)
+        set(value) { prefs.edit().putLong("noticesSeen", value).apply() }
+
+    /** The version that last ran, to notice an update having happened. */
+    var lastVersion: String?
+        get() = prefs.getString("lastVersion", null)
+        set(value) { prefs.edit().putString("lastVersion", value).apply() }
+
+    /** What's new in the update being installed (version, then its lines), for "Updated to …" afterwards. */
+    var pendingNotes: List<String>
+        get() = prefs.getString("pendingNotes", "").orEmpty().split("\n").filter { it.isNotBlank() }
+        set(value) { prefs.edit().putString("pendingNotes", value.joinToString("\n")).apply() }
 }
 
 fun namesFromJson(text: String?): Map<String, String> = runCatching {

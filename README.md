@@ -26,9 +26,10 @@
 - **A bar for the rest.** A glass bar at the top right leads to Home, Search, the Internet page and Settings, and stays in the same place on every page.
 - **Tinted by the photo.** Glass, card edges and the glow under the app you're on take a little of each photo's own colour, changing slowly with the slideshow.
 - **Widgets that open up.** Up to four frosted-glass cards across the top, or more in a widget stack that takes turns. OK on the clock, weather, football or headlines card opens a full page for it, and a goal for your team lights the football card up.
-- **Updates itself.** A newer version on GitHub shows as a card on the home screen; one press downloads and installs it.
+- **A notification bar.** Under the widgets, as wide as them: the newest notification (a new version, a goal, a file from your phone, another app's) with a bell that opens them all. One press installs an update from there.
+- **Files from your phone.** Scan a code on the TV and send photos, videos, apps or documents from your phone's browser, with nothing to install; they open on the TV in one press.
 - **Built for the remote.** Focused apps lift and get a crisp white ring, and every action is one or two presses of the D-pad.
-- **Light on the TV.** One small app, written in Jetpack Compose, with no background services and no tracking.
+- **Light on the TV.** One small app, written in Jetpack Compose, with no tracking. Nothing runs in the background unless you ask: reading other apps' notifications once you allow it, and receiving files while the Files page is open.
 
 Ideas shown as mockups and passed over are listed in [docs/PLANNED.md](docs/PLANNED.md).
 
@@ -36,7 +37,7 @@ Ideas shown as mockups and passed over are listed in [docs/PLANNED.md](docs/PLAN
 
 ### Home screen
 
-A greeting for the time of day sits above the widgets (the clock and weather cards say the date and place). Your favourites run along the bottom, and the photo behind them changes every few seconds, cross-fading to the next only once it has loaded, so it never flashes.
+A greeting for the time of day sits above the widgets (the clock and weather cards say the date and place), and the [notification bar](#notifications) runs under them. Your favourites run along the bottom, and the photo behind them changes every few seconds, cross-fading to the next only once it has loaded, so it never flashes.
 
 Favourites can scroll in one row or wrap onto more rows (**Settings → Favorites row → Layout**), as big banners or small icons.
 
@@ -53,7 +54,7 @@ Favourites can scroll in one row or wrap onto more rows (**Settings → Favorite
 
 ### The bar and glass motion
 
-The bar at the top right holds **Home** and **Search**, then a divider, **Wi-Fi** (the Internet page) and **Settings**. Press **Up** from the widgets to reach it, and **Down** to go back to the widgets (or the first favourite, or All apps when you are there). A white disc follows focus along the bar, while a grey disc stays on the section you're in. Settings opens over whatever page is showing, and Back returns to it. The Wi-Fi icon turns red when the TV is offline. The bar stays in the same place on every page and panel, which all start below it, and it works from there too: Home closes whatever is open.
+The bar at the top right holds **Home** and **Search**, then a divider, **Wi-Fi** (the Internet page) and **Settings**. Press **Up** from the widgets to reach it, and **Down** to go back to the widgets (or the notification bar when no widget takes focus, or All apps when you are there). A white disc follows focus along the bar, while a grey disc stays on the section you're in. Settings opens over whatever page is showing, and Back returns to it. The Wi-Fi icon turns red when the TV is offline. The bar stays in the same place on every page and panel, which all start below it, and it works from there too: Home closes whatever is open.
 
 Every page opens the same way. The photo behind blurs and dims, the page dissolves in from frosted glass, and its parts come into focus one after another in reading order. Back reverses it. The blur needs Android 12 or later; older TVs get the same timing as a plain fade.
 
@@ -122,33 +123,69 @@ The weather, football and headlines pages are described in their own sections be
 
 <p align="center"><img src="docs/screenshots/internet.png" width="100%" alt="The Internet page: a Network settings button at the top left, level with the bar; below the Internet title, a speed dial reading 0.0 Mbps with Choose Start test to begin and a Start test button, and a results card for ping, download and upload"></p>
 
-### Settings
+### Notifications
 
-**Settings** in the bar opens a floating card for the photos, widgets, favourites, idle screen, how the launcher becomes the home screen, and the TV's own settings. **TV & system** frees memory and opens the TV's network, display, sound, storage and update screens.
+The bar under the widgets is as wide as they are. On the left is the newest notification, with how long ago it came and **+3** when there are more; **OK** on it does what it says (installs the update, opens the football page or the file), and holding **OK** dismisses it. With nothing new it says **All caught up**. On the right are the **bell**, with a red dot for anything new, and **Files**. **Down** from the widgets stops at the bar, and **Down** again reaches Favorites.
+
+<p align="center"><img src="docs/screenshots/notification-bar.png" width="100%" alt="The home screen with the notification bar under the clock, weather and football cards: Pill Launcher 3.4 is ready and the first line of what's new on the left, +4, then the bell with a red dot and the Files button on the right"></p>
+
+**OK** on the bell opens the bar downwards into every notification, over Favorites, with the widgets still in view. An update has **Update** and **Later** beside it, and its progress while it downloads. **Clear all** is at the top right; **Back** folds the list up again. A new notification slides into the bar and the bell gives a small swing; nothing ever pops up over what you're doing, and the bar fades away on the idle screen.
+
+Pill Launcher's own notifications:
+
+- **Updates**: a new version is ready, "Updated to 3.3" with what was new in it, or why an update didn't install.
+- **Football**: the kick-off reminder ten minutes before a followed team plays, then goals and wins.
+- **Connection**: when the internet has been gone a minute, then "Back online" with how long it dropped.
+- **Files**: each file that arrives from a phone.
+
+**Other apps' notifications** show too once the TV allows it: **Settings → Notifications → Other apps' notifications** opens the TV's **Notification access** screen. Many TVs hide that screen; then it's allowed once from a computer with `adb shell cmd notification allow_listener app.pill.launcher/app.pill.launcher.NotificationWatcher`. Low-memory TVs don't allow it at all. Ongoing ones (music playing, downloads) stay out, and each app can be muted on the same page.
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/settings.png" alt="The settings card on the right: Background, Widgets, Favorites row, Idle screen, Home and startup, and TV and system, each with its current choice underneath"><br><sub><b>Settings</b>: each row shows its current choice.</sub></td>
+    <td width="50%"><img src="docs/screenshots/notifications.png" alt="The notification bar opened downwards over Favorites: Pill Launcher 3.4 is ready with Update and Later, a film app's new episode, holiday.jpg arrived from an iPhone, Updated to 3.3, and a goal for Algeria; Clear all and the bell at the top right"><br><sub><b>The list</b>: OK on the bell opens the bar into every notification.</sub></td>
+    <td width="50%"><img src="docs/screenshots/settings-notifications.png" alt="Settings, Notifications: Other apps' notifications needing Notification access, then Football and Connection switched on"><br><sub><b>Settings → Notifications</b>: other apps, football and the connection.</sub></td>
+  </tr>
+</table>
+
+### Files
+
+**Files** in the notification bar opens a page of its own. On the left is **Receive**: a code to scan with your phone's camera (or the TV's address and a four-letter code to type), each file arriving with its progress, and the space left on the TV. On the right is everything on the TV, as cards like the apps in All apps, with chips for **Photos**, **Videos**, **Apps** and **Documents**.
+
+**OK** on a file opens it: photos in the launcher's own viewer (**Left** / **Right** for the next one), videos and documents in the TV's apps, and an app's APK with Android's install screen. Holding **OK** offers **Install** or **Open**, **Send to phone** (a code that saves it on your phone) and **Delete**.
+
+Your phone opens a plain page in its browser, with nothing to install: **Send to TV** picks photos, videos or files and shows each one's progress, and the TV's files are listed with **Save**. The phone must be on the same home network as the TV (the TV on a cable and the phone on Wi-Fi is fine; a guest Wi-Fi usually keeps devices apart).
+
+<table>
+  <tr>
+    <td width="66%"><img src="docs/screenshots/files.png" alt="The Files page: on the left, Receive, with a QR code, Scan with your phone, the address 192.168.1.24:8642 and code 7Q4M, the space free and Keep receiving: Off; on the right, chips for All 4, Photos, Videos, Apps and Documents over cards for holiday.jpg with a preview, match-highlights.mp4, kinopub-2.4.apk and tv-manual.pdf"><br><sub><b>Files on the TV</b>: receiving on the left, everything on the TV on the right.</sub></td>
+    <td width="34%"><img src="docs/files-phone.png" alt="The phone's page: Your TV, Send to TV, kinopub-2.5.apk on its way at 34.6 of 48 MB, and the TV's files with Save beside each"><br><sub><b>On the phone</b>: send, or save what's on the TV.</sub></td>
+  </tr>
+</table>
+
+Sharing runs only while the Files page is open, or for 15 minutes after leaving it with **Keep receiving** on. It only answers devices on the home network, everything but the page itself needs the code, and files go into Pill Launcher's own folder on the TV (uninstalling the launcher removes them).
+
+### Settings
+
+**Settings** in the bar opens a floating card for the photos, widgets, favourites, idle screen, how the launcher becomes the home screen, notifications, and the TV's own settings. **TV & system** frees memory and opens the TV's network, display, sound, storage and update screens.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/settings.png" alt="The settings card on the right: Background, Widgets, Favorites row, Idle screen, Home and startup, Notifications, and TV and system, each with its current choice underneath"><br><sub><b>Settings</b>: each row shows its current choice.</sub></td>
     <td width="50%"><img src="docs/screenshots/settings-system.png" alt="Settings, TV and system: Free up memory focused, then Network and Wi-Fi, Display, Sound, Storage and System update"><br><sub><b>TV & system</b>: the TV's own screens, one press away.</sub></td>
   </tr>
 </table>
 
 ### Updates
 
-When a newer Pill Launcher is on GitHub, a card above Favorites says so, with the first line of what's new. **Update** downloads it with a progress bar, then Android asks you to confirm the install; settings and favourites stay, since every release is signed with the same key. **Later** hides the card until the next version. The first time, Android asks to allow Pill Launcher to install apps.
+When a newer Pill Launcher is on GitHub, the notification bar says so, with the first line of what's new. **OK** on it (or **Update** in the list) downloads it with a progress bar, then Android asks you to confirm the install; settings and favourites stay, since every release is signed with the same key. **Later**, or holding **OK** on it, puts it off until the next version. The first time, Android asks to allow Pill Launcher to install apps. After an update, "Updated to …" says what was new.
 
 **Settings → Updates** checks by hand, installs from there with the same progress, lists what's new, and turns off the check every few hours.
 
-<table>
-  <tr>
-    <td width="50%"><img src="docs/screenshots/update-card.png" alt="The home screen with a glass card above the favourites: Pill Launcher 3.1 is ready, the first line of what's new, and Update and Later buttons"><br><sub><b>Update card</b>: above Favorites until you update or choose Later.</sub></td>
-    <td width="50%"><img src="docs/screenshots/settings-updates.png" alt="Settings, Updates: Check for updates, Update to 3.1 with its size, Check automatically switched on, and what's new in 3.1"><br><sub><b>Settings → Updates</b>: check, install and what's new.</sub></td>
-  </tr>
-</table>
+<p align="center"><img src="docs/screenshots/settings-updates.png" width="50%" alt="Settings, Updates: Check for updates, Update to 3.4 with its size, Check automatically switched on, and what's new in 3.4"><br><sub><b>Settings → Updates</b>: check, install and what's new.</sub></p>
 
 ### Idle screen
 
-After a while without a key press (two minutes by default, under **Settings → Idle screen**), everything but the widgets fades away and the photo slowly zooms. Nothing else is on the photo: no captions or credits. Any key brings the home screen back.
+After a while without a key press (two minutes by default, under **Settings → Idle screen**), everything but the widgets fades away (the notification bar too) and the photo slowly zooms. Nothing else is on the photo: no captions or credits. Any key brings the home screen back.
 
 <p align="center"><img src="docs/screenshots/idle.png" width="100%" alt="The idle screen: only the clock, weather and football cards over a slowly zooming photo of snowy mountains"></p>
 
@@ -176,7 +213,7 @@ On TVs that ignore that command, turning off the stock launcher works too (turn 
 
 The `latest` release is rebuilt automatically every time `main` changes, so installing it again always gets you the newest version.
 
-Every version also keeps its own release, named after it (**Pill Launcher 3.2.1**, tag `v3.2.1`, file `pill-launcher-3.2.1.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v3.2.1/pill-launcher-3.2.1.apk`. The newest is titled **Pill Launcher 3.2.1 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
+Every version also keeps its own release, named after it (**Pill Launcher 3.3**, tag `v3.3`, file `pill-launcher-3.3.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v3.3/pill-launcher-3.3.apk`. The newest is titled **Pill Launcher 3.3 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
 
 ### Uninstalling
 
@@ -190,6 +227,14 @@ If the launcher won't open, use the TV's own **Settings → Apps → Pill Launch
 | --- | --- |
 | Open an app | **OK** |
 | Reach the bar at the top right, and leave it | **Up** from the widgets; **Down** goes back to them |
+| Reach the notification bar | **Down** from the widgets (or **Up** from Favorites) |
+| See every notification | **OK** on the bell in the notification bar; **Back** folds it up |
+| Act on a notification, or dismiss it | **OK** on it, or hold **OK** |
+| Clear every notification | Open the list, then **Clear all** |
+| Show other apps' notifications, mute one, or turn off football or connection ones | **Settings → Notifications** |
+| Send a file from your phone to the TV | **Files** in the notification bar, scan the code with the phone, then **Send to TV** |
+| Open, install, send to a phone or delete a file on the TV | **Files**, then **OK** on it, or hold **OK** |
+| Keep receiving files after leaving Files | **Keep receiving** on the Files page (15 minutes) |
 | See all apps | **Down** from Favorites |
 | Show only video, music or game apps | **Down** to the chips above All apps, **Left** / **Right**, then **OK** |
 | Find an app | **Search** in the bar, then letters from the strip (**Left** / **Right**, OK), or **Up** to the field for the keyboard |
@@ -204,7 +249,7 @@ If the launcher won't open, use the TV's own **Settings → Apps → Pill Launch
 | Rename an app | App menu → **Rename…**, then **Save** |
 | Flip through a widget stack | With it focused, **Up** / **Down** |
 | Choose and order a widget stack's widgets | **Settings → Widgets → Widget stack**: OK adds or removes one; hold OK, then **Left** / **Right**, moves it |
-| Install a newer version | **Update** on the card above Favorites, or **Settings → Updates** |
+| Install a newer version | **OK** on its notice in the notification bar, or **Settings → Updates** |
 | Change how often the photo changes, or the weather unit | In settings, **Left** / **Right** on that row |
 | Turn widgets on or off | **Settings → Widgets**, **OK** on a widget (up to four at once) |
 | Reorder widgets | **Settings → Widgets**, **Left** / **Right** on a widget that's on |
@@ -214,7 +259,6 @@ If the launcher won't open, use the TV's own **Settings → Apps → Pill Launch
 | Switch teams on the football card | With it focused, **Left** / **Right** |
 | Follow more teams, or change match day | **Settings → Widgets → Football teams** |
 | Choose headline topics | **Settings → Widgets → Headlines** |
-| Hide the kick-off reminder | **Back** (it also goes by itself after 30 seconds) |
 | Free up memory, or open the TV's network, display, sound or update screens | **Settings → TV & system** |
 | Uninstall Pill Launcher (OK twice, then confirm) | **Settings → TV & system → Uninstall Pill Launcher** |
 | Close a page or settings | **Back** |
@@ -251,12 +295,12 @@ OK on the card opens the football page: your teams down the left (**Up** / **Dow
 
 <p align="center"><img src="docs/screenshots/goal.png" width="100%" alt="The home screen with the football card flashing green: Goal, Algeria 2–1 Democratic Republic of the Congo with the long name cut short, and Goal · Algeria and the minute underneath"></p>
 
-**Match day**: on the day a followed team plays, the card stays on that team and counts down to kick-off, and ten minutes before, a banner says so (it never takes focus: **Back** hides it, and it goes by itself after 30 seconds). Choose all teams, Algeria only, or off under **Football teams → Match day**.
+**Match day**: on the day a followed team plays, the card stays on that team and counts down to kick-off, and from ten minutes before until just after, the notification bar says so (it never takes focus; hold **OK** on it to dismiss it). Goals and wins go into the notification bar too, so you can see them later. Choose all teams, Algeria only, or off under **Football teams → Match day**.
 
 <table>
   <tr>
     <td width="50%"><img src="docs/screenshots/match-day.png" alt="Match day: the football card is green and counts down to Algeria v Togo's kick-off"><br><sub><b>Match day</b>: the football card counts down to kick-off.</sub></td>
-    <td width="50%"><img src="docs/screenshots/kickoff-banner.png" alt="A banner at the bottom: Les Fennecs kick off in 8 minutes, Algeria v Togo, AFCON qualifier"><br><sub><b>Kick-off reminder</b>: ten minutes before, a banner that never gets in the way.</sub></td>
+    <td width="50%"><img src="docs/screenshots/kickoff-notice.png" alt="The notification bar under the widgets: Les Fennecs kick off in 8 minutes, Algeria v Togo, AFCON qualifier"><br><sub><b>Kick-off reminder</b>: ten minutes before, in the notification bar.</sub></td>
   </tr>
   <tr>
     <td width="50%"><img src="docs/screenshots/settings-football.png" alt="Settings, Football teams: Algeria and Arsenal followed, a search for alg listing MC Alger"><br><sub><b>Follow teams</b>: search for a club or country and add up to five beside Algeria.</sub></td>
@@ -312,7 +356,7 @@ gradle assembleDebug                                   # app/build/outputs/apk/d
 gradle :app:testDebugUnitTest --tests '*Screenshots*'  # re-render docs/screenshots
 ```
 
-**Builds are automated.** `.github/workflows/build.yml` builds the APK for every pull request and push; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v3.2.1`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
+**Builds are automated.** `.github/workflows/build.yml` builds the APK for every pull request and push; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v3.3`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
 
 <details>
 <summary><b>Architecture</b></summary>
@@ -329,6 +373,8 @@ app/src/main/java/app/pill/launcher/
   News.kt                headlines from Al Jazeera and RT, picked by topic
   SpeedTest.kt           ping, download and upload against Cloudflare's speed test
   Updates.kt             newer releases from GitHub: check, download, install, and the installer's answer
+  Notifications.kt       the notification bar's notices: kept ones, updates, football, the connection, and other apps' (NotificationWatcher)
+  FileShare.kt           Files: the small web server phones send to, the files on the TV, the code and address
   Moments.kt             goals and wins noticed between football fetches, and the match minute
   PhotoFeed.kt           the daily Wikimedia photo set and its credits
   Daylight.kt            sunrise and sunset from latitude and longitude
@@ -338,7 +384,9 @@ app/src/main/java/app/pill/launcher/
     LauncherScreen.kt    the home screen: greeting, widgets, favourites, All apps below, page scrolling
     NavBar.kt            the bar at the top right (Home, Search, Wi-Fi, Settings) and the greeting
     RenameDialog.kt      Rename… from the app menu
-    UpdateCard.kt        the update card above Favorites, its progress bar and download icon
+    NotificationBar.kt   the notification bar under the widgets, its list, the bell and Files buttons
+    FilesPage.kt         the Files page: receiving, the TV's files as cards, the photo viewer, QR codes
+    UpdateCard.kt        the progress bar and download icon shared by updates and Files
     Motion.kt            glass motion: durations, easing, dissolve, the reading-order wave, glide
     Overlay.kt           full-screen pages: blurred backdrop, open and close motion
     PageParts.kt         shared page title, cards and sparkline
@@ -354,6 +402,7 @@ app/src/main/java/app/pill/launcher/
     SettingsPill.kt      the gear icon
     BackgroundSlideshow.kt  photo cross-fade, tint and the readability scrim
     Glass.kt, Theme.kt, Squircle.kt   frosted glass, shared colours and spacing, the tile shape
+app/src/main/assets/share/index.html   the page phones open to send and save files
 app/src/test/.../Screenshots.kt   Robolectric + Roborazzi renders for this README
 ```
 

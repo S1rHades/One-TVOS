@@ -472,4 +472,97 @@ class DataTest {
         assertEquals(90, matchMinute(liveMatch(0, 0, "2H", kickoff), kickoff.plusSeconds(130 * 60)))
         assertNull(matchMinute(liveMatch(0, 0, "NS", kickoff), kickoff.minusSeconds(60)))
     }
+
+    // Notifications
+
+    @Test
+    fun noticesNewestFirstWithoutOldOnesAndReplacingTheirOwn() {
+        val now = Instant.parse("2026-11-02T12:00:00Z")
+        var list = emptyList<Notice>()
+        list = withNotice(list, Notice("a", NoticeKind.File, "a", "", now.minusSeconds(3600)), now)
+        list = withNotice(list, Notice("b", NoticeKind.File, "b", "", now), now)
+        list = withNotice(list, Notice("old", NoticeKind.File, "old", "", now.minus(Duration.ofDays(8))), now)
+        list = withNotice(list, Notice("a", NoticeKind.File, "a again", "", now.minusSeconds(60)), now)
+        assertEquals(listOf("b", "a"), list.map { it.id })
+        assertEquals("a again", list[1].title)
+        repeat(50) { list = withNotice(list, Notice("n$it", NoticeKind.File, "", "", now.minusSeconds(it.toLong())), now) }
+        assertEquals(MaxNotices, list.size)
+    }
+
+    @Test
+    fun noticesSurviveBeingSaved() {
+        val n = Notice("file:x", NoticeKind.File, "x.jpg arrived", "3 MB", Instant.ofEpochMilli(1_700_000_000_000), target = "x.jpg")
+        val app = Notice("app:k", NoticeKind.App, "Title", "Text", Instant.ofEpochMilli(1_700_000_100_000), pkg = "com.example")
+        assertEquals(listOf(n, app), noticesFromJson(noticesToJson(listOf(n, app))))
+        assertEquals(emptyList<Notice>(), noticesFromJson("not json"))
+    }
+
+    @Test
+    fun noticeAgesReadNaturally() {
+        val now = Instant.parse("2026-11-02T12:00:00Z")
+        assertEquals("now", noticeAge(now.minusSeconds(20), now, utc))
+        assertEquals("5 min", noticeAge(now.minusSeconds(300), now, utc))
+        assertEquals("2 h", noticeAge(now.minusSeconds(7300), now, utc))
+        assertEquals("Oct 20", noticeAge(Instant.parse("2026-10-20T08:00:00Z"), now, utc))
+    }
+
+    @Test
+    fun anUpdateIsANoticeUntilPutOff() {
+        val now = Instant.now()
+        val release = Release("3.4", "https://example.com/pill-launcher-3.4.apk", 1, listOf("Something new"))
+        val ready = updateNotice(UpdateState(UpdatePhase.Available, release), null, now)
+        assertEquals("Pill Launcher 3.4 is ready", ready?.title)
+        assertEquals("Something new", ready?.text)
+        assertNull(updateNotice(UpdateState(UpdatePhase.Available, release), "3.4", now))
+        assertEquals("Downloading Pill Launcher 3.4", updateNotice(UpdateState(UpdatePhase.Downloading, release, progress = 0.5f), "3.4", now)?.title)
+        assertNull(updateNotice(UpdateState(UpdatePhase.UpToDate), null, now))
+        assertEquals("Updated to 3.4", updatedNotice("3.4", listOf("One", "Two", "Three"), now).title)
+        assertEquals("One · Two", updatedNotice("3.4", listOf("One", "Two", "Three"), now).text)
+    }
+
+    @Test
+    fun theConnectionSaysHowLongItWasGone() {
+        val since = Instant.parse("2026-11-02T12:00:00Z")
+        assertEquals("The connection dropped for 4 min", backOnlineNotice(since, since.plusSeconds(4 * 60 + 10)).text)
+        assertEquals("The connection dropped for 1 h 5 min", backOnlineNotice(since, since.plusSeconds(65 * 60)).text)
+    }
+
+    // Files
+
+    @Test
+    fun fileSizesAndKinds() {
+        assertEquals("3.4 MB", fileSize(3_400_000))
+        assertEquals("212 MB", fileSize(212_000_000))
+        assertEquals("1.2 GB", fileSize(1_200_000_000))
+        assertEquals("900 B", fileSize(900))
+        assertEquals(FileKind.Photo, fileKind("IMG_001.JPG"))
+        assertEquals(FileKind.Video, fileKind("match.mkv"))
+        assertEquals(FileKind.App, fileKind("kinopub-2.4.apk"))
+        assertEquals(FileKind.Document, fileKind("manual.pdf"))
+        assertEquals(FileKind.Document, fileKind("README"))
+    }
+
+    @Test
+    fun receivedNamesAreSafeAndNeverOverwrite() {
+        assertEquals("passwd", safeFileName("../../etc/passwd"))
+        assertEquals("My photo.jpg", safeFileName("C:\\Users\\me\\My photo?.jpg"))
+        assertEquals("file", safeFileName(".."))
+        assertEquals("file", safeFileName(null))
+        val taken = setOf("a.jpg", "a (2).jpg", "notes")
+        assertEquals("a (3).jpg", uniqueFileName("a.jpg") { it in taken })
+        assertEquals("notes (2)", uniqueFileName("notes") { it in taken })
+        assertEquals("b.jpg", uniqueFileName("b.jpg") { it in taken })
+    }
+
+    @Test
+    fun sendersAndTheHomeNetwork() {
+        assertEquals("an iPhone", senderOf("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)"))
+        assertEquals("an Android phone", senderOf("Mozilla/5.0 (Linux; Android 14; Pixel 8) Mobile Safari/537.36"))
+        assertEquals("a computer", senderOf("Mozilla/5.0 (Windows NT 10.0; Win64; x64)"))
+        assertTrue(isHomeNetwork(java.net.InetAddress.getByName("192.168.1.20")))
+        assertTrue(isHomeNetwork(java.net.InetAddress.getByName("10.0.0.7")))
+        assertTrue(isHomeNetwork(java.net.InetAddress.getByName("fd12:3456::1")))
+        assertFalse(isHomeNetwork(java.net.InetAddress.getByName("8.8.8.8")))
+        assertEquals(4, FileShare.newCode().length)
+    }
 }
