@@ -345,7 +345,7 @@ private fun TopNotice(notice: Notice, more: Int, apps: List<AppEntry>, now: Inst
                 withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(noticeTitle(notice, apps)) }
                 withStyle(SpanStyle(color = fg.copy(alpha = 0.66f))) {
                     noticeText(notice, apps).takeIf { it.isNotEmpty() }?.let { append(" · $it") }
-                    append(" · " + noticeAge(notice.at, now))
+                    if (!isLive(notice)) append(" · " + noticeAge(notice.at, now))
                 }
             },
             color = fg,
@@ -433,7 +433,7 @@ private fun NoticeRow(
                 }
             }
             Spacer(Modifier.width(12.dp))
-            Text(noticeAge(notice.at, now), color = fg.copy(alpha = 0.55f), fontSize = 13.sp, maxLines = 1)
+            if (!isLive(notice)) Text(noticeAge(notice.at, now), color = fg.copy(alpha = 0.55f), fontSize = 13.sp, maxLines = 1)
         }
         if (notice.kind == NoticeKind.Update) {
             when (update.phase) {
@@ -455,6 +455,9 @@ private fun NoticeRow(
         }
     }
 }
+
+/** Happening now (a kick-off countdown, no connection): its own text says when, so no age. */
+private fun isLive(n: Notice): Boolean = n.id.startsWith("kickoff:") || n.id.startsWith("offline:")
 
 /** What a notification is called in the bar: for another app's, the app's name. */
 private fun noticeTitle(n: Notice, apps: List<AppEntry>): String =

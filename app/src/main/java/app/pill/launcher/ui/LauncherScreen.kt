@@ -459,6 +459,7 @@ fun LauncherScreen(
             .sortedByDescending { it.at }
     }
     val unread = allNotices.count { it.at.toEpochMilli() > noticesSeen }
+    val listOver by animateFloatAsState(if (noticesOpen) 1f else 0f, tween(Motion.Enter, easing = Motion.EnterEasing), label = "listOver")
     LaunchedEffect(noticesOpen) { if (noticesOpen) onNoticesSeen() }
     LaunchedEffect(idle) { if (idle) noticesOpen = false }
 
@@ -769,10 +770,12 @@ fun LauncherScreen(
                                 )
                             }
 
+                            // Favorites step back while the notification list is open over them
                             Box(
                                 Modifier
                                     .fillMaxWidth()
                                     .heightIn(min = favoritesRowHeight(settings.favoritesStyle, FavoriteIcon))
+                                    .graphicsLayer { alpha = 1f - 0.85f * listOver }
                                     .dissolveStep({ 1f - idleFade }, step = 2, steps = 3),
                                 contentAlignment = Alignment.CenterStart,
                             ) {
