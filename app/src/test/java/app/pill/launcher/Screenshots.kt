@@ -630,6 +630,26 @@ class Screenshots {
         settle()
         compose.onNodeWithText("Update to 3.1").assertExists()
         captureScreenRoboImage(File(out, "settings-updates.png").path)
+        // Down reaches every line of what's new, so the page scrolls to the end
+        var reached = false
+        repeat(8) {
+            compose.onAllNodes(isFocused()).onLast().performKeyInput { pressKey(Key.DirectionDown) }
+            settle()
+            if (compose.onAllNodes(isFocused() and hasText("Rename apps in the launcher")).fetchSemanticsNodes().isNotEmpty()) reached = true
+        }
+        check(reached) { "what's new can be reached with Down" }
+    }
+
+    /** The update card stays off the idle screen, which shows only the widgets and the photo. */
+    @Test
+    fun updateCardNotWhileIdle() {
+        val release = Release("3.1", "https://example.com/pill-launcher-3.1.apk", 9_100_000, listOf("Widget stack"))
+        show("canyon-river", pins = favorites, update = UpdateState(UpdatePhase.Failed, release, message = "Couldn't download it: can't reach GitHub"))
+        compose.onNodeWithText("Pill Launcher 3.1 isn't installed yet").assertExists()
+        compose.mainClock.advanceTimeBy(125_000)
+        compose.mainClock.advanceTimeBy(2_500)
+        settle()
+        compose.onNodeWithText("Pill Launcher 3.1 isn't installed yet").assertDoesNotExist()
     }
 
     @Test

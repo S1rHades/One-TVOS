@@ -112,25 +112,52 @@ class Updater(private val context: Context) {
         )
     }.isSuccess
 
-    /** Downloads [release]'s APK into the cache, reporting 0 to 1 as it goes. */
+    /**
+     * Downloads [release]'s APK into the cache, reporting 0 to 1 as it goes. Tries the
+     * newest release's link, then the version's own release, and says why when both fail.
+     */
     suspend fun download(release: Release, onProgress: (Float) -> Unit): File = withContext(Dispatchers.IO) {
         val dir = File(context.cacheDir, "updates").apply { mkdirs() }
         dir.listFiles()?.forEach { it.delete() }
         val file = File(dir, "pill-launcher-${release.version}.apk")
-        var url = release.apkUrl
-        // GitHub sends the file from another host; follow up to five redirects
-        repeat(5) {
+        val links = listOf(
+            release.apkUrl,
+            "https://github.com/S1rHades/One-TVOS/releases/download/v${release.version}/pill-launcher-${release.version}.apk",
+        ).distinct()
+        var problem: Exception? = null
+        for (link in links) {
+            try {
+                fetch(link, file, release.sizeBytes, onProgress)
+                if (file.length() > 0) return@withContext file
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                problem = e
+            }
+        }
+        throw problem ?: IllegalStateException("The download was empty")
+    }
+
+    private suspend fun fetch(link: String, file: File, expected: Long, onProgress: (Float) -> Unit) {
+        var url = link
+        // GitHub sends the file from another host; follow up to five redirects by hand
+        repeat(6) {
             val c = (URL(url).openConnection() as HttpURLConnection).apply {
-                connectTimeout = 10_000
-                readTimeout = 15_000
+                connectTimeout = 15_000
+                readTimeout = 30_000
                 instanceFollowRedirects = false
                 setRequestProperty("User-Agent", "PillLauncher")
+                setRequestProperty("Accept", "application/octet-stream")
             }
             try {
-                when (c.responseCode) {
-                    in 300..399 -> { url = c.getHeaderField("Location") ?: error("Lost the download link"); return@repeat }
-                    200 -> {
-                        val total = c.contentLengthLong.takeIf { it > 0 } ?: release.sizeBytes
+                val code = c.responseCode
+                when {
+                    code in 300..399 -> {
+                        val next = c.getHeaderField("Location") ?: error("GitHub gave no download link")
+                        url = URL(URL(url), next).toString()
+                    }
+                    code == 200 -> {
+                        val total = c.contentLengthLong.takeIf { it > 0 } ?: expected
                         var read = 0L
                         c.inputStream.use { input ->
                             file.outputStream().use { out ->
@@ -145,9 +172,10 @@ class Updater(private val context: Context) {
                                 }
                             }
                         }
-                        return@withContext file
+                        if (total > 0 && read < total) error("The download was cut short")
+                        return
                     }
-                    else -> error("The download failed (${c.responseCode})")
+                    else -> error("GitHub answered $code")
                 }
             } finally {
                 c.disconnect()
@@ -155,6 +183,19 @@ class Updater(private val context: Context) {
         }
         error("Too many redirects")
     }
+
+    /**
+     * Opens Android's own install screen for [apk], for TVs whose background installer
+     * refuses. False if this TV has no such screen.
+     */
+    fun installWithSystemScreen(apk: File): Boolean = runCatching {
+        val uri = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.updates", apk)
+        context.startActivity(
+            Intent(Intent.ACTION_VIEW)
+                .setDataAndType(uri, "application/vnd.android.package-archive")
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+    }.isSuccess
 
     /** Hands the APK to Android's installer, which shows its own confirmation. */
     fun install(apk: File) {
@@ -196,7 +237,17 @@ class InstallResultReceiver : BroadcastReceiver() {
                     .onFailure { installProblems.value = "Android couldn't show the install screen" }
             }
             PackageInstaller.STATUS_SUCCESS -> installProblems.value = null
-            else -> installProblems.value = installProblem(status)
+            PackageInstaller.STATUS_FAILURE_ABORTED, PackageInstaller.STATUS_FAILURE_CONFLICT, PackageInstaller.STATUS_FAILURE_STORAGE ->
+                installProblems.value = installProblem(status)
+            else -> {
+                // Some TVs refuse background installs: Android's own install screen may still work
+                val apk = File(context.cacheDir, "updates").listFiles()?.maxByOrNull { it.lastModified() }
+                val opened = apk != null && Updater(context).installWithSystemScreen(apk)
+                if (!opened) {
+                    val detail = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)?.take(80)
+                    installProblems.value = installProblem(status) + (detail?.let { " ($it)" } ?: "")
+                }
+            }
         }
     }
 }
@@ -211,4 +262,16 @@ fun installProblem(status: Int): String = when (status) {
     PackageInstaller.STATUS_FAILURE_INCOMPATIBLE -> "This TV can't install the update"
     PackageInstaller.STATUS_FAILURE_BLOCKED -> "The TV blocked the update"
     else -> "The update couldn't be installed"
+}
+
+/** A short, plain reason for a failure, for the update card and Settings. */
+fun updateProblem(e: Throwable): String {
+    val name = e.javaClass.simpleName
+    return when {
+        e is java.net.UnknownHostException -> "can't reach GitHub"
+        e is java.net.SocketTimeoutException -> "the connection timed out"
+        e is javax.net.ssl.SSLException -> "a secure connection to GitHub failed"
+        e is SecurityException -> "Android didn't allow it"
+        else -> (e.message?.takeIf { it.isNotBlank() } ?: name).take(80)
+    }
 }
