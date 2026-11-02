@@ -40,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -128,7 +129,18 @@ fun InternetPage(onOpenNetworkSettings: () -> Unit, onDismiss: () -> Unit) {
     }
     val running = phase != null
 
-    OverlayPage(onDismiss = onDismiss, width = 880.dp, framed = false, nav = NavItem.Internet) { _ ->
+    OverlayPage(
+        onDismiss = onDismiss,
+        width = 880.dp,
+        framed = false,
+        nav = NavItem.Internet,
+        // The TV's own network settings, at the top left level with the bar
+        topLeft = {
+            PageButton("Network settings", onClick = onOpenNetworkSettings) { tint ->
+                WifiIcon(NetworkStatus(Link.WiFi, 4, false), tint, 18.dp)
+            }
+        },
+    ) { _ ->
         LaunchedEffect(Unit) {
             delay(60)
             runCatching { startFocus.requestFocus() }
@@ -178,16 +190,14 @@ fun InternetPage(onOpenNetworkSettings: () -> Unit, onDismiss: () -> Unit) {
                     }
                 }
                 Spacer(Modifier.weight(1f))
-                PageButtons(
-                    first = when {
+                PageButton(
+                    label = when {
                         running -> "Testing…"
                         result != null || error != null -> "Test again"
                         else -> "Start test"
                     },
-                    onFirst = { start() },
-                    onSecond = onOpenNetworkSettings,
-                    firstFocus = startFocus,
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                    onClick = { start() },
+                    modifier = Modifier.align(Alignment.CenterHorizontally).width(170.dp).focusRequester(startFocus),
                 )
             }
             PageCard(2, Modifier.width(380.dp).fillMaxHeight()) {
@@ -263,52 +273,36 @@ private fun ResultRow(label: String, value: String, unit: String) {
 }
 
 /**
- * Two buttons side by side, [first] (the test) and Network settings; a white pill glides
- * to the focused one.
+ * A rounded button on a page: frosted while it rests, white with dark text while focused,
+ * growing a little, like the pills elsewhere. [icon] draws in the text's colour.
  */
 @Composable
-private fun PageButtons(first: String, onFirst: () -> Unit, onSecond: () -> Unit, firstFocus: FocusRequester, modifier: Modifier = Modifier) {
-    val density = LocalDensity.current
-    var focused by remember { mutableIntStateOf(0) }
-    val placed = remember { mutableStateMapOf<Int, Pair<Float, Float>>() }
-    val spot = placed[focused]
-    val x by animateDpAsState(with(density) { (spot?.first ?: 0f).toDp() }, Motion.glide(), label = "buttonX")
-    val w by animateDpAsState(with(density) { (spot?.second ?: 0f).toDp() }, Motion.glide(), label = "buttonW")
-    Box(modifier) {
-        Box(
-            Modifier
-                .offset(x = x)
-                .width(w)
-                .height(42.dp)
-                .shadow(10.dp, RoundedCornerShape(50))
-                .background(Palette.Focus, RoundedCornerShape(50)),
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            for ((i, label) in listOf(first, "Network settings").withIndex()) {
-                val on = i == focused
-                val fg by animateColorAsState(if (on) Palette.Ink else Palette.TextPrimary, tween(Motion.Quick), label = "buttonText")
-                Row(
-                    Modifier
-                        .onPlaced { placed[i] = it.positionInParent().x to it.size.width.toFloat() }
-                        .height(42.dp)
-                        .then(if (i == 0) Modifier.width(150.dp) else Modifier)
-                        .clip(RoundedCornerShape(50))
-                        .background(if (on) Color.Transparent else Color(0x1FFFFFFF))
-                        .border(1.dp, if (on) Color.Transparent else Color(0x33FFFFFF), RoundedCornerShape(50))
-                        .then(if (i == 0) Modifier.focusRequester(firstFocus) else Modifier)
-                        .onFocusChanged { if (it.isFocused) focused = i }
-                        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { if (i == 0) onFirst() else onSecond() }
-                        .padding(horizontal = 18.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center,
-                ) {
-                    if (i == 1) {
-                        WifiIcon(NetworkStatus(Link.WiFi, 4, false), fg, 18.dp)
-                        Spacer(Modifier.width(8.dp))
-                    }
-                    Text(label, color = fg, fontSize = 15.sp, fontWeight = FontWeight(600), maxLines = 1)
-                }
+fun PageButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier, icon: (@Composable (Color) -> Unit)? = null) {
+    var focused by remember { mutableStateOf(false) }
+    val bg by animateColorAsState(if (focused) Palette.Focus else Color(0x1FFFFFFF), tween(Motion.Quick), label = "pageButtonBg")
+    val fg by animateColorAsState(if (focused) Palette.Ink else Palette.TextPrimary, tween(Motion.Quick), label = "pageButtonFg")
+    val scale by animateFloatAsState(if (focused) 1.05f else 1f, FocusSpring, label = "pageButtonScale")
+    Row(
+        modifier
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
             }
+            .height(42.dp)
+            .shadow(if (focused) 10.dp else 0.dp, RoundedCornerShape(50))
+            .clip(RoundedCornerShape(50))
+            .background(bg)
+            .border(1.dp, if (focused) Color.Transparent else Color(0x33FFFFFF), RoundedCornerShape(50))
+            .onFocusChanged { focused = it.isFocused }
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick)
+            .padding(horizontal = 18.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        if (icon != null) {
+            icon(fg)
+            Spacer(Modifier.width(8.dp))
         }
+        Text(label, color = fg, fontSize = 15.sp, fontWeight = FontWeight(600), maxLines = 1)
     }
 }
