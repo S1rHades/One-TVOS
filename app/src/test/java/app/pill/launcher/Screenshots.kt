@@ -26,6 +26,9 @@ import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.requestFocus
 import androidx.compose.ui.test.assertIsDisplayed
@@ -341,6 +344,45 @@ class Screenshots {
         check(count("Maps") == maps + 1) { "Maps should match" }
         check(count("Music") == music) { "Music shouldn't match" }
         captureScreenRoboImage(File(out, "search.png").path)
+    }
+
+    /** Down from the bar at the top right always lands somewhere: the first favourite, else All apps. */
+    @Test
+    fun downFromTheBar() {
+        show("misty-valley", pins = favorites)
+        for (item in listOf("Home", "Search", "Settings")) {
+            val node = compose.onNodeWithContentDescription(item)
+            node.requestFocus()
+            settle()
+            node.performKeyInput { pressKey(Key.DirectionDown) }
+            settle()
+            compose.onNode(isFocused()).assert(hasContentDescription("Cinema") or hasText("Cinema"))
+        }
+    }
+
+    @Test
+    fun downFromTheBarWithoutFavorites() {
+        show("misty-valley", pins = emptyList())
+        val home = compose.onNodeWithContentDescription("Home")
+        home.requestFocus()
+        settle()
+        home.performKeyInput { pressKey(Key.DirectionDown) }
+        settle()
+        compose.onNode(isFocused()).assert(hasText("All"))
+    }
+
+    /** In Settings the bar stays at the top; Down from it goes back into the panel. */
+    @Test
+    fun downFromTheBarInSettings() {
+        show("pine-forest", pins = favorites)
+        compose.onNodeWithContentDescription("Settings").performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        val gear = compose.onAllNodesWithContentDescription("Settings").onLast()
+        gear.requestFocus()
+        settle()
+        gear.performKeyInput { pressKey(Key.DirectionDown) }
+        settle()
+        compose.onNode(isFocused()).assert(hasText("Background") or hasText("Widgets") or hasText("Favorites row"))
     }
 
     /** Menu → Rename… on the first favourite: the name changes only in the launcher. */
