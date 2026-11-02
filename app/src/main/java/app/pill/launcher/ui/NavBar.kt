@@ -90,7 +90,7 @@ fun BoxScope.TopNav(current: NavItem?) {
 /**
  * The bar at the top right of every screen: Home and Search, a divider, then Wi-Fi (the
  * Internet page) and Settings. A disc marks where you are; while the bar has focus it
- * turns white, glides to the focused item, and the item's name shows under it for a moment.
+ * turns white and glides to the focused item. Nothing shows under the bar.
  */
 @Composable
 fun NavBar(
@@ -118,19 +118,6 @@ fun NavBar(
         tween(Motion.Quick),
         label = "navMarkerColor",
     )
-    // The name is a tooltip: it shows as focus arrives on an item and fades after a moment
-    var labelAt by remember { mutableIntStateOf(0) }
-    if (active) labelAt = focused
-    var tip by remember { mutableStateOf(false) }
-    LaunchedEffect(focused) {
-        tip = focused >= 0
-        if (tip) {
-            delay(1800)
-            tip = false
-        }
-    }
-    val labelShown by animateFloatAsState(if (tip) 1f else 0f, tween(Motion.Quick), label = "navLabel")
-
     Box(
         modifier.onPreviewKeyEvent { event ->
             if (onDown == null || event.key != Key.DirectionDown) return@onPreviewKeyEvent false
@@ -179,30 +166,7 @@ fun NavBar(
                 }
             }
         }
-        // The focused item's name, under the bar (outside its bounds, so it takes no room)
-        Box(
-            Modifier
-                .align(Alignment.TopStart)
-                .offset(x = BarPad + itemX(labelAt) + ItemSize / 2 - 40.dp, y = NavHeight + 8.dp)
-                .size(width = 80.dp, height = 30.dp)
-                .graphicsLayer {
-                    alpha = labelShown
-                    translationY = (1f - labelShown) * -6.dp.toPx()
-                },
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                NavItem.entries[labelAt].label,
-                color = Palette.Ink,
-                fontSize = 14.sp,
-                fontWeight = FontWeight(650),
-                maxLines = 1,
-                modifier = Modifier
-                    .shadow(10.dp, RoundedCornerShape(50))
-                    .background(Palette.Focus, RoundedCornerShape(50))
-                    .padding(horizontal = 12.dp, vertical = 5.dp),
-            )
-        }
+
     }
 }
 

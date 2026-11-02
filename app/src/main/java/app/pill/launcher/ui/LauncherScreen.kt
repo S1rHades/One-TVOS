@@ -80,6 +80,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.foundation.focusGroup
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
@@ -232,6 +233,11 @@ fun LauncherScreen(
     // The All apps chip picked (null: all), and the first chip, where the rail's Apps lands
     var appFilter by remember { mutableStateOf<AppCategory?>(null) }
     val chipFocus = remember { FocusRequester() }
+    // The widget row, so Down from the bar can go to it; whether it holds focus right now
+    val widgetFocus = remember { FocusRequester() }
+    var widgetsFocused by remember { mutableStateOf(false) }
+    // Settings was closed by going somewhere from the bar: focus goes there, not back to the gear
+    var panelLeftByBar by remember { mutableStateOf(false) }
     // Kick-off banners already seen (by match), so each shows once
     var bannersShown by remember { mutableStateOf(setOf<String>()) }
     val headlines = remember(news, settings.newsTopics) { news?.let { pickHeadlines(it, settings.newsTopics) }.orEmpty() }
@@ -280,12 +286,16 @@ fun LauncherScreen(
         runCatching { pillFocus.requestFocus() }
     }
 
-    // Down from the bar at the top right: the first favourite, or the top of All apps when
-    // that is on screen (or there are no favourites). Left to itself, focus search from the
-    // corner can settle on nothing, since the widgets under the bar don't all take focus.
+    // Down from the bar at the top right. The scrolling page under it covers the whole
+    // screen, the bar's corner included, so focus search never finds it "below" the bar;
+    // this says where Down goes instead: the widgets (when one takes focus), else the
+    // first favourite, and the top of All apps when that is on screen or nothing else is.
     fun leaveBar() {
         scope.launch {
             if (scroll.value == 0) {
+                runCatching { widgetFocus.requestFocus() }
+                withFrameNanos { }
+                if (widgetsFocused) return@launch
                 val first = currentPinned.firstOrNull()?.let { favoriteFocus[it.pkg] }
                 if (first != null && runCatching { first.requestFocus() }.isSuccess) return@launch
             }
@@ -376,6 +386,10 @@ fun LauncherScreen(
 
     // Return focus to the pill when the settings panel closes
     LaunchedEffect(panelOpen) {
+        if (panelLeftByBar) {
+            panelLeftByBar = false
+            return@LaunchedEffect
+        }
         if (!panelOpen && initialFocusDone) {
             delay(100)
             runCatching { pillFocus.requestFocus() }
@@ -412,6 +426,7 @@ fun LauncherScreen(
             NavItem.Settings -> panelOpen
         }
         if (already) return
+        if (panelOpen) panelLeftByBar = true
         forecastOpen = false
         clockOpen = false
         hubTeam = null
@@ -548,6 +563,9 @@ fun LauncherScreen(
                                     animate = !idle,
                                     modifier = Modifier
                                         .weight(1f)
+                                        .focusRequester(widgetFocus)
+                                        .onFocusChanged { widgetsFocused = it.hasFocus }
+                                        .focusGroup()
                                         .idlePresentation(focus = { idleFocus }, shift = { idleShift.value }),
                                     onOpenClock = { clockOpen = true },
                                     onOpenWeather = { forecastOpen = true },
