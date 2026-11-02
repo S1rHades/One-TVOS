@@ -197,16 +197,7 @@ fun FilesPage(
                     }
                 }
             }
-            AnimatedVisibility(
-                visible = message != null,
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp),
-                enter = fadeIn() + slideInVertically { it / 2 },
-                exit = fadeOut() + slideOutVertically { it / 2 },
-            ) {
-                var last by remember { mutableStateOf("") }
-                message?.let { last = it }
-                ToastChip(last)
-            }
+            PageMessage(message, Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp))
             }
         }
         LaunchedEffect(state.files.isEmpty()) {
@@ -236,6 +227,21 @@ fun FilesPage(
     viewing?.let { start ->
         val photos = state.files.filter { it.kind == FileKind.Photo }
         PhotoViewer(photos, photos.indexOf(start).coerceAtLeast(0), fileFor = { share.file(it.name) }, onDismiss = { viewing = null })
+    }
+}
+
+/** A short message over the bottom of the page (why a file can't open), sliding in and out. */
+@Composable
+private fun PageMessage(message: String?, modifier: Modifier) {
+    AnimatedVisibility(
+        visible = message != null,
+        modifier = modifier,
+        enter = fadeIn() + slideInVertically { it / 2 },
+        exit = fadeOut() + slideOutVertically { it / 2 },
+    ) {
+        var last by remember { mutableStateOf("") }
+        message?.let { last = it }
+        ToastChip(last)
     }
 }
 
