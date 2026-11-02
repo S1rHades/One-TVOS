@@ -121,8 +121,8 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.KeyEvent
-import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.launch
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.animation.core.withInfiniteAnimationFrameMillis
 import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.semantics.contentDescription
@@ -570,24 +570,34 @@ private fun FootballCard(
         }
     }
     val shown = cardTeams(football, matchDay, now, zone)
-    val launchScope = rememberCoroutineScope()
     // Which team is on show. Every 20 seconds the next takes over, a line along the bottom
     // filling up until then; while the card has focus it waits, and Left / Right flip by hand.
     var turn by remember { mutableIntStateOf(0) }
     var cardFocused by remember { mutableStateOf(false) }
     val count = shown.size
     val index = if (count == 0) 0 else turn.mod(count)
-    val turnProgress = remember { Animatable(0f) }
+    var turnProgress by remember { mutableFloatStateOf(0f) }
     LaunchedEffect(count, turn, cardFocused, moment) {
         if (count < 2 || moment != null) {
-            turnProgress.snapTo(0f)
+            turnProgress = 0f
             return@LaunchedEffect
         }
         if (cardFocused) return@LaunchedEffect
-        val left = ((1f - turnProgress.value) * TeamTurnMs).toInt().coerceAtLeast(1)
-        turnProgress.animateTo(1f, tween(left, easing = LinearEasing))
-        turnProgress.snapTo(0f)
-        turn++
+        // Frame by frame from where it got to; an endless animation as far as Compose is concerned
+        val from = turnProgress
+        var start = -1L
+        while (true) {
+            val p = withInfiniteAnimationFrameMillis { ms ->
+                if (start < 0) start = ms
+                from + (ms - start) / TeamTurnMs.toFloat()
+            }
+            if (p >= 1f) {
+                turnProgress = 0f
+                turn++
+                break
+            }
+            turnProgress = p
+        }
     }
     val flip = { by: Int ->
         val to = index + by
@@ -609,7 +619,7 @@ private fun FootballCard(
             by == 0 || count < 2 || (index + by) !in 0 until count -> false
             event.type == KeyEventType.KeyDown -> {
                 flip(by)
-                launchScope.launch { turnProgress.snapTo(0f) }
+                turnProgress = 0f
                 true
             }
             else -> true
@@ -651,7 +661,7 @@ private fun FootballCard(
         if (moment?.kind == MomentKind.Win) Confetti(moment.at, Modifier.matchParentSize())
         if (count > 1 && moment == null) {
             PageDots(count, index, Modifier.align(Alignment.TopEnd))
-            if (animate) TurnLine({ turnProgress.value }, Modifier.align(Alignment.BottomCenter).offset(y = 8.dp))
+            if (animate) TurnLine({ turnProgress }, Modifier.align(Alignment.BottomCenter).offset(y = 8.dp))
         }
     }
 }

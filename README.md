@@ -241,7 +241,7 @@ The football widget follows Algeria's men's team (always first) and up to five m
 
 With more than one team, the card takes turns between them every 20 seconds, and a thin line along its bottom fills up until the next one. With the card focused it waits, and **Left** / **Right** flip between the teams by hand (past the first or last, they move on to the next widget).
 
-<p align="center"><img src="docs/screenshots/football-card.png" width="45%" alt="The football card part way through a turn: the next match, the latest result, two dots at the top right for the two teams, and a line along the bottom about half full"></p>
+<p align="center"><img src="docs/screenshots/football-card.png" width="45%" alt="The football card part way through a turn: the next match, the latest result, two dots at the top right for the two teams, and the thin turn line along the bottom"></p>
 
 OK on the card opens the football page: your teams down the left (**Up** / **Down** picks one), and the next match with a countdown and the latest result filling the rest. The free data has no league tables worth showing, so the page leaves them out.
 
