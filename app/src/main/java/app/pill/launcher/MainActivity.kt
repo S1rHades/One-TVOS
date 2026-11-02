@@ -196,7 +196,6 @@ class MainActivity : ComponentActivity() {
                 weatherError = weatherError.takeIf { weatherOn },
                 football = football,
                 news = news.takeIf { newsOn },
-                loadTable = { league, season -> withContext(Dispatchers.IO) { footballSource.table(league, season) } },
                 searchTeams = { query -> withContext(Dispatchers.IO) { findTeams(query) } },
                 onlinePhotos = onlinePhotos,
                 pins = pins,

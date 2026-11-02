@@ -176,7 +176,7 @@ On TVs that ignore that command, turning off the stock launcher works too (turn 
 
 The `latest` release is rebuilt automatically every time `main` changes, so installing it again always gets you the newest version.
 
-Every version also keeps its own release, named after it (**Pill Launcher 3.1.2**, tag `v3.1.2`, file `pill-launcher-3.1.2.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v3.1.2/pill-launcher-3.1.2.apk`. The newest is titled **Pill Launcher 3.1.2 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
+Every version also keeps its own release, named after it (**Pill Launcher 3.2**, tag `v3.2`, file `pill-launcher-3.2.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v3.2/pill-launcher-3.2.apk`. The newest is titled **Pill Launcher 3.2 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
 
 ### Uninstalling
 
@@ -211,6 +211,7 @@ If the launcher won't open, use the TV's own **Settings → Apps → Pill Launch
 | Open the clock page, the weather dashboard, the football page or the news page | Go up to that widget, then **OK** (**Back** closes it) |
 | Pick a day on the weather dashboard | **Left** / **Right** |
 | Pick a team on the football page, or a story on the news page | **Up** / **Down** |
+| Switch teams on the football card | With it focused, **Left** / **Right** |
 | Follow more teams, or change match day | **Settings → Widgets → Football teams** |
 | Choose headline topics | **Settings → Widgets → Headlines** |
 | Hide the kick-off reminder | **Back** (it also goes by itself after 30 seconds) |
@@ -238,9 +239,13 @@ MET Norway gives no "feels like", UV or chance of rain, so with it the page show
 
 The football widget follows Algeria's men's team (always first) and up to five more teams you add under **Settings → Widgets → Football teams**: search for a club or a country. The card takes turns between them every 20 seconds, each with its next fixture (competition, crests and kick-off in the TV's time zone) and latest result, marked W, D or L. During a match it shows **LIVE** and the score.
 
-OK on the card opens the football page in three columns: your teams (**Up** / **Down** picks one); the next match with a countdown and the latest result; and the team's crest, league place and points, with the top of its league table.
+With more than one team, the card takes turns between them every 20 seconds, and a thin line along its bottom fills up until the next one. With the card focused it waits, and **Left** / **Right** flip between the teams by hand (past the first or last, they move on to the next widget).
 
-<p align="center"><img src="docs/screenshots/football-hub.png" width="100%" alt="The football page: Algeria and Arsenal down the left with Arsenal selected; Liverpool v Arsenal at Anfield with a countdown to kick-off, and the latest result Arsenal 2-0 Everton; and Arsenal, 2nd in the Premier League with 21 points, above the top five"></p>
+<p align="center"><img src="docs/screenshots/football-card.png" width="45%" alt="The football card part way through a turn: the next match, the latest result, two dots at the top right for the two teams, and a line along the bottom about half full"></p>
+
+OK on the card opens the football page: your teams down the left (**Up** / **Down** picks one), and the next match with a countdown and the latest result filling the rest. The free data has no league tables worth showing, so the page leaves them out.
+
+<p align="center"><img src="docs/screenshots/football-hub.png" width="100%" alt="The football page: Algeria and Arsenal down the left with Arsenal selected; the next match, Liverpool v Arsenal at Anfield, with a countdown to kick-off, and the latest result Arsenal 2-0 Everton, filling the rest of the page"></p>
 
 **Goals and wins**: when a team you follow scores, its card flashes green, the score flips to the new one, and the last line says "Goal · Algeria 78'" (the minute is worked out from kick-off, since the free data has no clock). A win ends at full time in a short burst of confetti inside the card. A widget stack holding the football card brings it forward. The data refreshes every 3 minutes around a match, so the card lights up a little after the real goal. Every line stays on one line inside the card: long team names give way with an ellipsis before the score does. Nothing moves on the idle screen.
 
@@ -307,7 +312,7 @@ gradle assembleDebug                                   # app/build/outputs/apk/d
 gradle :app:testDebugUnitTest --tests '*Screenshots*'  # re-render docs/screenshots
 ```
 
-**Builds are automated.** `.github/workflows/build.yml` builds the APK for every pull request and push; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v3.1.2`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
+**Builds are automated.** `.github/workflows/build.yml` builds the APK for every pull request and push; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v3.2`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
 
 <details>
 <summary><b>Architecture</b></summary>

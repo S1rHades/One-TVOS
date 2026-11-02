@@ -41,6 +41,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalDensity
@@ -82,14 +83,22 @@ fun CategoryChips(
     val chipFocus = remember(categories.size) { List(categories.size) { FocusRequester() } }
     val x by animateDpAsState(with(density) { (spot?.first ?: 0f).toDp() }, Motion.glide(), label = "chipX")
     val w by animateDpAsState(with(density) { (spot?.second ?: 0f).toDp() }, Motion.glide(), label = "chipW")
+    // The chip with focus, or -1: focus shows as a lift and a soft glow, never a dark ring
+    var focusedChip by remember { mutableIntStateOf(-1) }
+    val pillLift by animateFloatAsState(if (focusedChip == index) 1f else 0f, FocusSpring, label = "chipPillLift")
     Box(modifier) {
         Box(
             Modifier
                 .offset(x = x)
                 .width(w)
                 .height(38.dp)
-                .graphicsLayer { alpha = if (spot == null) 0f else 1f }
-                .shadow(10.dp, ChipShape)
+                .graphicsLayer {
+                    alpha = if (spot == null) 0f else 1f
+                    val sc = 1f + 0.08f * pillLift
+                    scaleX = sc
+                    scaleY = sc
+                }
+                .shadow((8 + 14 * pillLift).dp, ChipShape, ambientColor = Color.White, spotColor = Color.White)
                 .background(Palette.Focus, ChipShape),
         )
         Row(
@@ -100,20 +109,43 @@ fun CategoryChips(
         ) {
             for ((i, category) in categories.withIndex()) {
                 val on = i == index
-                var focused by remember { mutableStateOf(false) }
-                val ring by animateFloatAsState(if (focused) 1f else 0f, tween(Motion.Quick), label = "chipRing")
+                val focused = focusedChip == i
+                // An unselected chip with focus brightens and lifts; the selected one lifts with its pill
+                val lift by animateFloatAsState(if (focused) 1f else 0f, FocusSpring, label = "chipLift")
+                val fill by animateColorAsState(
+                    when {
+                        on -> Color.Transparent
+                        focused -> Color(0x4DFFFFFF)
+                        else -> Color(0x1FFFFFFF)
+                    },
+                    tween(Motion.Quick),
+                    label = "chipFill",
+                )
+                val edge by animateColorAsState(
+                    when {
+                        on -> Color.Transparent
+                        focused -> Color(0xB3FFFFFF)
+                        else -> Color(0x33FFFFFF)
+                    },
+                    tween(Motion.Quick),
+                    label = "chipEdge",
+                )
                 val fg by animateColorAsState(if (on) Palette.Ink else Palette.TextPrimary, tween(Motion.Quick), label = "chipText")
                 Box(
                     Modifier
                         .onPlaced { placed[i] = it.positionInParent().x to it.size.width.toFloat() }
+                        .graphicsLayer {
+                            val sc = 1f + 0.08f * lift
+                            scaleX = sc
+                            scaleY = sc
+                        }
                         .height(38.dp)
                         .clip(ChipShape)
-                        .background(if (on) Color.Transparent else Color(0x1FFFFFFF))
-                        .border(1.dp, if (on) Color.Transparent else Color(0x33FFFFFF), ChipShape)
-                        .border(2.5.dp, (if (on) Palette.Ink else Palette.Focus).copy(alpha = ring), ChipShape)
+                        .background(fill)
+                        .border(1.5.dp, edge, ChipShape)
                         .focusRequester(chipFocus[i])
                         .then(if (i == index) Modifier.focusRequester(firstFocus) else Modifier)
-                        .onFocusChanged { focused = it.isFocused }
+                        .onFocusChanged { if (it.isFocused) focusedChip = i else if (focusedChip == i) focusedChip = -1 }
                         .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onSelect(category) }
                         .padding(horizontal = 18.dp),
                     contentAlignment = Alignment.Center,

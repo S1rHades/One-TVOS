@@ -45,7 +45,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.pill.launcher.Fixtures
-import app.pill.launcher.LeagueTable
 import app.pill.launcher.Match
 import app.pill.launcher.Side
 import app.pill.launcher.Team
@@ -70,13 +69,10 @@ private val RowGap = 6.dp
 fun FootballHub(
     football: List<Fixtures>,
     initial: Team,
-    loadTable: suspend (leagueId: String, season: String) -> LeagueTable?,
     onDismiss: () -> Unit,
 ) {
     var selected by remember { mutableStateOf(football.firstOrNull { it.team.id == initial.id }?.team?.id ?: football.firstOrNull()?.team?.id) }
     val rowFocus = remember { football.associate { it.team.id to FocusRequester() } }
-    // Tables already looked up this time the page is open, so moving between teams is instant
-    val tables = remember { mutableStateMapOf<String, LeagueTable?>() }
     val now by produceState(Instant.now()) {
         while (true) {
             delay(1000)
@@ -100,26 +96,14 @@ fun FootballHub(
             ).joinToString(" · "),
             Modifier.reveal(0),
         )
-        // The table for the competition of the next match, else the latest one
-        val match = listOfNotNull(f.next, f.last).firstOrNull { it.leagueId != null && it.season != null }
-        val key = match?.let { "${it.leagueId}/${it.season}" }
-        val table by produceState(key?.let { tables[it] }, key) {
-            val m = match ?: return@produceState
-            val k = key ?: return@produceState
-            if (k !in tables) tables[k] = loadTable(m.leagueId!!, m.season!!)
-            value = tables[k]
-        }
-
         Row(Modifier.fillMaxWidth().height(PageBodyHeight), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             PageCard(1, Modifier.width(236.dp).fillMaxHeight()) {
                 PageLabel("Your teams", Modifier.padding(bottom = 8.dp))
                 TeamList(football, selected, onSelect = { selected = it }, rowFocus)
             }
+            // The free data has no league tables worth showing, so the match takes the room
             PageCard(2, Modifier.weight(1f).fillMaxHeight()) {
                 MatchCentre(f, now)
-            }
-            PageCard(3, Modifier.width(252.dp).fillMaxHeight()) {
-                TeamColumn(f, table, loading = key != null && key !in tables, followed = football.map { it.team.id }.toSet())
             }
         }
     }
@@ -238,54 +222,6 @@ private fun CountBox(n: Long, unit: String) {
     ) {
         Text("$n", style = TextStyle(fontFamily = FlexDisplay, color = Palette.TextPrimary, fontSize = 26.sp, fontWeight = FontWeight(300)), maxLines = 1)
         Text(unit, color = Palette.TextSecondary, fontSize = 12.sp, maxLines = 1)
-    }
-}
-
-/** The team: its crest and where it stands, and the top of its league's table. */
-@Composable
-private fun TeamColumn(f: Fixtures, table: LeagueTable?, loading: Boolean, followed: Set<String>) {
-    PageLabel("Team")
-    Column(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.size(64.dp).background(Color(0x1FFFFFFF), CircleShape), contentAlignment = Alignment.Center) {
-            Crest(Side(f.team.id, f.team.name, f.team.badge), 44.dp)
-        }
-        Spacer(Modifier.height(8.dp))
-        Text(f.team.name, color = Palette.TextPrimary, fontSize = 18.sp, fontWeight = FontWeight(650), maxLines = 1, overflow = TextOverflow.Ellipsis)
-        val ours = table?.rows?.firstOrNull { it.teamId == f.team.id }
-        Text(
-            listOfNotNull(
-                (table?.league ?: f.team.league)?.let { shortCompetition(it) },
-                ours?.let { "${ordinal(it.rank)}, ${it.points} pts" },
-            ).joinToString(" · ").ifBlank { f.team.country ?: "" },
-            color = Palette.TextSecondary, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
-        )
-    }
-    Spacer(Modifier.height(14.dp))
-    val rows = table?.rows
-    when {
-        rows != null -> {
-            for (row in rows) {
-                val highlight = row.teamId in followed
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(top = 3.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(if (highlight) Color(0x26FFFFFF) else Color.Transparent)
-                        .padding(horizontal = 6.dp, vertical = 3.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text("${row.rank}", color = Palette.TextSecondary, fontSize = 13.sp, modifier = Modifier.width(18.dp))
-                    Crest(Side(row.teamId, row.team, row.badge), 18.dp)
-                    Spacer(Modifier.width(6.dp))
-                    Text(row.team, color = Palette.TextPrimary, fontSize = 13.sp, fontWeight = if (highlight) FontWeight(650) else FontWeight.Normal, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                    Text("${row.points}", color = Palette.TextPrimary, fontSize = 13.sp, fontWeight = FontWeight(650), textAlign = TextAlign.End, modifier = Modifier.padding(start = 8.dp).width(22.dp))
-                }
-            }
-            Text("Top five from the free data", color = Palette.TextTertiary, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
-        }
-        loading -> Text("Looking for the table…", color = Palette.TextSecondary, fontSize = 14.sp)
-        else -> Text("No table for this competition in the free data", color = Palette.TextSecondary, fontSize = 14.sp)
     }
 }
 
