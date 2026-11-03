@@ -418,6 +418,25 @@ class Screenshots {
         check(focusedName().startsWith("Notifications")) { "Down from the bar reaches the notification bar: ${focusedName()}" }
     }
 
+    /** Down from the middle widget stops at the notification bar; Down from the bar starts Favorites at the left. */
+    @Test
+    fun navigationThroughTheNotificationBar() {
+        show("misty-valley", pins = favorites)
+        press(Key.DirectionUp)
+        press(Key.DirectionUp)
+        press(Key.DirectionRight)
+        val middle = focusedName()
+        check(!middle.contains("All caught up") && barItems.none { middle.startsWith(it) }) { "on the middle widget: $middle" }
+        press(Key.DirectionDown)
+        check(focusedName().contains("All caught up")) { "Down from the middle widget stops at the notification bar: ${focusedName()}" }
+        focusOn("Share files")
+        press(Key.DirectionDown)
+        check(focusedName().contains("Cinema")) { "Down from the bar's right end starts Favorites at the left: ${focusedName()}" }
+        focusOn("Notifications")
+        press(Key.DirectionDown)
+        check(focusedName().contains("Cinema")) { "Down from the bell starts Favorites at the left: ${focusedName()}" }
+    }
+
     /** No favourites and no widget that takes focus: Down from the bar goes to the notification bar, then All apps. */
     @Test
     fun navigationWithNothingAbove() {

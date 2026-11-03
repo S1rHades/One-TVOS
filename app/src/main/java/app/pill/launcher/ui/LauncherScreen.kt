@@ -761,6 +761,13 @@ fun LauncherScreen(
                                     if (share != null) filesOpen = true else toast = Toast("Files isn't available on this TV")
                                 },
                                 bellFocus = bellFocus,
+                                // Down from anywhere on the bar starts the row below at the left
+                                onDown = {
+                                    scope.launch {
+                                        val first = currentPinned.firstOrNull()?.let { favoriteFocus[it.pkg] }
+                                        if (first == null || runCatching { first.requestFocus() }.isFailure) runCatching { chipFocus.requestFocus() }
+                                    }
+                                },
                                 modifier = Modifier
                                     .padding(start = Spacing.Tile, end = Spacing.Tile, top = 14.dp)
                                     .dissolveStep({ 1f - idleFade }, step = 1, steps = 3)

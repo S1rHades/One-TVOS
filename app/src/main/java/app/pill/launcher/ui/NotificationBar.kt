@@ -118,6 +118,8 @@ fun NotificationBar(
     onCancelUpdate: () -> Unit,
     onFiles: () -> Unit,
     bellFocus: FocusRequester,
+    /** Down from the bar (folded up): where focus goes, the start of the row below. */
+    onDown: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val now by produceState(Instant.now()) {
@@ -187,6 +189,10 @@ fun NotificationBar(
             .onFocusChanged { holdsFocus = it.hasFocus }
             // Back folds the open list up (the remote's Back reaches the focused row first)
             .onPreviewKeyEvent { event ->
+                if (!open && event.key == Key.DirectionDown && onDown != null) {
+                    if (event.type == KeyEventType.KeyDown) onDown()
+                    return@onPreviewKeyEvent true
+                }
                 if (!open || event.key != Key.Back) return@onPreviewKeyEvent false
                 if (event.type == KeyEventType.KeyUp) onOpenChange(false)
                 true
@@ -213,6 +219,7 @@ fun NotificationBar(
                                 (slideOutVertically(tween(Motion.Exit, easing = Motion.ExitEasing)) { -it / 2 } + fadeOut(tween(Motion.Exit)))
                         },
                         label = "noticeTop",
+                        modifier = Modifier.fillMaxWidth(),
                     ) { (isOpen, shown) ->
                         when {
                             isOpen -> ListHeader(count = notices.size, unread = unread)
@@ -378,16 +385,18 @@ private fun CaughtUp(onOpen: () -> Unit) {
     val active = input.active
     val bg by animateColorAsState(if (active) Palette.Focus else Color.Transparent, tween(Motion.Quick), label = "caughtUpBg")
     val fg by animateColorAsState(if (active) Palette.Ink else Palette.TextTertiary, tween(Motion.Quick), label = "caughtUpFg")
-    Row(
-        Modifier
-            .height(ButtonSize)
-            .clip(RoundedCornerShape(50))
-            .background(bg)
-            .then(input.modifier)
-            .padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text("All caught up", color = fg, fontSize = 16.sp, maxLines = 1)
+    // As wide as the bar, so Down from any widget above stops here; the white pill stays around the words
+    Box(Modifier.fillMaxWidth().height(ButtonSize).then(input.modifier), contentAlignment = Alignment.CenterStart) {
+        Row(
+            Modifier
+                .height(ButtonSize)
+                .clip(RoundedCornerShape(50))
+                .background(bg)
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("All caught up", color = fg, fontSize = 16.sp, maxLines = 1)
+        }
     }
 }
 
@@ -514,7 +523,6 @@ private fun BarButton(label: String, current: Boolean, onClick: () -> Unit, modi
     Box(
         modifier
             .size(ButtonSize)
-            .shadow(if (focused) 12.dp else 0.dp, CircleShape, ambientColor = Color.White, spotColor = Color.White)
             .background(bg, CircleShape)
             .semantics { contentDescription = label }
             .onFocusChanged { focused = it.isFocused }
