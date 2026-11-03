@@ -251,15 +251,20 @@ class MainActivity : ComponentActivity() {
             LaunchedEffect(share) {
                 share.arrivals.collect { f -> postNotice(fileNotice(f.name, f.size, f.from, Instant.now())) }
             }
-            // Files tidies itself on each return to the launcher: APKs whose app is installed, and old files
-            LaunchedEffect(refresh, settings.tidyInstalled, settings.tidyOld) {
+            // Files tidies itself on each return to the launcher. An APK whose app is now installed is
+            // never deleted on its own: the notification bar asks, once per APK. Old files go only when chosen.
+            LaunchedEffect(refresh, settings.askInstalledApks, settings.tidyOld) {
                 if (safe != null) return@LaunchedEffect
                 val done = withContext(Dispatchers.IO) {
-                    share.tidy(installed = { apk -> settings.tidyInstalled && isInstalled(apk) }, removeOld = settings.tidyOld)
+                    share.tidy(installed = { apk -> settings.askInstalledApks && isInstalled(apk) }, removeOld = settings.tidyOld)
                 }
                 val now = Instant.now()
-                if (done.installed.isNotEmpty()) {
-                    postNotice(Notice("tidied:${now.toEpochMilli()}", NoticeKind.File, "Removed ${filesLabel(done.installed)}", "Their apps are installed, so Files made room", now))
+                val asked = store.askedApks
+                for (name in done.installed) {
+                    val key = name + "|" + (share.file(name)?.length() ?: 0)
+                    if (key in asked) continue
+                    store.askedApks = store.askedApks + key
+                    postNotice(installedApkNotice(name, now))
                 }
                 if (done.old.isNotEmpty()) {
                     postNotice(Notice("old:${now.toEpochMilli()}", NoticeKind.File, "Removed ${filesLabel(done.old)}", "Kept for 30 days", now))

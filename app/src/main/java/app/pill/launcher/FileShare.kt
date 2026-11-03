@@ -49,7 +49,10 @@ data class SharedFile(val name: String, val size: Long, val modified: Long, val 
 /** A file on its way to the TV. */
 data class Transfer(val name: String, val read: Long, val total: Long, val from: String)
 
-/** What tidying removed: [installed] APKs, [old] files, and the files that go tomorrow (with when that was noticed). */
+/**
+ * What tidying found: APKs whose app is [installed] (kept: the TV asks before deleting
+ * them), [old] files it removed, and the files that go tomorrow (with when that was noticed).
+ */
 data class Tidied(val installed: List<String>, val old: List<String>, val tomorrow: List<Pair<String, Long>>)
 
 /** A phone allowed to use Files: paired by scanning the code, or by typing it and an OK on the TV. */
@@ -273,27 +276,28 @@ class FileShare(
     }
 
     /**
-     * Files tidying itself: APKs whose app is now installed ([installed] says), and with
-     * [removeOld] files older than 30 days. Returns what went, and what goes tomorrow.
+     * Files tidying itself. APKs whose app is now installed ([installed] says) are only
+     * found, never deleted: the TV asks first. With [removeOld], files older than 30 days
+     * go. Returns those APKs, what went, and what goes tomorrow.
      */
     fun tidy(installed: (File) -> Boolean, removeOld: Boolean, now: Long = System.currentTimeMillis()): Tidied {
         val day = 24 * 3600 * 1000L
-        val gone = mutableListOf<String>()
+        val apks = mutableListOf<String>()
         val old = mutableListOf<String>()
         val tomorrow = mutableListOf<Pair<String, Long>>()
         for (f in dir.listFiles().orEmpty().filter { it.isFile && !it.name.startsWith(".") }) {
             val age = now - f.lastModified()
             when {
-                f.name.endsWith(".apk", ignoreCase = true) && runCatching { installed(f) }.getOrDefault(false) -> if (f.delete()) gone += f.name
                 removeOld && age >= 30 * day -> if (f.delete()) old += f.name
                 removeOld && age >= 29 * day -> tomorrow += f.name to (f.lastModified() + 29 * day)
             }
+            if (f.exists() && f.name.endsWith(".apk", ignoreCase = true) && runCatching { installed(f) }.getOrDefault(false)) apks += f.name
         }
-        if (gone.isNotEmpty() || old.isNotEmpty()) {
-            writeSenders(readSenders() - (gone + old).toSet())
+        if (old.isNotEmpty()) {
+            writeSenders(readSenders() - old.toSet())
             refresh()
         }
-        return Tidied(gone, old, tomorrow)
+        return Tidied(apks, old, tomorrow)
     }
 
     /** A link a phone can open to save [name] for the next 15 minutes, while sharing runs. */

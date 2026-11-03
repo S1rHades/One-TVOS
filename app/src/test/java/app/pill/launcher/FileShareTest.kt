@@ -203,9 +203,11 @@ class FileShareTest {
         val kept = share.tidy(installed = { false }, removeOld = false, now = now)
         assertTrue(kept.installed.isEmpty() && kept.old.isEmpty() && kept.tomorrow.isEmpty())
         val done = share.tidy(installed = { it.name == "app.apk" }, removeOld = true, now = now)
+        // An installed app's APK is only found: the TV asks before deleting it
         assertEquals(listOf("app.apk"), done.installed)
+        assertTrue(File(share.dir, "app.apk").exists())
         assertEquals(listOf("old.pdf"), done.old)
         assertEquals(listOf("soon.pdf"), done.tomorrow.map { it.first })
-        assertEquals(setOf("soon.pdf", "new.pdf"), share.state.value.files.map { it.name }.toSet())
+        assertEquals(setOf("app.apk", "soon.pdf", "new.pdf"), share.state.value.files.map { it.name }.toSet())
     }
 }

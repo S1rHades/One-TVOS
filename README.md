@@ -167,13 +167,15 @@ Your phone opens a plain page in its browser, with nothing to install: **Send to
 <table>
   <tr>
     <td width="50%"><img src="docs/screenshots/files-approve.png" alt="Over the home screen, a small card: iPhone wants to connect, with Allow (it can send and save files for 90 days) and Block"><br><sub><b>A typed code</b>: the TV asks before the phone gets in.</sub></td>
-    <td width="50%"><img src="docs/screenshots/settings-files.png" alt="Settings, Files: Keep receiving, Remove apps' files once installed, Remove files after 30 days, then Trusted devices with iPhone and Computer, and Sign out every phone"><br><sub><b>Settings → Files</b>: keep receiving, tidying, and the trusted phones.</sub></td>
+    <td width="50%"><img src="docs/screenshots/settings-files.png" alt="Settings, Files: Keep receiving, Offer to delete installed APKs, Remove files after 30 days, then Trusted devices with iPhone and Computer, and Sign out every phone"><br><sub><b>Settings → Files</b>: keep receiving, tidying, and the trusted phones.</sub></td>
   </tr>
 </table>
 
 **When it runs.** Sharing runs while the launcher is on screen, so a paired phone can send without the Files page open, and stops when another app comes to the front (or 15 minutes later with **Keep receiving** on). It listens only on the TV's home-network address and handles a few phones at a time. Every request must name the TV's own address, and anything that changes something must come from the TV's page, so another website open on the phone can't use it. Files go into Pill Launcher's own folder on the TV (uninstalling the launcher removes them).
 
-**Tidying.** Once an app from an APK in Files is installed, Files removes the APK and says so in the notification bar (**Remove apps' files once installed**, on by default). **Remove files after 30 days** clears old files, with a notice the day before.
+**Tidying.** Files never deletes an APK on its own. Once the app inside an APK is installed, the notification bar asks: **OK** on the notice shows **Keep it** (where focus starts) or **Delete**, and holding **OK** keeps it. Each APK is asked about once (**Offer to delete installed APKs** in Settings → Files, on by default). **Remove files after 30 days** is off unless you turn it on, and then a notice comes the day before.
+
+<p align="center"><img src="docs/screenshots/files-delete-apk.png" width="60%" alt="Over the home screen, a small card: Delete kinopub-2.4.apk?, with Keep it focused, then Delete (the app stays installed; only the file goes)"></p>
 
 ### Settings
 
@@ -230,7 +232,7 @@ On TVs that ignore that command, turning off the stock launcher works too (turn 
 
 The `latest` release is rebuilt automatically every time `main` changes, so installing it again always gets you the newest version.
 
-Every version also keeps its own release, named after it (**Pill Launcher 3.3.1**, tag `v3.3.1`, file `pill-launcher-3.3.1.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v3.3.1/pill-launcher-3.3.1.apk`. The newest is titled **Pill Launcher 3.3.1 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
+Every version also keeps its own release, named after it (**Pill Launcher 3.3.2**, tag `v3.3.2`, file `pill-launcher-3.3.2.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v3.3.2/pill-launcher-3.3.2.apk`. The newest is titled **Pill Launcher 3.3.2 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
 
 ### Uninstalling
 
@@ -254,7 +256,8 @@ If the launcher won't open, use the TV's own **Settings → Apps → Pill Launch
 | Keep receiving files after leaving the launcher | **Keep receiving** on the Files page or in **Settings → Files** (15 minutes) |
 | Let in a phone that typed the code | **Allow** on the card the TV shows |
 | Remove a trusted phone, or sign every phone out | **Settings → Files** |
-| Tidy Files: remove installed APKs, or files after 30 days | **Settings → Files** |
+| Delete an installed app's APK | **OK** on its notice in the bar, then **Delete** (hold **OK** to keep it) |
+| Files tidying: asking about installed APKs, removing files after 30 days | **Settings → Files** |
 | Hide the text of private messages | **Settings → Notifications → Hide private messages** |
 | See all apps | **Down** from Favorites |
 | Show only video, music or game apps | **Down** to the chips above All apps, **Left** / **Right**, then **OK** |
@@ -376,7 +379,7 @@ gradle assembleDebug                                   # app/build/outputs/apk/d
 gradle :app:testDebugUnitTest --tests '*Screenshots*'  # re-render docs/screenshots
 ```
 
-**Builds are automated.** `.github/workflows/build.yml` builds the APK for every pull request and push; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v3.3.1`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
+**Builds are automated.** `.github/workflows/build.yml` builds the APK for every pull request and push; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v3.3.2`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
 
 <details>
 <summary><b>Architecture</b></summary>

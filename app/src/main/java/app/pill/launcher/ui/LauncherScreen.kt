@@ -134,6 +134,7 @@ import app.pill.launcher.momentNotice
 import app.pill.launcher.offlineNotice
 import app.pill.launcher.updateNotice
 import app.pill.launcher.shownNotice
+import app.pill.launcher.InstalledApk
 import java.io.File
 import kotlinx.coroutines.delay
 
@@ -229,6 +230,8 @@ fun LauncherScreen(
     // The notification bar opened into its list, and the Files page
     var noticesOpen by remember { mutableStateOf(false) }
     var filesOpen by remember { mutableStateOf(false) }
+    // An installed app's APK the notification bar offered to delete: Delete or Keep it
+    var deleteAsk by remember { mutableStateOf<Notice?>(null) }
     val bellFocus = remember { FocusRequester() }
     var searchOpen by remember { mutableStateOf(false) }
     var photoError by remember { mutableStateOf<String?>(null) }
@@ -495,7 +498,10 @@ fun LauncherScreen(
             NoticeKind.Connection -> internetOpen = true
             NoticeKind.File -> {
                 val file = n.target?.let { share?.file(it) }
-                if (file == null || fileKind(file.name) == FileKind.Photo) {
+                if (n.id.startsWith(InstalledApk)) {
+                    // Asks first: nothing is deleted without a second press
+                    if (file != null) deleteAsk = n else onDismissNotice(n)
+                } else if (file == null || fileKind(file.name) == FileKind.Photo) {
                     filesOpen = true
                 } else {
                     onOpenFile(file)?.let { toast = Toast(it) }
@@ -990,6 +996,29 @@ fun LauncherScreen(
             if (internetOpen) {
                 InternetPage(onOpenNetworkSettings = onOpenNetworkSettings, onDismiss = { internetOpen = false })
             }
+            // Delete an installed app's APK? Only Delete removes it
+            deleteAsk?.let { n ->
+                val name = n.target.orEmpty()
+                MenuCard(
+                    okHeld = false,
+                    header = {
+                        FilesIcon(Palette.TextPrimary, 30.dp)
+                        Spacer(Modifier.width(14.dp))
+                        Text("Delete $name?", color = Palette.TextPrimary, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    },
+                    // Keep it first, so the focus starts on the choice that loses nothing
+                    choices = listOf(
+                        MenuChoice("Keep it", "Files won't ask about it again") { onDismissNotice(n) },
+                        MenuChoice("Delete", "The app stays installed; only the file goes", warning = true) {
+                            share?.delete(name)
+                            onDismissNotice(n)
+                            toast = Toast("Deleted $name")
+                        },
+                    ),
+                    onDismiss = { deleteAsk = null },
+                )
+            }
+
             // A phone typed the code: Allow or Block, over whatever is showing
             share?.let { files ->
                 val pending = files.state.collectAsState().value.pending

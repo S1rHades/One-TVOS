@@ -3,6 +3,10 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 3.3.2 (November 2026)
+
+- **Files asks before deleting an APK**: once the app inside an APK is installed, the notification bar asks instead of deleting it. **OK** offers **Keep it** (focused first) or **Delete**; holding **OK** keeps it, and each APK is asked about once. The setting is now **Offer to delete installed APKs** (Settings → Files). Nothing in Files is deleted without you, apart from **Remove files after 30 days** when you turn it on.
+
 ## 3.3.1 (November 2026)
 
 - **Icons only**: favourite banners are gone, along with the Tile style setting. Favorites are app icons, and the launcher no longer keeps every app's banner in memory.
