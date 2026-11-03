@@ -22,7 +22,12 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
+import androidx.compose.runtime.collectAsState
+import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 
 enum class Link { Offline, WiFi, Ethernet, Mobile, Other }
 
@@ -40,31 +45,58 @@ data class NetworkStatus(val link: Link, val wifiBars: Int, val vpn: Boolean) {
 
 /**
  * The current [NetworkStatus], updated the moment a network or VPN comes or goes (a
- * network callback) and every 10 seconds for the Wi-Fi signal strength.
+ * network callback) and every 10 seconds for the Wi-Fi signal strength. One watcher
+ * serves every part of the launcher that shows the connection.
  */
 @Composable
 fun rememberNetworkStatus(): State<NetworkStatus> {
     val context = LocalContext.current.applicationContext
-    val status = remember { mutableStateOf(readNetwork(context)) }
-    DisposableEffect(context) {
-        val cm = context.getSystemService(ConnectivityManager::class.java)
-        val callback = object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) { status.value = readNetwork(context) }
-            override fun onLost(network: Network) { status.value = readNetwork(context) }
-            override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) { status.value = readNetwork(context) }
+    val flow = remember { NetworkWatch.of(context) }
+    return flow.collectAsState()
+}
+
+/**
+ * The launcher's one network watcher. The callback costs nothing until something changes;
+ * the signal strength is re-read every 10 seconds only while the launcher is on screen.
+ */
+object NetworkWatch {
+    /** Set by the launcher as it comes to the front and goes behind another app. */
+    @Volatile var onScreen: Boolean = true
+
+    private var state: MutableStateFlow<NetworkStatus>? = null
+    private var app: Context? = null
+
+    fun of(context: Context): StateFlow<NetworkStatus> = synchronized(this) {
+        state ?: run {
+            val appContext = context.applicationContext
+            val flow = MutableStateFlow(readNetwork(appContext))
+            app = appContext
+            state = flow
+            val cm = appContext.getSystemService(ConnectivityManager::class.java)
+            val callback = object : ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: Network) { flow.value = readNetwork(appContext) }
+                override fun onLost(network: Network) { flow.value = readNetwork(appContext) }
+                override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) { flow.value = readNetwork(appContext) }
+            }
+            // Without NOT_VPN, so VPN networks are reported too
+            val request = NetworkRequest.Builder().removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN).build()
+            runCatching { cm?.registerNetworkCallback(request, callback) }
+            MainScope().launch {
+                while (true) {
+                    delay(10_000)
+                    if (onScreen) flow.value = readNetwork(appContext)
+                }
+            }
+            flow
         }
-        // Without NOT_VPN, so VPN networks are reported too
-        val request = NetworkRequest.Builder().removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN).build()
-        val registered = runCatching { cm?.registerNetworkCallback(request, callback) }.isSuccess && cm != null
-        onDispose { if (registered) runCatching { cm?.unregisterNetworkCallback(callback) } }
     }
-    LaunchedEffect(context) {
-        while (true) {
-            delay(10_000)
-            status.value = readNetwork(context)
-        }
+
+    /** Back on screen: read it at once, since the signal wasn't watched meanwhile. */
+    fun refresh() {
+        val flow = state ?: return
+        val context = app ?: return
+        flow.value = readNetwork(context)
     }
-    return status
 }
 
 @Suppress("DEPRECATION") // allNetworks and connectionInfo: the replacements need newer Android than many TVs run

@@ -82,7 +82,7 @@ import java.util.Locale
 
 private val FileCardShape = RoundedCornerShape(16.dp)
 private val FileCardHeight = 118.dp
-/** Files keep arriving this long after leaving the page, when Keep receiving is on. */
+/** Files keep arriving this long after the launcher goes behind another app, when Keep receiving is on. */
 const val KeepReceivingMs = 15 * 60 * 1000L
 
 /**
@@ -90,7 +90,8 @@ const val KeepReceivingMs = 15 * 60 * 1000L
  * their progress, the space left); on the right, everything on the TV as cards, with
  * chips by kind. OK opens a file (photos in the launcher's own viewer); holding OK
  * offers Install, Send to phone and Delete. The share runs while the page is open, and
- * for 15 minutes after when Keep receiving is on.
+ * sharing runs whenever the launcher is on screen (and 15 minutes after, with Keep
+ * receiving on), so a phone can send without this page open.
  */
 @Composable
 fun FilesPage(
@@ -128,7 +129,6 @@ fun FilesPage(
 
     OverlayPage(
         onDismiss = {
-            share.stop(if (keepReceiving) KeepReceivingMs else 0)
             onDismiss()
         },
         width = 880.dp,

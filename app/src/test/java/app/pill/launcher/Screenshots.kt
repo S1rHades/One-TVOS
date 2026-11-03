@@ -711,7 +711,7 @@ class Screenshots {
         for ((i, f) in listOf("holiday.jpg" to 3_400_000, "match-highlights.mp4" to 2_120_000, "kinopub-2.4.apk" to 480_000, "tv-manual.pdf" to 51_000).withIndex()) {
             File(dir, f.first).apply { writeBytes(ByteArray(f.second)); setLastModified(now - i * day) }
         }
-        val share = FileShare(dir, page = { "" }, address = { "192.168.1.24" }, code = "7Q4M")
+        val share = testShare(dir)
         try {
             show("canyon-river", pins = favorites, share = share)
             compose.onNodeWithContentDescription("Share files").performSemanticsAction(SemanticsActions.OnClick)
@@ -725,6 +725,70 @@ class Screenshots {
             share.stop()
             dir.deleteRecursively()
         }
+    }
+
+    /** A share as the TV shows it (a home-network address and code), listening on this machine. */
+    private fun testShare(dir: File) = FileShare(
+        dir,
+        page = { "" },
+        address = { "192.168.1.24" },
+        code = "482913",
+        listenOn = { java.net.InetAddress.getLoopbackAddress() },
+    )
+
+    /** A phone typed the code: Allow or Block on the TV, over the home screen. */
+    @Test
+    fun filesPairing() {
+        val dir = java.nio.file.Files.createTempDirectory("pair").toFile()
+        val share = testShare(File(dir, "Files"))
+        try {
+            show("pine-forest", pins = favorites, share = share)
+            val request = share.askToPair("iPhone")
+            settle()
+            compose.onNodeWithText("iPhone wants to connect").assertExists()
+            captureScreenRoboImage(File(out, "files-approve.png").path)
+            compose.onNodeWithText("Allow").performSemanticsAction(SemanticsActions.OnClick)
+            settle()
+            check(share.state.value.pending == null) { "Allow answers the request" }
+            check(share.state.value.devices.map { it.name } == listOf("iPhone")) { "the phone is trusted: ${share.state.value.devices}" }
+            check(request.id.isNotEmpty())
+        } finally {
+            share.stop()
+            dir.deleteRecursively()
+        }
+    }
+
+    /** Settings → Files: keep receiving, tidying, and the trusted phones. */
+    @Test
+    fun settingsFiles() {
+        val dir = java.nio.file.Files.createTempDirectory("files-settings").toFile()
+        val share = testShare(File(dir, "Files"))
+        try {
+            share.approve(share.askToPair("iPhone").id)
+            share.approve(share.askToPair("Computer").id)
+            show("pine-forest", pins = favorites, share = share)
+            compose.onNodeWithContentDescription("Settings").performSemanticsAction(SemanticsActions.OnClick)
+            settle()
+            // The Files row (not the stand-in app called Files), by its summary
+            compose.onNode(hasText("Files") and hasText("APKs removed", substring = true)).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+            settle()
+            compose.onNodeWithText("Remove files after 30 days").assertExists()
+            compose.onNodeWithText("iPhone").assertExists()
+            captureScreenRoboImage(File(out, "settings-files.png").path)
+        } finally {
+            share.stop()
+            dir.deleteRecursively()
+        }
+    }
+
+    /** After two crashes in a row: the photo and Favorites only, saying why, with Try normally. */
+    @Test
+    fun safeMode() {
+        // As the launcher runs it in safe mode: no widgets
+        show("misty-valley", pins = favorites, settings = LauncherSettings(weather = WeatherMode.Celsius, widgets = emptyList()), safeMode = "IllegalStateException: something went wrong")
+        compose.onNodeWithText("Try normally").assertExists()
+        compose.onNodeWithText("Lisbon", substring = true).assertDoesNotExist()
+        compose.onRoot().captureRoboImage(File(out, "safe-mode.png").path)
     }
 
     /** Settings → Notifications: other apps' (once allowed), football and the connection. */
@@ -960,6 +1024,7 @@ class Screenshots {
         update: UpdateState = UpdateState(),
         notices: List<Notice> = emptyList(),
         share: FileShare? = null,
+        safeMode: String? = null,
     ) {
         check(fixtures.next != null && fixtures.last?.outcome == 'W') { "fixtures didn't parse: $fixtures" }
         currentPins = pins
@@ -975,6 +1040,7 @@ class Screenshots {
                 notices = kept,
                 onDismissNotice = { n -> kept = kept.filter { it.id != n.id } },
                 share = share,
+                safeMode = safeMode,
                 apps = withNames(apps, names),
                 weather = weather,
                 football = footballNow,
@@ -1052,28 +1118,7 @@ class Screenshots {
         val y = size / 2f - (text.descent() + text.ascent()) / 2f
         canvas.drawText(label.take(1), size / 2f, y, text)
         val pkg = pkg(label)
-        // Two stand-ins ship a TV banner, like real TV apps; the rest get generated ones
-        val banner = if (label in setOf("Cinema", "Live TV")) fakeBanner(label, color) else null
-        return AppEntry(label, pkg, ComponentName(pkg, "$pkg.Main"), bitmap.asImageBitmap(), banner?.asImageBitmap(), accentOf(banner ?: bitmap), category = categoryOf(-1, false, label, pkg))
-    }
-
-    /** A 16:9 banner in the style of a TV app: a deep gradient with the name set large. */
-    private fun fakeBanner(label: String, color: Int): Bitmap {
-        val w = 640
-        val h = 360
-        val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(bitmap)
-        canvas.drawPaint(Paint().apply {
-            shader = LinearGradient(0f, 0f, w.toFloat(), h.toFloat(), lighten(color), darken(color), Shader.TileMode.CLAMP)
-        })
-        canvas.drawCircle(w * 0.84f, h * 0.22f, h * 0.5f, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = 0x22FFFFFF })
-        val text = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            this.color = android.graphics.Color.WHITE
-            textSize = h * 0.2f
-            typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
-        }
-        canvas.drawText(label.uppercase(), w * 0.07f, h * 0.84f, text)
-        return bitmap
+        return AppEntry(label, pkg, ComponentName(pkg, "$pkg.Main"), bitmap.asImageBitmap(), accentOf(bitmap), category = categoryOf(-1, false, label, pkg))
     }
 
     private fun darken(color: Int): Int {

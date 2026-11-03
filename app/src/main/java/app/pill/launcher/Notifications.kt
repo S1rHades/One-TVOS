@@ -37,7 +37,13 @@ data class Notice(
     val pkg: String? = null,
     /** What it is about: a team's id (football), a file's name (files). */
     val target: String? = null,
+    /** Another app marked it private (a message's text): hidden when Hide private messages is on. */
+    val isPrivate: Boolean = false,
 )
+
+/** What the bar shows of [n]: a private one from another app as just "New notification" when [hide] is on. */
+fun shownNotice(n: Notice, hide: Boolean): Notice =
+    if (hide && n.isPrivate) n.copy(title = "New notification", text = "") else n
 
 /** Notifications are kept this long, and at most [MaxNotices] of them. */
 val NoticeLifetime: Duration = Duration.ofDays(7)
@@ -204,7 +210,10 @@ class NotificationWatcher : NotificationListenerService() {
         val title = n.extras?.getCharSequence(Notification.EXTRA_TITLE)?.toString()?.trim().orEmpty()
         val text = (n.extras?.getCharSequence(Notification.EXTRA_TEXT) ?: n.extras?.getCharSequence(Notification.EXTRA_SUB_TEXT))?.toString()?.trim().orEmpty()
         if (title.isEmpty() && text.isEmpty()) return null
-        return Notice("app:${sbn.key}", NoticeKind.App, title.ifEmpty { text }, if (title.isEmpty()) "" else text, Instant.ofEpochMilli(sbn.postTime), pkg = sbn.packageName)
+        return Notice(
+            "app:${sbn.key}", NoticeKind.App, title.ifEmpty { text }, if (title.isEmpty()) "" else text, Instant.ofEpochMilli(sbn.postTime),
+            pkg = sbn.packageName, isPrivate = n.visibility == Notification.VISIBILITY_PRIVATE,
+        )
     }
 
     companion object {

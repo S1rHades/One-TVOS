@@ -19,9 +19,13 @@ import java.net.URLDecoder
 import java.net.URLEncoder
 import java.security.SecureRandom
 import java.util.Timer
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.Semaphore
+import java.util.concurrent.ArrayBlockingQueue
+import java.util.TimerTask
+import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
 import kotlin.concurrent.schedule
 
 /** What a file is, for its card and the chips on the Files page. */
@@ -45,24 +49,40 @@ data class SharedFile(val name: String, val size: Long, val modified: Long, val 
 /** A file on its way to the TV. */
 data class Transfer(val name: String, val read: Long, val total: Long, val from: String)
 
+/** What tidying removed: [installed] APKs, [old] files, and the files that go tomorrow (with when that was noticed). */
+data class Tidied(val installed: List<String>, val old: List<String>, val tomorrow: List<Pair<String, Long>>)
+
+/** A phone allowed to use Files: paired by scanning the code, or by typing it and an OK on the TV. */
+data class TrustedDevice(val id: String, val name: String, val pairedAt: Long, val lastUsed: Long)
+
+/** A phone that typed the code and waits for an OK on the TV. */
+data class PairRequest(val id: String, val name: String, val at: Long)
+
 data class ShareState(
     /** Taking files now. */
     val running: Boolean = false,
     /** The TV's address on the home network, or null when it has none. */
     val address: String? = null,
     val port: Int = 0,
+    /** The six digits to type on a phone that can't scan. */
     val code: String = "",
+    /** The long key the QR code carries: scanning it pairs the phone with no typing. */
+    val key: String = "",
     val transfers: List<Transfer> = emptyList(),
     val files: List<SharedFile> = emptyList(),
     val freeBytes: Long = 0,
     val totalBytes: Long = 0,
     /** Why it can't take files, in plain words. */
     val problem: String? = null,
-    /** Still taking files until this time (ms) after leaving the page; null while the page is open or once stopped. */
+    /** Still taking files until this time (ms) after the launcher went behind another app; null otherwise. */
     val until: Long? = null,
+    /** A phone waiting for Allow or Block on the TV. */
+    val pending: PairRequest? = null,
+    /** Phones paired in the last 90 days. */
+    val devices: List<TrustedDevice> = emptyList(),
 ) {
-    /** What the phone opens: the address with the code, so scanning needs no typing. */
-    val link: String? get() = address?.let { "http://$it:$port/?k=$code" }
+    /** What the QR code opens: the address with the pairing key. */
+    val link: String? get() = address?.let { "http://$it:$port/?p=$key" }
 }
 
 /** "folder/../My photo?.jpg" → "My photo.jpg": a name safe to save under, never empty. */
@@ -96,6 +116,13 @@ fun senderOf(userAgent: String?): String {
     }
 }
 
+/** A device's name for the list of trusted devices: "iPhone", "Android phone", "Computer". */
+fun deviceName(userAgent: String?): String =
+    senderOf(userAgent).removePrefix("an ").removePrefix("a ").let { name ->
+        // "iPhone" and "iPad" keep their small i
+        if (name.startsWith("iP")) name else name.replaceFirstChar { it.uppercase() }
+    }
+
 /** Only devices on the home network (and the TV itself) may use the share. */
 fun isHomeNetwork(a: InetAddress): Boolean =
     a.isLoopbackAddress || a.isSiteLocalAddress || a.isLinkLocalAddress ||
@@ -111,16 +138,30 @@ fun homeAddress(): String? = runCatching {
         ?.hostAddress
 }.getOrNull()
 
-private const val CodeLetters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 private const val FirstPort = 8642
 private const val SpareBytes = 50L * 1000 * 1000
 private const val SendersFile = ".senders.json"
+private const val Cookie = "pill"
+/** A paired phone stays trusted this long. */
+private const val TrustMs = 90L * 24 * 3600 * 1000
+/** A phone waiting for an OK on the TV gives up after this. */
+private const val PairWaitMs = 60_000L
+/** A link from Send to phone works this long. */
+private const val LinkMs = 15 * 60 * 1000L
+/** Wrong codes from one address before it is turned away for [BlockMs]. */
+private const val MaxWrongCodes = 10
+private const val BlockMs = 10 * 60 * 1000L
 
 /**
  * Files between the TV and phones on the same network, with nothing to install: while it
- * runs, a small web server answers on [FirstPort] with a page for sending files (PUT, one
- * file per request) and fetching the TV's. Every request but the page needs the code shown
- * on the TV, and only home-network addresses are answered. Files go into [dir].
+ * runs, a small web server answers on [FirstPort] at the TV's home-network address only.
+ *
+ * Getting in: scanning the TV's QR code (it carries a long random key) pairs a phone at
+ * once; typing the six-digit code instead asks for Allow on the TV. A paired phone gets a
+ * private cookie and stays trusted for 90 days, until removed or until every phone is
+ * signed out. Every request must name the TV's own address (so another website can't
+ * borrow the phone's browser) and anything that changes something must carry a header
+ * other websites can't add. At most 4 connections are handled at once, and 2 uploads.
  */
 class FileShare(
     val dir: File,
@@ -128,22 +169,37 @@ class FileShare(
     private val page: () -> String,
     /** The TV's address; replaceable for tests. */
     private val address: () -> String? = ::homeAddress,
-    val code: String = newCode(),
+    /** Where paired phones are kept (hashed), outside the shared folder. */
+    private val devicesFile: File = File(dir.parentFile ?: dir, "share-devices.json"),
+    /** The interface to listen on for an address: that address itself (screenshot tests listen on this machine). */
+    private val listenOn: (String) -> InetAddress? = { runCatching { InetAddress.getByName(it) }.getOrNull() },
+    code: String = newCode(),
+    key: String = newKey(),
 ) {
-    val state = MutableStateFlow(ShareState(code = code))
+    val state = MutableStateFlow(ShareState(code = code, key = key))
 
     /** Each file as it arrives. */
     val arrivals = MutableSharedFlow<SharedFile>(extraBufferCapacity = 16)
 
     @Volatile private var socket: ServerSocket? = null
-    private var pool: ExecutorService? = null
-    private val timer = Timer("share-stop", true)
-    private var stopTask: java.util.TimerTask? = null
+    private var pool: ThreadPoolExecutor? = null
+    private val uploads = Semaphore(2)
+    private val timer = Timer("share-timer", true)
+    private var stopTask: TimerTask? = null
     private val transfers = ConcurrentHashMap<String, Transfer>()
-    private val wrongCodes = ConcurrentHashMap<String, Int>()
+    private val wrongCodes = ConcurrentHashMap<String, Pair<Int, Long>>()
+    /** Approved requests waiting to collect their cookie, by request id. */
+    private val approved = ConcurrentHashMap<String, String>()
+    private val blocked = ConcurrentHashMap.newKeySet<String>()
+    /** Send to phone links: token to (file name, expiry). */
+    private val links = ConcurrentHashMap<String, Pair<String, Long>>()
+    private val random = SecureRandom()
+    /** Hash of each paired phone's cookie. */
+    private val tokens = ConcurrentHashMap<String, TrustedDevice>()
 
     init {
         dir.mkdirs()
+        readDevices()
         refresh()
     }
 
@@ -152,33 +208,35 @@ class FileShare(
     fun start() {
         stopTask?.cancel()
         stopTask = null
+        val here = address()
         if (socket != null) {
-            state.value = state.value.copy(until = null, address = address())
+            state.value = state.value.copy(until = null, address = here ?: state.value.address)
             return
         }
+        if (here == null) {
+            state.value = state.value.copy(running = false, address = null, problem = "Connect the TV to your home network to share files")
+            return
+        }
+        val bind = listenOn(here) ?: return run {
+            state.value = state.value.copy(running = false, problem = "Connect the TV to your home network to share files")
+        }
         val bound = (FirstPort until FirstPort + 8).firstNotNullOfOrNull { port ->
-            runCatching { ServerSocket(port, 16) }.getOrNull()
+            runCatching { ServerSocket(port, 16, bind) }.getOrNull()
         }
         if (bound == null) {
             state.value = state.value.copy(running = false, problem = "Another app is using the ports file sharing needs")
             return
         }
         socket = bound
-        val workers = Executors.newCachedThreadPool { r -> Thread(r, "share").apply { isDaemon = true } }
+        val workers = ThreadPoolExecutor(4, 4, 30, TimeUnit.SECONDS, ArrayBlockingQueue(16)) { r -> Thread(r, "share").apply { isDaemon = true } }
+        workers.allowCoreThreadTimeOut(true)
         pool = workers
         Thread({ acceptLoop(bound, workers) }, "share-accept").apply { isDaemon = true }.start()
-        val here = address()
-        state.value = state.value.copy(
-            running = true,
-            address = here,
-            port = bound.localPort,
-            until = null,
-            problem = if (here == null) "Connect the TV to your home network to share files" else null,
-        )
+        state.value = state.value.copy(running = true, address = here, port = bound.localPort, until = null, problem = null)
         refresh()
     }
 
-    /** Stops now, or after [afterMs] (to keep taking files for a while after leaving the page). */
+    /** Stops now, or after [afterMs] (to keep taking files for a while after the launcher goes behind another app). */
     @Synchronized
     fun stop(afterMs: Long = 0) {
         stopTask?.cancel()
@@ -193,7 +251,7 @@ class FileShare(
         pool?.shutdownNow()
         pool = null
         transfers.clear()
-        state.value = state.value.copy(running = false, until = null, transfers = emptyList())
+        state.value = state.value.copy(running = false, until = null, transfers = emptyList(), pending = null)
     }
 
     /** Re-reads the folder: the files, newest first, and the space left. */
@@ -214,15 +272,104 @@ class FileShare(
         refresh()
     }
 
-    /** A link a phone can open to save [name], while sharing runs. */
+    /**
+     * Files tidying itself: APKs whose app is now installed ([installed] says), and with
+     * [removeOld] files older than 30 days. Returns what went, and what goes tomorrow.
+     */
+    fun tidy(installed: (File) -> Boolean, removeOld: Boolean, now: Long = System.currentTimeMillis()): Tidied {
+        val day = 24 * 3600 * 1000L
+        val gone = mutableListOf<String>()
+        val old = mutableListOf<String>()
+        val tomorrow = mutableListOf<Pair<String, Long>>()
+        for (f in dir.listFiles().orEmpty().filter { it.isFile && !it.name.startsWith(".") }) {
+            val age = now - f.lastModified()
+            when {
+                f.name.endsWith(".apk", ignoreCase = true) && runCatching { installed(f) }.getOrDefault(false) -> if (f.delete()) gone += f.name
+                removeOld && age >= 30 * day -> if (f.delete()) old += f.name
+                removeOld && age >= 29 * day -> tomorrow += f.name to (f.lastModified() + 29 * day)
+            }
+        }
+        if (gone.isNotEmpty() || old.isNotEmpty()) {
+            writeSenders(readSenders() - (gone + old).toSet())
+            refresh()
+        }
+        return Tidied(gone, old, tomorrow)
+    }
+
+    /** A link a phone can open to save [name] for the next 15 minutes, while sharing runs. */
     fun linkFor(name: String): String? {
         val s = state.value
         val host = s.address ?: return null
-        if (!s.running) return null
-        return "http://$host:${s.port}/api/file?k=$code&name=" + URLEncoder.encode(name, "UTF-8").replace("+", "%20")
+        if (!s.running || file(name) == null) return null
+        val token = hex(16)
+        links[token] = name to System.currentTimeMillis() + LinkMs
+        return "http://$host:${s.port}/f/$token"
     }
 
-    private fun acceptLoop(server: ServerSocket, workers: ExecutorService) {
+    /** Allow on the TV: the waiting phone collects its cookie on its next check. */
+    fun approve(requestId: String) {
+        val request = state.value.pending?.takeIf { it.id == requestId } ?: return
+        approved[requestId] = trust(request.name)
+        state.value = state.value.copy(pending = null)
+    }
+
+    /** Block on the TV. */
+    fun block(requestId: String) {
+        blocked += requestId
+        if (state.value.pending?.id == requestId) state.value = state.value.copy(pending = null)
+    }
+
+    /** Removes one phone: it needs pairing again. */
+    fun forget(deviceId: String) {
+        tokens.entries.removeAll { it.value.id == deviceId }
+        saveDevices()
+    }
+
+    /** Signs out every phone, with a new code and QR key. */
+    fun signOutAll() {
+        tokens.clear()
+        approved.clear()
+        saveDevices()
+        state.value = state.value.copy(code = newCode(random), key = newKey(random), pending = null)
+    }
+
+    /** A phone asking to pair with the typed code (also how tests make one). */
+    fun askToPair(name: String): PairRequest {
+        val request = PairRequest(hex(8), name, System.currentTimeMillis())
+        state.value = state.value.copy(pending = request)
+        timer.schedule(PairWaitMs) {
+            if (state.value.pending?.id == request.id) state.value = state.value.copy(pending = null)
+            blocked += request.id
+        }
+        return request
+    }
+
+    private fun trust(name: String): String {
+        val token = hex(32)
+        val now = System.currentTimeMillis()
+        tokens[sha(token)] = TrustedDevice(hex(4), name, now, now)
+        saveDevices()
+        return token
+    }
+
+    private fun deviceFor(request: Request): TrustedDevice? {
+        val token = request.cookies[Cookie] ?: return null
+        val hash = sha(token)
+        val device = tokens[hash] ?: return null
+        val now = System.currentTimeMillis()
+        if (now - device.pairedAt > TrustMs) {
+            tokens.remove(hash)
+            saveDevices()
+            return null
+        }
+        if (now - device.lastUsed > 60_000) {
+            tokens[hash] = device.copy(lastUsed = now)
+            saveDevices()
+        }
+        return device
+    }
+
+    private fun acceptLoop(server: ServerSocket, workers: ThreadPoolExecutor) {
         while (!server.isClosed) {
             val client = try {
                 server.accept()
@@ -231,11 +378,19 @@ class FileShare(
             } catch (e: Exception) {
                 continue
             }
+            // Busy (4 at work, 16 waiting): turn it away rather than pile up
             runCatching { workers.execute { client.use { handle(it) } } }.onFailure { runCatching { client.close() } }
         }
     }
 
-    private class Request(val method: String, val path: String, val params: Map<String, String>, val headers: Map<String, String>, val body: InputStream)
+    private class Request(
+        val method: String,
+        val path: String,
+        val params: Map<String, String>,
+        val headers: Map<String, String>,
+        val cookies: Map<String, String>,
+        val body: InputStream,
+    )
 
     private fun handle(client: Socket) {
         client.soTimeout = 30_000
@@ -244,21 +399,60 @@ class FileShare(
         val remote = client.inetAddress
         if (!isHomeNetwork(remote)) return respond(out, 403, "text/plain", "Only devices on the home network can share files")
         val request = runCatching { readRequest(input) }.getOrNull() ?: return respond(out, 400, "text/plain", "Bad request")
-        if (request.path == "/" && request.method == "GET") return respond(out, 200, "text/html; charset=utf-8", page())
-        if (request.path == "/favicon.ico") return respond(out, 404, "text/plain", "")
-        // Everything else needs the code; a device that keeps guessing is turned away
+        // Only requests made to the TV's own address: another website can't borrow the phone's browser
+        val s = state.value
+        val host = request.headers["host"].orEmpty()
+        if (host != "${s.address}:${s.port}") return respond(out, 403, "text/plain", "Open the TV's address directly")
+        val changes = request.method != "GET"
+        if (changes && request.headers["x-pill"] != "1") return respond(out, 403, "text/plain", "Use the TV's page to do that")
         val who = remote.hostAddress.orEmpty()
-        if ((wrongCodes[who] ?: 0) >= 20) return respond(out, 429, "text/plain", "Too many wrong codes")
-        if (!request.params["k"].equals(code, ignoreCase = true)) {
-            wrongCodes.merge(who, 1) { a, b -> a + b }
-            return respond(out, 403, "text/plain", "Wrong code")
-        }
         when {
-            request.method == "GET" && request.path == "/api/files" -> respond(out, 200, "application/json", filesJson())
-            request.method == "PUT" && request.path == "/api/upload" -> receive(request, out)
-            request.method == "GET" && request.path == "/api/file" -> send(request, out)
-            else -> respond(out, 404, "text/plain", "Not found")
+            request.method == "GET" && request.path == "/" -> {
+                if (request.params["p"] == s.key && s.key.isNotEmpty()) {
+                    // Scanned: paired at once, and the key leaves the address bar
+                    val token = trust(deviceName(request.headers["user-agent"]))
+                    return respond(out, 302, "text/plain", "", listOf("Location: /", cookieHeader(token)))
+                }
+                respond(out, 200, "text/html; charset=utf-8", page())
+            }
+            request.path == "/favicon.ico" -> respond(out, 404, "text/plain", "")
+            request.method == "GET" && request.path.startsWith("/f/") -> sendLink(request.path.removePrefix("/f/"), out)
+            request.method == "POST" && request.path == "/api/pair" -> askWithCode(request, who, out)
+            request.method == "GET" && request.path == "/api/pair" -> collect(request, out)
+            else -> {
+                val device = deviceFor(request) ?: return respond(out, 401, "text/plain", "Pair this phone with the TV first")
+                when {
+                    request.method == "GET" && request.path == "/api/files" -> {
+                        if (request.headers["x-pill"] != "1") return respond(out, 403, "text/plain", "Use the TV's page to do that")
+                        respond(out, 200, "application/json", filesJson())
+                    }
+                    request.method == "PUT" && request.path == "/api/upload" -> receive(request, device, out)
+                    request.method == "GET" && request.path == "/api/file" -> send(file(request.params["name"].orEmpty()), out)
+                    else -> respond(out, 404, "text/plain", "Not found")
+                }
+            }
         }
+    }
+
+    private fun askWithCode(request: Request, who: String, out: OutputStream) {
+        val now = System.currentTimeMillis()
+        val (wrong, since) = wrongCodes[who] ?: (0 to now)
+        if (wrong >= MaxWrongCodes && now - since < BlockMs) return respond(out, 429, "text/plain", "Too many wrong codes. Try again in 10 minutes")
+        if (request.params["code"] != state.value.code) {
+            wrongCodes[who] = (if (now - since >= BlockMs) 1 else wrong + 1) to (if (now - since >= BlockMs) now else since)
+            return respond(out, 403, "text/plain", "That code didn't work")
+        }
+        wrongCodes.remove(who)
+        val asked = askToPair(deviceName(request.headers["user-agent"]))
+        respond(out, 202, "application/json", JSONObject().put("wait", asked.id).toString())
+    }
+
+    private fun collect(request: Request, out: OutputStream) {
+        val id = request.params["wait"].orEmpty()
+        approved.remove(id)?.let { token -> return respond(out, 200, "application/json", "{}", listOf(cookieHeader(token))) }
+        if (id in blocked) return respond(out, 403, "text/plain", "The TV didn't allow this phone")
+        if (state.value.pending?.id == id) return respond(out, 202, "application/json", "{}")
+        respond(out, 403, "text/plain", "Ask again")
     }
 
     private fun filesJson(): String {
@@ -269,10 +463,19 @@ class FileShare(
         return JSONObject().put("files", files).put("free", s.freeBytes).toString()
     }
 
-    private fun receive(request: Request, out: OutputStream) {
+    private fun receive(request: Request, device: TrustedDevice, out: OutputStream) {
         val length = request.headers["content-length"]?.toLongOrNull() ?: return respond(out, 411, "text/plain", "Send one file at a time, with its length")
         if (length > dir.usableSpace - SpareBytes) return respond(out, 507, "text/plain", "Not enough space on the TV for this file")
-        val from = senderOf(request.headers["user-agent"])
+        if (!uploads.tryAcquire(60, TimeUnit.SECONDS)) return respond(out, 503, "text/plain", "The TV is busy with other files. Try again")
+        try {
+            receiveFile(request, device, length, out)
+        } finally {
+            uploads.release()
+        }
+    }
+
+    private fun receiveFile(request: Request, device: TrustedDevice, length: Long, out: OutputStream) {
+        val from = senderOf(request.headers["user-agent"]).ifEmpty { device.name }
         val name = synchronized(this) {
             uniqueFileName(safeFileName(request.params["name"])) { File(dir, it).exists() || transfers.containsKey(it) }
                 .also { transfers[it] = Transfer(it, 0, length, from) }
@@ -314,13 +517,21 @@ class FileShare(
         writeSenders(readSenders() + (name to from))
         refresh()
         publishTransfers()
-        val saved = SharedFile(name, target.length(), target.lastModified(), from)
-        arrivals.tryEmit(saved)
+        arrivals.tryEmit(SharedFile(name, target.length(), target.lastModified(), from))
         respond(out, 200, "application/json", JSONObject().put("name", name).toString())
     }
 
-    private fun send(request: Request, out: OutputStream) {
-        val file = file(request.params["name"].orEmpty()) ?: return respond(out, 404, "text/plain", "No such file on the TV")
+    private fun sendLink(token: String, out: OutputStream) {
+        val (name, until) = links[token] ?: return respond(out, 404, "text/plain", "This link has ended. Choose Send to phone again")
+        if (System.currentTimeMillis() > until) {
+            links.remove(token)
+            return respond(out, 404, "text/plain", "This link has ended. Choose Send to phone again")
+        }
+        send(file(name), out)
+    }
+
+    private fun send(file: File?, out: OutputStream) {
+        if (file == null) return respond(out, 404, "text/plain", "No such file on the TV")
         val encoded = URLEncoder.encode(file.name, "UTF-8").replace("+", "%20")
         val head = "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: ${file.length()}\r\n" +
             "Content-Disposition: attachment; filename*=UTF-8''$encoded\r\nConnection: close\r\n\r\n"
@@ -343,8 +554,46 @@ class FileShare(
         runCatching { File(dir, SendersFile).writeText(JSONObject(map).toString()) }
     }
 
+    private fun readDevices() {
+        runCatching {
+            val a = JSONArray(devicesFile.readText())
+            val now = System.currentTimeMillis()
+            for (i in 0 until a.length()) {
+                val o = a.getJSONObject(i)
+                val d = TrustedDevice(o.getString("id"), o.getString("name"), o.getLong("pairedAt"), o.getLong("lastUsed"))
+                if (now - d.pairedAt <= TrustMs) tokens[o.getString("hash")] = d
+            }
+        }
+        publishDevices()
+    }
+
+    @Synchronized
+    private fun saveDevices() {
+        val a = JSONArray()
+        for ((hash, d) in tokens) {
+            a.put(JSONObject().put("hash", hash).put("id", d.id).put("name", d.name).put("pairedAt", d.pairedAt).put("lastUsed", d.lastUsed))
+        }
+        runCatching { devicesFile.writeText(a.toString()) }
+        publishDevices()
+    }
+
+    private fun publishDevices() {
+        state.value = state.value.copy(devices = tokens.values.sortedByDescending { it.lastUsed })
+    }
+
+    private fun hex(bytes: Int): String = ByteArray(bytes).also { random.nextBytes(it) }.joinToString("") { "%02x".format(it) }
+
     companion object {
-        fun newCode(random: SecureRandom = SecureRandom()): String = String(CharArray(4) { CodeLetters[random.nextInt(CodeLetters.length)] })
+        /** Six digits, easy to type on a phone. */
+        fun newCode(random: SecureRandom = SecureRandom()): String = "%06d".format(random.nextInt(1_000_000))
+
+        /** 128 random bits for the QR code: far beyond guessing. */
+        fun newKey(random: SecureRandom = SecureRandom()): String = ByteArray(16).also { random.nextBytes(it) }.joinToString("") { "%02x".format(it) }
+
+        private fun sha(text: String): String =
+            MessageDigest.getInstance("SHA-256").digest(text.toByteArray()).joinToString("") { "%02x".format(it) }
+
+        private fun cookieHeader(token: String) = "Set-Cookie: $Cookie=$token; Max-Age=${TrustMs / 1000}; Path=/; HttpOnly; SameSite=Strict"
 
         private fun readLine(input: InputStream): String? {
             val line = StringBuilder()
@@ -370,7 +619,9 @@ class FileShare(
                     val params = target.substringAfter('?', "").split('&').filter { '=' in it }.associate {
                         URLDecoder.decode(it.substringBefore('='), "UTF-8") to URLDecoder.decode(it.substringAfter('='), "UTF-8")
                     }
-                    return Request(parts[0].uppercase(), path, params, headers, input)
+                    val cookies = headers["cookie"].orEmpty().split(';').map { it.trim() }.filter { '=' in it }
+                        .associate { it.substringBefore('=') to it.substringAfter('=') }
+                    return Request(parts[0].uppercase(), path, params, headers, cookies, input)
                 }
                 val colon = line.indexOf(':')
                 if (colon > 0) headers[line.substring(0, colon).trim().lowercase()] = line.substring(colon + 1).trim()
@@ -378,14 +629,18 @@ class FileShare(
             return null
         }
 
-        private fun respond(out: OutputStream, status: Int, type: String, body: String) {
+        private fun respond(out: OutputStream, status: Int, type: String, body: String, extra: List<String> = emptyList()) {
             val bytes = body.toByteArray(Charsets.UTF_8)
             val reason = when (status) {
-                200 -> "OK"; 400 -> "Bad Request"; 403 -> "Forbidden"; 404 -> "Not Found"; 411 -> "Length Required"
-                429 -> "Too Many Requests"; 507 -> "Insufficient Storage"; else -> "Error"
+                200 -> "OK"; 202 -> "Accepted"; 302 -> "Found"; 400 -> "Bad Request"; 401 -> "Unauthorized"; 403 -> "Forbidden"
+                404 -> "Not Found"; 411 -> "Length Required"; 429 -> "Too Many Requests"; 503 -> "Service Unavailable"
+                507 -> "Insufficient Storage"; else -> "Error"
             }
-            val head = "HTTP/1.1 $status $reason\r\nContent-Type: $type\r\nContent-Length: ${bytes.size}\r\n" +
-                "Cache-Control: no-store\r\nConnection: close\r\n\r\n"
+            val head = buildString {
+                append("HTTP/1.1 $status $reason\r\nContent-Type: $type\r\nContent-Length: ${bytes.size}\r\n")
+                for (line in extra) append(line).append("\r\n")
+                append("Cache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\nConnection: close\r\n\r\n")
+            }
             runCatching {
                 out.write(head.toByteArray(Charsets.ISO_8859_1))
                 out.write(bytes)
@@ -403,5 +658,6 @@ fun fileShare(context: android.content.Context): FileShare = synchronized(FileSh
     shared ?: FileShare(
         dir = app.getExternalFilesDir("Files") ?: File(app.filesDir, "Files"),
         page = { app.assets.open("share/index.html").bufferedReader().use { it.readText() } },
+        devicesFile = File(app.filesDir, "share-devices.json"),
     ).also { shared = it }
 }

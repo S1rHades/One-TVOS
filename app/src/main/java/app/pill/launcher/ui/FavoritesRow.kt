@@ -71,7 +71,6 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import app.pill.launcher.AppEntry
 import app.pill.launcher.FavoritesLayout
-import app.pill.launcher.FavoritesStyle
 
 /** Space between favourite tiles. */
 private val Gap = 8.dp
@@ -86,17 +85,15 @@ private val RowBleed = 24.dp
 private fun <T> motion(animate: Boolean): FiniteAnimationSpec<T> =
     if (animate) tween(300, easing = FastOutSlowInEasing) else snap()
 
-/** Width of one favourite tile in [style] ([iconSize] applies to icons). */
-fun favoritesItemWidth(style: FavoritesStyle, iconSize: Dp): Dp =
-    if (style == FavoritesStyle.Banners) BannerTileWidth else tileWidth(iconSize)
+/** Width of one favourite tile. */
+fun favoritesItemWidth(iconSize: Dp): Dp = tileWidth(iconSize)
 
 /** How many favourite tiles fit across [width] (Wrap layout). */
-fun favoritesPerRow(width: Dp, style: FavoritesStyle, iconSize: Dp): Int =
-    ((width + Gap) / (favoritesItemWidth(style, iconSize) + Gap)).toInt().coerceAtLeast(1)
+fun favoritesPerRow(width: Dp, iconSize: Dp): Int =
+    ((width + Gap) / (favoritesItemWidth(iconSize) + Gap)).toInt().coerceAtLeast(1)
 
 /** Height of one row of favourite tiles, including the air around it. */
-fun favoritesRowHeight(style: FavoritesStyle, iconSize: Dp): Dp =
-    (if (style == FavoritesStyle.Banners) BannerHeight + 42.dp else iconSize + 60.dp) + RowAir * 2
+fun favoritesRowHeight(iconSize: Dp): Dp = iconSize + 60.dp + RowAir * 2
 
 /**
  * The favourites, as one sliding row ([FavoritesLayout.Scroll]) or as rows that wrap
@@ -108,7 +105,6 @@ fun favoritesRowHeight(style: FavoritesStyle, iconSize: Dp): Dp =
 fun FavoritesRow(
     apps: List<AppEntry>,
     layout: FavoritesLayout,
-    style: FavoritesStyle,
     animate: Boolean,
     iconSize: Dp,
     width: Dp,
@@ -150,21 +146,17 @@ fun FavoritesRow(
                 }
             },
         ) {
-            if (style == FavoritesStyle.Banners) {
-                BannerTile(app, { onOpen(app) }, { held -> onMenu(app, held) }, tileModifier, focused)
-            } else {
-                AppTile(app, iconSize, showPinBadge = false, onOpen = { onOpen(app) }, onMenu = { held -> onMenu(app, held) }, modifier = tileModifier, onFocus = focused)
-            }
+            AppTile(app, iconSize, showPinBadge = false, onOpen = { onOpen(app) }, onMenu = { held -> onMenu(app, held) }, modifier = tileModifier, onFocus = focused)
             // Above the tile, which raises itself while focused
             if (isMoving) MoveArrows(Modifier.matchParentSize().zIndex(3f))
         }
     }
-    val itemWidth = favoritesItemWidth(style, iconSize)
-    val rowHeight = favoritesRowHeight(style, iconSize)
+    val itemWidth = favoritesItemWidth(iconSize)
+    val rowHeight = favoritesRowHeight(iconSize)
     val body: @Composable (FavoritesLayout) -> Unit = { mode ->
         when (mode) {
             FavoritesLayout.Scroll -> ScrollRow(apps, animate, itemWidth, rowHeight, moving, tile)
-            FavoritesLayout.Wrap -> WrapRows(apps, animate, rowHeight, favoritesPerRow(width, style, iconSize), tile)
+            FavoritesLayout.Wrap -> WrapRows(apps, animate, rowHeight, favoritesPerRow(width, iconSize), tile)
         }
     }
     if (animate) {

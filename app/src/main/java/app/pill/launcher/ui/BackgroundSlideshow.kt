@@ -34,7 +34,13 @@ import app.pill.launcher.Photo
 import coil.request.SuccessResult
 import android.graphics.drawable.BitmapDrawable
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
@@ -93,6 +99,9 @@ fun BackgroundSlideshow(
             .crossfade(false) // the Crossfade composable below does the animation
             .build()
 
+    // Only while the launcher is on screen: behind another app (a film, live TV) the
+    // slideshow waits where it is, rather than downloading and blurring photos nobody sees
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(enabled, intervalMs, all) {
         val loader = context.imageLoader
         var failures = 0
@@ -102,8 +111,9 @@ fun BackgroundSlideshow(
         while (true) {
             if (waitFirst) {
                 if (!enabled) return@LaunchedEffect
-                delay(intervalMs)
+                lifecycle.visibleDelay(intervalMs)
             }
+            lifecycle.awaitStarted()
             // After a photo fails to load, show a built-in one rather than wait
             val useSpare = photos.isEmpty() || (failures > 0 && fallback.isNotEmpty())
             val candidate = if (useSpare) photos.size + spare++ % fallback.size else next % photos.size
@@ -196,4 +206,32 @@ fun BackgroundScrim(modifier: Modifier = Modifier) {
                 Brush.verticalGradient(*ScrimStops.map { (at, alpha) -> at to Color.Black.copy(alpha = alpha) }.toTypedArray()),
             ),
     )
+}
+
+/** Suspends until the screen this belongs to is showing (started). */
+suspend fun Lifecycle.awaitStarted() {
+    if (currentState.isAtLeast(Lifecycle.State.STARTED)) return
+    suspendCancellableCoroutine { cont ->
+        val observer = object : LifecycleEventObserver {
+            override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
+                if (source.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                    source.lifecycle.removeObserver(this)
+                    if (cont.isActive) cont.resume(Unit)
+                }
+            }
+        }
+        addObserver(observer)
+        cont.invokeOnCancellation { runCatching { removeObserver(observer) } }
+    }
+}
+
+/** Waits [ms] of time on screen: the clock stops while another app is in front. */
+suspend fun Lifecycle.visibleDelay(ms: Long) {
+    var left = ms
+    while (left > 0) {
+        awaitStarted()
+        val step = minOf(left, 1000L)
+        delay(step)
+        if (currentState.isAtLeast(Lifecycle.State.STARTED)) left -= step
+    }
 }

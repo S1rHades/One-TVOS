@@ -8,6 +8,13 @@ import android.content.IntentFilter
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import app.pill.launcher.ui.NetworkWatch
+import app.pill.launcher.ui.KeepReceivingMs
+import android.os.UserHandle
+import android.os.SystemClock
+import android.os.Looper
+import android.os.Handler
+import android.content.pm.LauncherApps
 import java.time.Duration
 import java.time.Instant
 import android.provider.Settings
@@ -45,6 +52,20 @@ private val RetryDelaysMs = listOf(10_000L, 30_000L, 60_000L, 2 * 60_000L, 5 * 6
 class MainActivity : ComponentActivity() {
 
     private var refresh by mutableIntStateOf(0)
+
+    /**
+     * Bumped when an app is installed, removed or updated (Android says so), and on coming
+     * back after an hour away as a safety net: only then is every app's icon read again.
+     */
+    private var appsChanged by mutableIntStateOf(0)
+    private var lastScan = 0L
+    private val appWatch = object : LauncherApps.Callback() {
+        override fun onPackageRemoved(packageName: String?, user: UserHandle?) { appsChanged++ }
+        override fun onPackageAdded(packageName: String?, user: UserHandle?) { appsChanged++ }
+        override fun onPackageChanged(packageName: String?, user: UserHandle?) { appsChanged++ }
+        override fun onPackagesAvailable(packageNames: Array<out String>?, user: UserHandle?, replacing: Boolean) { appsChanged++ }
+        override fun onPackagesUnavailable(packageNames: Array<out String>?, user: UserHandle?, replacing: Boolean) { appsChanged++ }
+    }
     private var homePresses by mutableIntStateOf(0)
 
     /** Bumped when the TV wakes (screen on) or the launcher comes back, so it never wakes up idle. */
@@ -55,6 +76,10 @@ class MainActivity : ComponentActivity() {
         }
     }
     private lateinit var store: SettingsStore
+    private lateinit var crashGuard: CrashGuard
+
+    /** Why the launcher started in safe mode (two crashes within a minute); null normally. */
+    private var safeMode: String? = null
     private lateinit var footballSource: FootballSource
     private lateinit var weatherSource: WeatherSource
     private lateinit var newsFeed: NewsFeed
@@ -66,7 +91,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         store = SettingsStore(this)
+        crashGuard = CrashGuard(this).also { it.install() }
+        safeMode = crashGuard.safeModeReason()
         ContextCompat.registerReceiver(this, screenOn, IntentFilter(Intent.ACTION_SCREEN_ON), ContextCompat.RECEIVER_NOT_EXPORTED)
+        runCatching { getSystemService(LauncherApps::class.java)?.registerCallback(appWatch, Handler(Looper.getMainLooper())) }
         footballSource = FootballSource(this)
         weatherSource = WeatherSource(this)
         newsFeed = NewsFeed(this)
@@ -74,17 +102,26 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             // null until the first scan finishes; later refreshes keep the old list on screen
-            val scanned by produceState<List<AppEntry>?>(null, refresh) {
+            val scanned by produceState<List<AppEntry>?>(null, appsChanged) {
                 value = withContext(Dispatchers.Default) { loadApps(packageManager, packageName) }
+                lastScan = SystemClock.elapsedRealtime()
             }
             // Names given in the launcher replace the apps' own everywhere it shows them
             var names by remember { mutableStateOf(store.readNames()) }
             val apps = remember(scanned, names) { scanned?.let { withNames(it, names) } }
             var pins by remember { mutableStateOf(store.readPins()) }
             var settings by remember { mutableStateOf(store.load()) }
+            // Safe mode: no widgets (so no data is fetched), no Files; a minute of normal running forgets the crashes
+            val safe = safeMode
+            LaunchedEffect(Unit) {
+                if (safe == null) {
+                    delay(60_000)
+                    crashGuard.clear()
+                }
+            }
             // Refreshed every 30 minutes while a widget needs it; the last reading stays up if a refresh fails,
             // and the saved one shows at once after a restart. Sunrise and sunset need only the location.
-            val active = settings.activeWidgets()
+            val active = if (safe != null) emptySet() else settings.activeWidgets()
             val weatherOn = WidgetKind.Weather in active || WidgetKind.Daylight in active
             var weatherError by remember { mutableStateOf<String?>(null) }
             val savedWeather = remember { weatherSource.cached() }
@@ -214,6 +251,23 @@ class MainActivity : ComponentActivity() {
             LaunchedEffect(share) {
                 share.arrivals.collect { f -> postNotice(fileNotice(f.name, f.size, f.from, Instant.now())) }
             }
+            // Files tidies itself on each return to the launcher: APKs whose app is installed, and old files
+            LaunchedEffect(refresh, settings.tidyInstalled, settings.tidyOld) {
+                if (safe != null) return@LaunchedEffect
+                val done = withContext(Dispatchers.IO) {
+                    share.tidy(installed = { apk -> settings.tidyInstalled && isInstalled(apk) }, removeOld = settings.tidyOld)
+                }
+                val now = Instant.now()
+                if (done.installed.isNotEmpty()) {
+                    postNotice(Notice("tidied:${now.toEpochMilli()}", NoticeKind.File, "Removed ${filesLabel(done.installed)}", "Their apps are installed, so Files made room", now))
+                }
+                if (done.old.isNotEmpty()) {
+                    postNotice(Notice("old:${now.toEpochMilli()}", NoticeKind.File, "Removed ${filesLabel(done.old)}", "Kept for 30 days", now))
+                }
+                for ((name, noticedAt) in done.tomorrow) {
+                    postNotice(Notice("expiring:$name", NoticeKind.File, "$name goes tomorrow", "Files keeps things for 30 days · save it on a phone to keep it", Instant.ofEpochMilli(noticedAt), target = name))
+                }
+            }
 
             // A launcher never exits on Back
             BackHandler(enabled = true) { }
@@ -227,7 +281,7 @@ class MainActivity : ComponentActivity() {
                 searchTeams = { query -> withContext(Dispatchers.IO) { findTeams(query) } },
                 onlinePhotos = onlinePhotos,
                 pins = pins,
-                settings = settings,
+                settings = if (safe != null) settings.copy(widgets = emptyList()) else settings,
                 onSettingsChange = {
                     settings = it
                     store.save(it)
@@ -338,8 +392,14 @@ class MainActivity : ComponentActivity() {
                 onOpenAppNotice = { NotificationWatcher.open(this, it) },
                 noticeAccess = noticeAccess,
                 onNoticeAccess = { NotificationWatcher.askForAccess(this) },
-                share = share,
+                share = share.takeIf { safe == null },
                 onOpenFile = { file -> openFile(file, updater) },
+                safeMode = safe,
+                onTryNormally = {
+                    crashGuard.clear()
+                    safeMode = null
+                    recreate()
+                },
                 onOpenSystemSettings = {
                     try {
                         startActivity(
@@ -382,13 +442,42 @@ class MainActivity : ComponentActivity() {
         if (intent.hasCategory(Intent.CATEGORY_HOME)) homePresses++
     }
 
+    // Files runs while the launcher is on screen (so a phone can send without opening Files),
+    // and with Keep receiving for 15 minutes after another app comes to the front
+    override fun onStart() {
+        super.onStart()
+        NetworkWatch.onScreen = true
+        NetworkWatch.refresh()
+        if (safeMode == null) {
+            val share = fileShare(this)
+            Thread({ share.start() }, "share-start").start()
+        }
+    }
+
+    override fun onStop() {
+        NetworkWatch.onScreen = false
+        if (safeMode == null) fileShare(this).stop(if (store.load().keepReceiving) KeepReceivingMs else 0)
+        super.onStop()
+    }
+
+    /** Whether the app inside [apk] is installed at that version or newer. */
+    private fun isInstalled(apk: java.io.File): Boolean {
+        val archive = packageManager.getPackageArchiveInfo(apk.path, 0) ?: return false
+        val installed = runCatching { packageManager.getPackageInfo(archive.packageName, 0) }.getOrNull() ?: return false
+        return androidx.core.content.pm.PackageInfoCompat.getLongVersionCode(installed) >= androidx.core.content.pm.PackageInfoCompat.getLongVersionCode(archive)
+    }
+
+    private fun filesLabel(names: List<String>): String = if (names.size == 1) names[0] else "${names.size} files"
+
     override fun onResume() {
         super.onResume()
         refresh++
+        if (lastScan != 0L && SystemClock.elapsedRealtime() - lastScan > 60 * 60 * 1000L) appsChanged++
         wakes++
     }
 
     override fun onDestroy() {
+        runCatching { getSystemService(LauncherApps::class.java)?.unregisterCallback(appWatch) }
         runCatching { unregisterReceiver(screenOn) }
         super.onDestroy()
     }

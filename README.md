@@ -29,7 +29,7 @@
 - **A notification bar.** Under the widgets, as wide as them: the newest notification (a new version, a goal, a file from your phone, another app's) with a bell that opens them all. One press installs an update from there.
 - **Files from your phone.** Scan a code on the TV and send photos, videos, apps or documents from your phone's browser, with nothing to install; they open on the TV in one press.
 - **Built for the remote.** Focused apps lift and get a crisp white ring, and every action is one or two presses of the D-pad.
-- **Light on the TV.** One small app, written in Jetpack Compose, with no tracking. Nothing runs in the background unless you ask: reading other apps' notifications once you allow it, and receiving files while the Files page is open.
+- **Light on the TV.** One small app, written in Jetpack Compose, with no tracking. Behind another app it stays out of the way: the slideshow waits, the app list is read again only when an app is installed or removed, and file sharing stops unless you ask it to keep going. Only the widgets' data keeps refreshing, so they're up to date the moment you come back.
 
 Ideas shown as mockups and passed over are listed in [docs/PLANNED.md](docs/PLANNED.md).
 
@@ -39,7 +39,7 @@ Ideas shown as mockups and passed over are listed in [docs/PLANNED.md](docs/PLAN
 
 A greeting for the time of day sits above the widgets (the clock and weather cards say the date and place), and the [notification bar](#notifications) runs under them. Your favourites run along the bottom, and the photo behind them changes every few seconds, cross-fading to the next only once it has loaded, so it never flashes.
 
-Favourites can scroll in one row or wrap onto more rows (**Settings → Favorites row → Layout**), as big banners or small icons.
+Favourites are app icons, in one row that scrolls or wrapped onto more rows (**Settings → Favorites row → Layout**).
 
 <table>
   <tr>
@@ -138,7 +138,7 @@ Pill Launcher's own notifications:
 - **Connection**: when the internet has been gone a minute, then "Back online" with how long it dropped.
 - **Files**: each file that arrives from a phone.
 
-**Other apps' notifications** show too once the TV allows it: **Settings → Notifications → Other apps' notifications** opens the TV's **Notification access** screen. Many TVs hide that screen; then it's allowed once from a computer with `adb shell cmd notification allow_listener app.pill.launcher/app.pill.launcher.NotificationWatcher`. Low-memory TVs don't allow it at all. Ongoing ones (music playing, downloads) stay out, and each app can be muted on the same page.
+**Other apps' notifications** show too once the TV allows it: **Settings → Notifications → Other apps' notifications** opens the TV's **Notification access** screen. Many TVs hide that screen; then it's allowed once from a computer with `adb shell cmd notification allow_listener app.pill.launcher/app.pill.launcher.NotificationWatcher`. Low-memory TVs don't allow it at all. Ongoing ones (music playing, downloads) stay out, and each app can be muted on the same page. **Hide private messages** shows a notification an app marks private (a message's text, say) as just "New notification" under the app's name.
 
 <table>
   <tr>
@@ -149,7 +149,7 @@ Pill Launcher's own notifications:
 
 ### Files
 
-**Files** in the notification bar opens a page of its own. On the left is **Receive**: a code to scan with your phone's camera (or the TV's address and a four-letter code to type), each file arriving with its progress, and the space left on the TV. On the right is everything on the TV, as cards like the apps in All apps, with chips for **Photos**, **Videos**, **Apps** and **Documents**.
+**Files** in the notification bar opens a page of its own. On the left is **Receive**: a code to scan with your phone's camera (or the TV's address and a six-digit code to type), each file arriving with its progress, and the space left on the TV. On the right is everything on the TV, as cards like the apps in All apps, with chips for **Photos**, **Videos**, **Apps** and **Documents**.
 
 **OK** on a file opens it: photos in the launcher's own viewer (**Left** / **Right** for the next one), videos and documents in the TV's apps, and an app's APK with Android's install screen. Holding **OK** offers **Install** or **Open**, **Send to phone** (a code that saves it on your phone) and **Delete**.
 
@@ -157,12 +157,23 @@ Your phone opens a plain page in its browser, with nothing to install: **Send to
 
 <table>
   <tr>
-    <td width="66%"><img src="docs/screenshots/files.png" alt="The Files page: on the left, Receive, with a QR code, Scan with your phone, the address 192.168.1.24:8642 and code 7Q4M, the space free and Keep receiving: Off; on the right, chips for All 4, Photos, Videos, Apps and Documents over cards for holiday.jpg with a preview, match-highlights.mp4, kinopub-2.4.apk and tv-manual.pdf"><br><sub><b>Files on the TV</b>: receiving on the left, everything on the TV on the right.</sub></td>
+    <td width="66%"><img src="docs/screenshots/files.png" alt="The Files page: on the left, Receive, with a QR code, Scan with your phone, the address 192.168.1.24:8642 and code 482913, the space free and Keep receiving: Off; on the right, chips for All 4, Photos, Videos, Apps and Documents over cards for holiday.jpg with a preview, match-highlights.mp4, kinopub-2.4.apk and tv-manual.pdf"><br><sub><b>Files on the TV</b>: receiving on the left, everything on the TV on the right.</sub></td>
     <td width="34%"><img src="docs/files-phone.png" alt="The phone's page: Your TV, Send to TV, kinopub-2.5.apk on its way at 34.6 of 48 MB, and the TV's files with Save beside each"><br><sub><b>On the phone</b>: send, or save what's on the TV.</sub></td>
   </tr>
 </table>
 
-Sharing runs only while the Files page is open, or for 15 minutes after leaving it with **Keep receiving** on. It only answers devices on the home network, everything but the page itself needs the code, and files go into Pill Launcher's own folder on the TV (uninstalling the launcher removes them).
+**Pairing a phone.** Scanning the QR code pairs the phone at once: the code carries a long random key, and scanning it proves you're in the room. A phone that can't scan types the six-digit code instead, and the TV asks **Allow** or **Block** over whatever is showing. A paired phone stays trusted for 90 days, so the page works from a bookmark without scanning again. **Settings → Files** lists the trusted phones (OK removes one), and **Sign out every phone** makes a new code.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/files-approve.png" alt="Over the home screen, a small card: iPhone wants to connect, with Allow (it can send and save files for 90 days) and Block"><br><sub><b>A typed code</b>: the TV asks before the phone gets in.</sub></td>
+    <td width="50%"><img src="docs/screenshots/settings-files.png" alt="Settings, Files: Keep receiving, Remove apps' files once installed, Remove files after 30 days, then Trusted devices with iPhone and Computer, and Sign out every phone"><br><sub><b>Settings → Files</b>: keep receiving, tidying, and the trusted phones.</sub></td>
+  </tr>
+</table>
+
+**When it runs.** Sharing runs while the launcher is on screen, so a paired phone can send without the Files page open, and stops when another app comes to the front (or 15 minutes later with **Keep receiving** on). It listens only on the TV's home-network address and handles a few phones at a time. Every request must name the TV's own address, and anything that changes something must come from the TV's page, so another website open on the phone can't use it. Files go into Pill Launcher's own folder on the TV (uninstalling the launcher removes them).
+
+**Tidying.** Once an app from an APK in Files is installed, Files removes the APK and says so in the notification bar (**Remove apps' files once installed**, on by default). **Remove files after 30 days** clears old files, with a notice the day before.
 
 ### Settings
 
@@ -170,7 +181,7 @@ Sharing runs only while the Files page is open, or for 15 minutes after leaving 
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/settings.png" alt="The settings card on the right: Background, Widgets, Favorites row, Idle screen, Home and startup, Notifications, and TV and system, each with its current choice underneath"><br><sub><b>Settings</b>: each row shows its current choice.</sub></td>
+    <td width="50%"><img src="docs/screenshots/settings.png" alt="The settings card on the right: Background, Widgets, Favorites row, Idle screen, Home and startup, Notifications, Files, and TV and system, each with its current choice underneath"><br><sub><b>Settings</b>: each row shows its current choice.</sub></td>
     <td width="50%"><img src="docs/screenshots/settings-system.png" alt="Settings, TV and system: Free up memory focused, then Network and Wi-Fi, Display, Sound, Storage and System update"><br><sub><b>TV & system</b>: the TV's own screens, one press away.</sub></td>
   </tr>
 </table>
@@ -182,6 +193,12 @@ When a newer Pill Launcher is on GitHub, the notification bar says so, with the 
 **Settings → Updates** checks by hand, installs from there with the same progress, lists what's new, and turns off the check every few hours.
 
 <p align="center"><img src="docs/screenshots/settings-updates.png" width="50%" alt="Settings, Updates: Check for updates, Update to 3.4 with its size, Check automatically switched on, and what's new in 3.4"><br><sub><b>Settings → Updates</b>: check, install and what's new.</sub></p>
+
+### Safe mode
+
+If the launcher ever crashes twice within a minute (after a bad update, say), it starts in safe mode instead of crashing again: the photo and Favorites only, without widgets, the notification bar or Files, and a line saying what went wrong. **Try normally** starts it as usual, and a minute of normal running forgets the crashes. You're never locked out of the TV.
+
+<p align="center"><img src="docs/screenshots/safe-mode.png" width="100%" alt="Safe mode: the greeting and Favorites over a photo, no widgets, and in place of the notification bar a card saying Safe mode: Pill Launcher stopped unexpectedly, widgets, notifications and Files are off for now, with a Try normally button"></p>
 
 ### Idle screen
 
@@ -213,7 +230,7 @@ On TVs that ignore that command, turning off the stock launcher works too (turn 
 
 The `latest` release is rebuilt automatically every time `main` changes, so installing it again always gets you the newest version.
 
-Every version also keeps its own release, named after it (**Pill Launcher 3.3**, tag `v3.3`, file `pill-launcher-3.3.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v3.3/pill-launcher-3.3.apk`. The newest is titled **Pill Launcher 3.3 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
+Every version also keeps its own release, named after it (**Pill Launcher 3.3.1**, tag `v3.3.1`, file `pill-launcher-3.3.1.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v3.3.1/pill-launcher-3.3.1.apk`. The newest is titled **Pill Launcher 3.3.1 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
 
 ### Uninstalling
 
@@ -234,14 +251,17 @@ If the launcher won't open, use the TV's own **Settings → Apps → Pill Launch
 | Show other apps' notifications, mute one, or turn off football or connection ones | **Settings → Notifications** |
 | Send a file from your phone to the TV | **Files** in the notification bar, scan the code with the phone, then **Send to TV** |
 | Open, install, send to a phone or delete a file on the TV | **Files**, then **OK** on it, or hold **OK** |
-| Keep receiving files after leaving Files | **Keep receiving** on the Files page (15 minutes) |
+| Keep receiving files after leaving the launcher | **Keep receiving** on the Files page or in **Settings → Files** (15 minutes) |
+| Let in a phone that typed the code | **Allow** on the card the TV shows |
+| Remove a trusted phone, or sign every phone out | **Settings → Files** |
+| Tidy Files: remove installed APKs, or files after 30 days | **Settings → Files** |
+| Hide the text of private messages | **Settings → Notifications → Hide private messages** |
 | See all apps | **Down** from Favorites |
 | Show only video, music or game apps | **Down** to the chips above All apps, **Left** / **Right**, then **OK** |
 | Find an app | **Search** in the bar, then letters from the strip (**Left** / **Right**, OK), or **Up** to the field for the keyboard |
 | Test the internet speed, or open Wi-Fi settings | **Wi-Fi** in the bar, then **Start test** or **Network settings** |
 | See if a VPN is on | The Internet page says so |
 | Change how favourites are laid out | **Settings → Favorites row → Layout**: Scroll or Wrap |
-| Banners or icons for favourites | **Settings → Favorites row → Tile style** |
 | Wake the idle screen | Any key |
 | App menu: pin / unpin, move, app info, uninstall | Hold **OK** for half a second, or press **Menu** (☰) |
 | Reorder favourites | App menu → **Move**, then **Left** / **Right**, and **OK** when done |
@@ -356,7 +376,7 @@ gradle assembleDebug                                   # app/build/outputs/apk/d
 gradle :app:testDebugUnitTest --tests '*Screenshots*'  # re-render docs/screenshots
 ```
 
-**Builds are automated.** `.github/workflows/build.yml` builds the APK for every pull request and push; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v3.3`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
+**Builds are automated.** `.github/workflows/build.yml` builds the APK for every pull request and push; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v3.3.1`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
 
 <details>
 <summary><b>Architecture</b></summary>
@@ -374,7 +394,8 @@ app/src/main/java/app/pill/launcher/
   SpeedTest.kt           ping, download and upload against Cloudflare's speed test
   Updates.kt             newer releases from GitHub: check, download, install, and the installer's answer
   Notifications.kt       the notification bar's notices: kept ones, updates, football, the connection, and other apps' (NotificationWatcher)
-  FileShare.kt           Files: the small web server phones send to, the files on the TV, the code and address
+  FileShare.kt           Files: the small web server phones send to, pairing and trusted phones, the files on the TV, tidying
+  CrashGuard.kt          notes crashes; two within a minute start the launcher in safe mode
   Moments.kt             goals and wins noticed between football fetches, and the match minute
   PhotoFeed.kt           the daily Wikimedia photo set and its credits
   Daylight.kt            sunrise and sunset from latitude and longitude
@@ -394,7 +415,7 @@ app/src/main/java/app/pill/launcher/
     ClockPage.kt, ForecastPage.kt, FootballHub.kt, HeadlinePage.kt, InternetPage.kt   the pages
     WidgetCards.kt       the header's glass widget cards and their row
     WeatherWidget.kt     the weather card's content, with drawn condition icons
-    FavoritesRow.kt, AppTile.kt, BannerTile.kt   the favourites row and its tiles
+    FavoritesRow.kt, AppTile.kt   the favourites row and its icon tiles
     SearchPanel.kt, SettingsPanel.kt, AppMenu.kt   panels over the home screen
     HomePrompt.kt        the Set up reminder until Pill Launcher is the home screen
     NetworkStatus.kt     how the TV is connected, the Wi-Fi signal and whether a VPN is on
