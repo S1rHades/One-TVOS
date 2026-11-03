@@ -81,11 +81,11 @@ class FileShareTest {
         return Answer(status, bytes, headers)
     }
 
-    /** Scanning the QR code: paired at once, and sent back to the plain address. */
+    /** Scanning the QR code: paired at once, with the page in the same answer (no redirect). */
     private fun scan(): String {
         val a = call("GET", "/?p=" + "k".repeat(32), header = false)
-        assertEquals(302, a.status)
-        assertEquals("/", a.headers["Location"]?.first())
+        assertEquals(200, a.status)
+        assertEquals("<html>phone page</html>", String(a.body))
         return a.cookie!!
     }
 

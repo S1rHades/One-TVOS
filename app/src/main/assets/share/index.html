@@ -60,6 +60,8 @@
 <script>
   // The TV answers only its own page: every request carries this header, which other websites can't add
   const H = { 'X-Pill': '1' };
+  // Scanned: the pairing key has done its job; keep it out of history and bookmarks
+  if (location.search) history.replaceState(null, '', '/');
   const $ = (id) => document.getElementById(id);
 
   function size(b) {

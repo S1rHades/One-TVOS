@@ -402,7 +402,9 @@ class FileShare(
         val out = client.getOutputStream()
         val remote = client.inetAddress
         if (!isHomeNetwork(remote)) return respond(out, 403, "text/plain", "Only devices on the home network can share files")
-        val request = runCatching { readRequest(input) }.getOrNull() ?: return respond(out, 400, "text/plain", "Bad request")
+        // A connection the browser opened ahead of time and never used, or closed: just close it.
+        // Answering it ("Bad request") would leave a stale reply for the browser's next use of it.
+        val request = runCatching { readRequest(input) }.getOrNull() ?: return
         // Only requests made to the TV's own address: another website can't borrow the phone's browser
         val s = state.value
         val host = request.headers["host"].orEmpty()
@@ -413,9 +415,10 @@ class FileShare(
         when {
             request.method == "GET" && request.path == "/" -> {
                 if (request.params["p"] == s.key && s.key.isNotEmpty()) {
-                    // Scanned: paired at once, and the key leaves the address bar
+                    // Scanned: paired at once. The page itself comes back with the cookie (no redirect, which
+                    // costs a second connection), and its script takes the key out of the address bar
                     val token = trust(deviceName(request.headers["user-agent"]))
-                    return respond(out, 302, "text/plain", "", listOf("Location: /", cookieHeader(token)))
+                    return respond(out, 200, "text/html; charset=utf-8", page(), listOf(cookieHeader(token)))
                 }
                 respond(out, 200, "text/html; charset=utf-8", page())
             }

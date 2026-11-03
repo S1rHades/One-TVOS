@@ -3,6 +3,10 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 3.3.3 (November 2026)
+
+- **Fix**: scanning the Files code could end in Chrome's "This site can't be reached" (ERR_TOO_MANY_RETRIES). Pairing now answers with the page straight away instead of sending the phone to a second address, and connections the browser opens ahead of time and never uses are closed quietly instead of being answered with an error the browser later trips over.
+
 ## 3.3.2 (November 2026)
 
 - **Files asks before deleting an APK**: once the app inside an APK is installed, the notification bar asks instead of deleting it. **OK** offers **Keep it** (focused first) or **Delete**; holding **OK** keeps it, and each APK is asked about once. The setting is now **Offer to delete installed APKs** (Settings → Files). Nothing in Files is deleted without you, apart from **Remove files after 30 days** when you turn it on.
