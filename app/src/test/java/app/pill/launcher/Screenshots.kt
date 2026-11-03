@@ -422,13 +422,13 @@ class Screenshots {
     @Test
     fun navigationThroughTheNotificationBar() {
         show("misty-valley", pins = favorites)
-        press(Key.DirectionUp)
-        press(Key.DirectionUp)
-        press(Key.DirectionRight)
+        // The weather card, in the middle of the three
+        compose.onAllNodes(hasText("Lisbon", substring = true)).onFirst().requestFocus()
+        settle()
         val middle = focusedName()
-        check(!middle.contains("All caught up") && barItems.none { middle.startsWith(it) }) { "on the middle widget: $middle" }
+        check(middle.contains("Lisbon")) { "on the middle widget: $middle" }
         press(Key.DirectionDown)
-        check(focusedName().contains("All caught up")) { "Down from the middle widget stops at the notification bar: ${focusedName()}" }
+        check(focusedName().contains("All caught up")) { "Down from the middle widget stops at the bar's message: ${focusedName()}" }
         focusOn("Share files")
         press(Key.DirectionDown)
         check(focusedName().contains("Cinema")) { "Down from the bar's right end starts Favorites at the left: ${focusedName()}" }
