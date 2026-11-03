@@ -50,8 +50,8 @@ data class LauncherSettings(
     val connectionNotices: Boolean = true,
     /** Files keep arriving for 15 minutes after the launcher goes behind another app. */
     val keepReceiving: Boolean = false,
-    /** An app's APK in Files is deleted once that app is installed. */
-    val tidyInstalled: Boolean = true,
+    /** Once an APK's app is installed, the notification bar offers to delete the APK (never on its own). */
+    val askInstalledApks: Boolean = true,
     /** Files older than 30 days are removed, with a notice the day before. */
     val tidyOld: Boolean = false,
     /** Other apps' private notifications show only the app's name, not their text. */
@@ -103,7 +103,7 @@ class SettingsStore(context: Context) {
         footballNotices = prefs.getBoolean("footballNotices", true),
         connectionNotices = prefs.getBoolean("connectionNotices", true),
         keepReceiving = prefs.getBoolean("keepReceiving", false),
-        tidyInstalled = prefs.getBoolean("tidyInstalled", true),
+        askInstalledApks = prefs.getBoolean("askInstalledApks", true),
         tidyOld = prefs.getBoolean("tidyOld", false),
         hidePrivate = prefs.getBoolean("hidePrivate", false),
     ).let { if (it.weather == WeatherMode.Off) it.copy(weather = defaultWeatherMode()) else it }
@@ -131,7 +131,7 @@ class SettingsStore(context: Context) {
             .putBoolean("footballNotices", settings.footballNotices)
             .putBoolean("connectionNotices", settings.connectionNotices)
             .putBoolean("keepReceiving", settings.keepReceiving)
-            .putBoolean("tidyInstalled", settings.tidyInstalled)
+            .putBoolean("askInstalledApks", settings.askInstalledApks)
             .putBoolean("tidyOld", settings.tidyOld)
             .putBoolean("hidePrivate", settings.hidePrivate)
             .apply()
@@ -162,6 +162,11 @@ class SettingsStore(context: Context) {
     fun saveNotices(list: List<Notice>) {
         prefs.edit().putString("notices", noticesToJson(list)).apply()
     }
+
+    /** APKs already asked about (name and size), so keeping one doesn't bring the question back. */
+    var askedApks: Set<String>
+        get() = prefs.getStringSet("askedApks", emptySet()).orEmpty()
+        set(value) { prefs.edit().putStringSet("askedApks", value).apply() }
 
     /** When the notification list was last opened: anything newer is unread. */
     var noticesSeen: Long

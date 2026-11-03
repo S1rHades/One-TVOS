@@ -760,7 +760,7 @@ private fun summaryOf(page: SettingsPage, settings: LauncherSettings, home: Home
     ).joinToString(", ").replaceFirstChar { it.uppercase() }.ifEmpty { "Updates and files only" }
     SettingsPage.Files -> listOfNotNull(
         if (settings.keepReceiving) "Keep receiving" else null,
-        if (settings.tidyInstalled) "APKs removed once installed" else null,
+        if (settings.askInstalledApks) "asks before deleting APKs" else null,
         if (settings.tidyOld) "files kept 30 days" else null,
     ).joinToString(", ").replaceFirstChar { it.uppercase() }.ifEmpty { "Phones, tidying" }
     SettingsPage.System -> "Free up memory, network, display, sound, updates, uninstall"
@@ -1029,10 +1029,10 @@ private fun FilesSettingsPage(settings: LauncherSettings, onChange: (LauncherSet
             modifier = firstModifier,
         ) { focused -> Switch(checked = settings.keepReceiving, focused = focused) }
         SettingRow(
-            title = "Remove apps' files once installed",
-            subtitle = "An APK goes once its app is on the TV",
-            onClick = { onChange(settings.copy(tidyInstalled = !settings.tidyInstalled)) },
-        ) { focused -> Switch(checked = settings.tidyInstalled, focused = focused) }
+            title = "Offer to delete installed APKs",
+            subtitle = "Once an APK's app is installed, the notification bar asks. Nothing is deleted without you",
+            onClick = { onChange(settings.copy(askInstalledApks = !settings.askInstalledApks)) },
+        ) { focused -> Switch(checked = settings.askInstalledApks, focused = focused) }
         SettingRow(
             title = "Remove files after 30 days",
             subtitle = "The notification bar says so the day before",

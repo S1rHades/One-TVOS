@@ -758,6 +758,29 @@ class Screenshots {
         }
     }
 
+    /** An installed app's APK: the bar asks, and only Delete removes it. */
+    @Test
+    fun installedApkAsks() {
+        val dir = java.nio.file.Files.createTempDirectory("apk").toFile()
+        val share = testShare(File(dir, "Files"))
+        val apk = File(share.dir, "kinopub-2.4.apk").apply { writeBytes(ByteArray(480_000)) }
+        try {
+            show("canyon-river", pins = favorites, share = share, notices = listOf(installedApkNotice(apk.name, java.time.Instant.now())))
+            check(apk.exists()) { "nothing is deleted on its own" }
+            compose.onNodeWithText("kinopub-2.4.apk: its app is installed", substring = true).performSemanticsAction(SemanticsActions.OnClick)
+            settle()
+            compose.onNodeWithText("Delete kinopub-2.4.apk?").assertExists()
+            check(apk.exists()) { "OK on the notice only asks" }
+            captureScreenRoboImage(File(out, "files-delete-apk.png").path)
+            compose.onNodeWithText("Delete").performSemanticsAction(SemanticsActions.OnClick)
+            settle()
+            check(!apk.exists()) { "Delete removes the file" }
+        } finally {
+            share.stop()
+            dir.deleteRecursively()
+        }
+    }
+
     /** Settings → Files: keep receiving, tidying, and the trusted phones. */
     @Test
     fun settingsFiles() {
@@ -770,9 +793,9 @@ class Screenshots {
             compose.onNodeWithContentDescription("Settings").performSemanticsAction(SemanticsActions.OnClick)
             settle()
             // The Files row (not the stand-in app called Files), by its summary
-            compose.onNode(hasText("Files") and hasText("APKs removed", substring = true)).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+            compose.onNode(hasText("Files") and hasText("deleting APKs", substring = true)).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
             settle()
-            compose.onNodeWithText("Remove files after 30 days").assertExists()
+            compose.onNodeWithText("Offer to delete installed APKs").assertExists()
             compose.onNodeWithText("iPhone").assertExists()
             captureScreenRoboImage(File(out, "settings-files.png").path)
         } finally {

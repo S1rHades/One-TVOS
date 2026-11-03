@@ -159,6 +159,13 @@ fun backOnlineNotice(since: Instant, now: Instant): Notice {
 fun fileNotice(name: String, size: Long, from: String?, now: Instant): Notice =
     Notice("file:$name:${now.toEpochMilli()}", NoticeKind.File, "$name arrived" + (from?.let { " from $it" } ?: ""), fileSize(size) + " · OK to open", now, target = name)
 
+/** An APK in Files whose app is now installed: OK asks to delete it, holding OK keeps it. */
+fun installedApkNotice(name: String, now: Instant): Notice =
+    Notice("$InstalledApk$name", NoticeKind.File, "$name: its app is installed", "OK to delete the file · hold OK to keep it", now, target = name)
+
+/** The id prefix of [installedApkNotice]. */
+const val InstalledApk = "installed-apk:"
+
 /** "3.4 MB", "212 MB", "1.2 GB". */
 fun fileSize(bytes: Long): String {
     val units = listOf("B", "KB", "MB", "GB", "TB")
