@@ -423,10 +423,15 @@ class Screenshots {
     fun navigationThroughTheNotificationBar() {
         show("misty-valley", pins = favorites)
         // The weather card, in the middle of the three
-        // (the innermost clickable element holding its text)
-        compose.onAllNodes(androidx.compose.ui.test.hasAnyDescendant(hasText("Lisbon", substring = true)) and hasClickAction()).onLast().requestFocus()
-        settle()
+        // Up past the bar to the widgets, Left to the first, then Right once
+        press(Key.DirectionUp)
+        press(Key.DirectionUp)
+        press(Key.DirectionLeft)
+        press(Key.DirectionLeft)
+        val first = focusedName()
+        press(Key.DirectionRight)
         val middle = focusedName()
+        check(middle != first) { "Right moves to the middle widget: $first → $middle" }
         check(!middle.contains("All caught up") && barItems.none { middle.startsWith(it) } && !middle.contains("Cinema")) { "on the middle widget: $middle" }
         press(Key.DirectionDown)
         check(focusedName().contains("All caught up")) { "Down from the middle widget stops at the bar's message: ${focusedName()}" }
