@@ -125,7 +125,7 @@ The weather, football and headlines pages are described in their own sections be
 
 ### Notifications
 
-The bar under the widgets is as wide as they are. On the left is the newest notification, with how long ago it came and **+3** when there are more; **OK** on it does what it says (installs the update, opens the football page or the file), and holding **OK** dismisses it. With nothing new it says **All caught up**. On the right are the **bell**, with a red dot for anything new, and **Files**. **Down** from the widgets stops at the bar, and **Down** again reaches Favorites.
+The bar under the widgets is as wide as they are. On the left is the newest notification, with how long ago it came and **+3** when there are more; **OK** on it does what it says (installs the update, opens the football page or the file), and holding **OK** dismisses it. With nothing new it says **All caught up**. On the right are the **bell**, with a red dot for anything new, and **Files**. **Down** from any widget lands at the start of the bar, and **Down** again goes to the first app in Favorites, at the left.
 
 <p align="center"><img src="docs/screenshots/notification-bar.png" width="100%" alt="The home screen with the notification bar under the clock, weather and football cards: Pill Launcher 3.4 is ready and the first line of what's new on the left, +4, then the bell with a red dot and the Files button on the right"></p>
 
@@ -232,7 +232,7 @@ On TVs that ignore that command, turning off the stock launcher works too (turn 
 
 The `latest` release is rebuilt automatically every time `main` changes, so installing it again always gets you the newest version.
 
-Every version also keeps its own release, named after it (**Pill Launcher 3.3.3**, tag `v3.3.3`, file `pill-launcher-3.3.3.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v3.3.3/pill-launcher-3.3.3.apk`. The newest is titled **Pill Launcher 3.3.3 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
+Every version also keeps its own release, named after it (**Pill Launcher 3.3.4**, tag `v3.3.4`, file `pill-launcher-3.3.4.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v3.3.4/pill-launcher-3.3.4.apk`. The newest is titled **Pill Launcher 3.3.4 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
 
 ### Uninstalling
 
@@ -379,7 +379,7 @@ gradle assembleDebug                                   # app/build/outputs/apk/d
 gradle :app:testDebugUnitTest --tests '*Screenshots*'  # re-render docs/screenshots
 ```
 
-**Builds are automated.** `.github/workflows/build.yml` builds the APK for every pull request and push; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v3.3.3`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
+**Builds are automated.** `.github/workflows/build.yml` builds the APK for every pull request and push; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v3.3.4`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
 
 <details>
 <summary><b>Architecture</b></summary>

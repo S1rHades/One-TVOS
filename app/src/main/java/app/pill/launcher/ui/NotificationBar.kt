@@ -118,6 +118,10 @@ fun NotificationBar(
     onCancelUpdate: () -> Unit,
     onFiles: () -> Unit,
     bellFocus: FocusRequester,
+    /** The newest notification (or All caught up), at the left: where Down from the widgets lands. */
+    messageFocus: FocusRequester = remember { FocusRequester() },
+    /** Down from the bar (folded up): where focus goes, the start of the row below. */
+    onDown: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val now by produceState(Instant.now()) {
@@ -187,6 +191,10 @@ fun NotificationBar(
             .onFocusChanged { holdsFocus = it.hasFocus }
             // Back folds the open list up (the remote's Back reaches the focused row first)
             .onPreviewKeyEvent { event ->
+                if (!open && event.key == Key.DirectionDown && onDown != null) {
+                    if (event.type == KeyEventType.KeyDown) onDown()
+                    return@onPreviewKeyEvent true
+                }
                 if (!open || event.key != Key.Back) return@onPreviewKeyEvent false
                 if (event.type == KeyEventType.KeyUp) onOpenChange(false)
                 true
@@ -213,11 +221,12 @@ fun NotificationBar(
                                 (slideOutVertically(tween(Motion.Exit, easing = Motion.ExitEasing)) { -it / 2 } + fadeOut(tween(Motion.Exit)))
                         },
                         label = "noticeTop",
+                        modifier = Modifier.fillMaxWidth(),
                     ) { (isOpen, shown) ->
                         when {
                             isOpen -> ListHeader(count = notices.size, unread = unread)
-                            shown == null -> CaughtUp(onOpen = { onOpenChange(true) })
-                            else -> TopNotice(shown, more = notices.size - 1, apps = apps, now = now, onOpen = { onPrimary(shown) }, onDismiss = { onDismiss(shown) })
+                            shown == null -> CaughtUp(onOpen = { onOpenChange(true) }, focus = messageFocus)
+                            else -> TopNotice(shown, more = notices.size - 1, apps = apps, now = now, onOpen = { onPrimary(shown) }, onDismiss = { onDismiss(shown) }, focus = messageFocus)
                         }
                     }
                 }
@@ -323,7 +332,7 @@ private fun ListHeader(count: Int, unread: Int) {
 
 /** The newest notification, on one line in the bar: OK does what it says, holding OK dismisses it. */
 @Composable
-private fun TopNotice(notice: Notice, more: Int, apps: List<AppEntry>, now: Instant, onOpen: () -> Unit, onDismiss: () -> Unit) {
+private fun TopNotice(notice: Notice, more: Int, apps: List<AppEntry>, now: Instant, onOpen: () -> Unit, onDismiss: () -> Unit, focus: FocusRequester) {
     val input = rememberTileInput(onOpen, { onDismiss() })
     val active = input.active
     val bg by animateColorAsState(if (active) Palette.Focus else Color.Transparent, tween(Motion.Quick), label = "topBg")
@@ -334,6 +343,7 @@ private fun TopNotice(notice: Notice, more: Int, apps: List<AppEntry>, now: Inst
             .height(ButtonSize)
             .clip(RoundedCornerShape(50))
             .background(bg)
+            .focusRequester(focus)
             .then(input.modifier)
             .padding(start = 6.dp, end = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -373,21 +383,23 @@ private fun TopNotice(notice: Notice, more: Int, apps: List<AppEntry>, now: Inst
  * at the bar. OK opens the (empty) list.
  */
 @Composable
-private fun CaughtUp(onOpen: () -> Unit) {
+private fun CaughtUp(onOpen: () -> Unit, focus: FocusRequester) {
     val input = rememberTileInput(onOpen, { onOpen() })
     val active = input.active
     val bg by animateColorAsState(if (active) Palette.Focus else Color.Transparent, tween(Motion.Quick), label = "caughtUpBg")
     val fg by animateColorAsState(if (active) Palette.Ink else Palette.TextTertiary, tween(Motion.Quick), label = "caughtUpFg")
-    Row(
-        Modifier
-            .height(ButtonSize)
-            .clip(RoundedCornerShape(50))
-            .background(bg)
-            .then(input.modifier)
-            .padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text("All caught up", color = fg, fontSize = 16.sp, maxLines = 1)
+    // As wide as the bar, so Down from any widget above stops here; the white pill stays around the words
+    Box(Modifier.fillMaxWidth().height(ButtonSize).focusRequester(focus).then(input.modifier), contentAlignment = Alignment.CenterStart) {
+        Row(
+            Modifier
+                .height(ButtonSize)
+                .clip(RoundedCornerShape(50))
+                .background(bg)
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("All caught up", color = fg, fontSize = 16.sp, maxLines = 1)
+        }
     }
 }
 
@@ -514,7 +526,6 @@ private fun BarButton(label: String, current: Boolean, onClick: () -> Unit, modi
     Box(
         modifier
             .size(ButtonSize)
-            .shadow(if (focused) 12.dp else 0.dp, CircleShape, ambientColor = Color.White, spotColor = Color.White)
             .background(bg, CircleShape)
             .semantics { contentDescription = label }
             .onFocusChanged { focused = it.isFocused }

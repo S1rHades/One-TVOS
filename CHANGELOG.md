@@ -3,6 +3,12 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 3.3.4 (November 2026)
+
+- **Notification bar focus**: the bell and Files no longer show a bump when focused (their white glow was cut off by the bar's rounded edge; the white disc alone marks focus now).
+- **Down from any widget** lands at the start of the notification bar (the newest notification, or "All caught up") instead of skipping the bar or jumping to the bell; "All caught up" also takes focus across the whole bar.
+- **Down from the notification bar** always goes to the first app in Favorites, at the left, wherever on the bar you were.
+
 ## 3.3.3 (November 2026)
 
 - **Fix**: scanning the Files code could end in Chrome's "This site can't be reached" (ERR_TOO_MANY_RETRIES). Pairing now answers with the page straight away instead of sending the phone to a second address, and connections the browser opens ahead of time and never uses are closed quietly instead of being answered with an error the browser later trips over.
