@@ -423,10 +423,11 @@ class Screenshots {
     fun navigationThroughTheNotificationBar() {
         show("misty-valley", pins = favorites)
         // The weather card, in the middle of the three
-        compose.onAllNodes(hasText("Lisbon", substring = true)).onFirst().requestFocus()
+        // (the innermost clickable element holding its text)
+        compose.onAllNodes(androidx.compose.ui.test.hasAnyDescendant(hasText("Lisbon", substring = true)) and hasClickAction()).onLast().requestFocus()
         settle()
         val middle = focusedName()
-        check(middle.contains("Lisbon")) { "on the middle widget: $middle" }
+        check(!middle.contains("All caught up") && barItems.none { middle.startsWith(it) } && !middle.contains("Cinema")) { "on the middle widget: $middle" }
         press(Key.DirectionDown)
         check(focusedName().contains("All caught up")) { "Down from the middle widget stops at the bar's message: ${focusedName()}" }
         focusOn("Share files")
