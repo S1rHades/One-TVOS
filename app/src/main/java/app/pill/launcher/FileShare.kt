@@ -118,7 +118,10 @@ fun senderOf(userAgent: String?): String {
 
 /** A device's name for the list of trusted devices: "iPhone", "Android phone", "Computer". */
 fun deviceName(userAgent: String?): String =
-    senderOf(userAgent).removePrefix("an ").removePrefix("a ").replaceFirstChar { it.uppercase() }
+    senderOf(userAgent).removePrefix("an ").removePrefix("a ").let { name ->
+        // "iPhone" and "iPad" keep their small i
+        if (name.startsWith("iP")) name else name.replaceFirstChar { it.uppercase() }
+    }
 
 /** Only devices on the home network (and the TV itself) may use the share. */
 fun isHomeNetwork(a: InetAddress): Boolean =
