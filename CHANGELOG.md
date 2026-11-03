@@ -6,7 +6,7 @@ Pill Launcher is built from `main` on every change; the newest build is always t
 ## 3.3.4 (November 2026)
 
 - **Notification bar focus**: the bell and Files no longer show a bump when focused (their white glow was cut off by the bar's rounded edge; the white disc alone marks focus now).
-- **Down from the middle widget** stops at the notification bar instead of skipping it: "All caught up" takes focus across the whole bar.
+- **Down from any widget** lands at the start of the notification bar (the newest notification, or "All caught up") instead of skipping the bar or jumping to the bell; "All caught up" also takes focus across the whole bar.
 - **Down from the notification bar** always goes to the first app in Favorites, at the left, wherever on the bar you were.
 
 ## 3.3.3 (November 2026)

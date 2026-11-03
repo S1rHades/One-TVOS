@@ -85,6 +85,9 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.focusGroup
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
 import android.os.SystemClock
 import androidx.compose.ui.geometry.Offset
@@ -233,6 +236,7 @@ fun LauncherScreen(
     // An installed app's APK the notification bar offered to delete: Delete or Keep it
     var deleteAsk by remember { mutableStateOf<Notice?>(null) }
     val bellFocus = remember { FocusRequester() }
+    val messageFocus = remember { FocusRequester() }
     var searchOpen by remember { mutableStateOf(false) }
     var photoError by remember { mutableStateOf<String?>(null) }
     // Who took the photo on screen (online photos only), shown on the idle screen and in settings
@@ -721,6 +725,13 @@ fun LauncherScreen(
                                         .weight(1f)
                                         .focusRequester(widgetFocus)
                                         .onFocusChanged { widgetsFocused = it.hasFocus }
+                                        // Down from any widget lands at the start of the notification bar (a widget
+                                        // stack uses Down itself first, to flip its cards)
+                                        .onKeyEvent { e ->
+                                            if (e.key != Key.DirectionDown || safeMode != null) return@onKeyEvent false
+                                            if (e.type == KeyEventType.KeyDown) runCatching { messageFocus.requestFocus() }
+                                            true
+                                        }
                                         .focusGroup()
                                         .idlePresentation(focus = { idleFocus }, shift = { idleShift.value }),
                                     onOpenClock = { clockOpen = true },
@@ -761,6 +772,7 @@ fun LauncherScreen(
                                     if (share != null) filesOpen = true else toast = Toast("Files isn't available on this TV")
                                 },
                                 bellFocus = bellFocus,
+                                messageFocus = messageFocus,
                                 // Down from anywhere on the bar starts the row below at the left
                                 onDown = {
                                     scope.launch {

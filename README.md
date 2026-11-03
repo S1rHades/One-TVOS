@@ -125,7 +125,7 @@ The weather, football and headlines pages are described in their own sections be
 
 ### Notifications
 
-The bar under the widgets is as wide as they are. On the left is the newest notification, with how long ago it came and **+3** when there are more; **OK** on it does what it says (installs the update, opens the football page or the file), and holding **OK** dismisses it. With nothing new it says **All caught up**. On the right are the **bell**, with a red dot for anything new, and **Files**. **Down** from any widget stops at the bar, and **Down** again goes to the first app in Favorites, at the left.
+The bar under the widgets is as wide as they are. On the left is the newest notification, with how long ago it came and **+3** when there are more; **OK** on it does what it says (installs the update, opens the football page or the file), and holding **OK** dismisses it. With nothing new it says **All caught up**. On the right are the **bell**, with a red dot for anything new, and **Files**. **Down** from any widget lands at the start of the bar, and **Down** again goes to the first app in Favorites, at the left.
 
 <p align="center"><img src="docs/screenshots/notification-bar.png" width="100%" alt="The home screen with the notification bar under the clock, weather and football cards: Pill Launcher 3.4 is ready and the first line of what's new on the left, +4, then the bell with a red dot and the Files button on the right"></p>
 
