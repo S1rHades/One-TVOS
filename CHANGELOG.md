@@ -5,7 +5,7 @@ Pill Launcher is built from `main` on every change; the newest build is always t
 
 ## 3.3.2 (November 2026)
 
-- **Files asks before deleting an APK**: once the app inside an APK is installed, the notification bar asks instead of deleting it. **OK** offers **Delete** or **Keep it**; holding **OK** keeps it, and each APK is asked about once. The setting is now **Offer to delete installed APKs** (Settings → Files). Nothing in Files is deleted without you, apart from **Remove files after 30 days** when you turn it on.
+- **Files asks before deleting an APK**: once the app inside an APK is installed, the notification bar asks instead of deleting it. **OK** offers **Keep it** (focused first) or **Delete**; holding **OK** keeps it, and each APK is asked about once. The setting is now **Offer to delete installed APKs** (Settings → Files). Nothing in Files is deleted without you, apart from **Remove files after 30 days** when you turn it on.
 
 ## 3.3.1 (November 2026)
 

@@ -173,9 +173,9 @@ Your phone opens a plain page in its browser, with nothing to install: **Send to
 
 **When it runs.** Sharing runs while the launcher is on screen, so a paired phone can send without the Files page open, and stops when another app comes to the front (or 15 minutes later with **Keep receiving** on). It listens only on the TV's home-network address and handles a few phones at a time. Every request must name the TV's own address, and anything that changes something must come from the TV's page, so another website open on the phone can't use it. Files go into Pill Launcher's own folder on the TV (uninstalling the launcher removes them).
 
-**Tidying.** Files never deletes an APK on its own. Once the app inside an APK is installed, the notification bar asks: **OK** on the notice shows **Delete** or **Keep it**, and holding **OK** keeps it. Each APK is asked about once (**Offer to delete installed APKs** in Settings → Files, on by default). **Remove files after 30 days** is off unless you turn it on, and then a notice comes the day before.
+**Tidying.** Files never deletes an APK on its own. Once the app inside an APK is installed, the notification bar asks: **OK** on the notice shows **Keep it** (where focus starts) or **Delete**, and holding **OK** keeps it. Each APK is asked about once (**Offer to delete installed APKs** in Settings → Files, on by default). **Remove files after 30 days** is off unless you turn it on, and then a notice comes the day before.
 
-<p align="center"><img src="docs/screenshots/files-delete-apk.png" width="60%" alt="Over the home screen, a small card: Delete kinopub-2.4.apk?, with Delete (the app stays installed; only the file goes) and Keep it"></p>
+<p align="center"><img src="docs/screenshots/files-delete-apk.png" width="60%" alt="Over the home screen, a small card: Delete kinopub-2.4.apk?, with Keep it focused, then Delete (the app stays installed; only the file goes)"></p>
 
 ### Settings
 

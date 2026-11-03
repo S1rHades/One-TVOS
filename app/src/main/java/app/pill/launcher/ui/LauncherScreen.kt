@@ -1006,13 +1006,14 @@ fun LauncherScreen(
                         Spacer(Modifier.width(14.dp))
                         Text("Delete $name?", color = Palette.TextPrimary, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     },
+                    // Keep it first, so the focus starts on the choice that loses nothing
                     choices = listOf(
+                        MenuChoice("Keep it", "Files won't ask about it again") { onDismissNotice(n) },
                         MenuChoice("Delete", "The app stays installed; only the file goes", warning = true) {
                             share?.delete(name)
                             onDismissNotice(n)
                             toast = Toast("Deleted $name")
                         },
-                        MenuChoice("Keep it", "Files won't ask about it again") { onDismissNotice(n) },
                     ),
                     onDismiss = { deleteAsk = null },
                 )
