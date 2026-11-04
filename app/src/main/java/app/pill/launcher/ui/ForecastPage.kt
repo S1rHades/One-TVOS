@@ -98,11 +98,11 @@ fun ForecastPage(weather: Weather, mode: WeatherMode, onDismiss: () -> Unit) {
         }
         PageTitle(
             weather.place.ifBlank { "Weather" },
-            listOf(
+            listOfNotNull(
                 describe(weather.code) + " · " + formatTemp(weather.tempC, mode),
                 forecast.source,
                 "updated " + ageText(forecast.fetchedAt).lowercase(),
-                "Back to close",
+                backHint(),
             ).joinToString(" · "),
             Modifier.reveal(0),
         )

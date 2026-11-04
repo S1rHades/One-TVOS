@@ -854,4 +854,20 @@ class DataTest {
             server.close()
         }
     }
+
+    /** By use: the most opened first, the runner-up last, the rest in their own order. */
+    @Test
+    fun favouritesByUse() {
+        val pins = listOf("a", "b", "c", "d", "e")
+        assertEquals(listOf("c", "a", "b", "e", "d"), orderByUse(pins, mapOf("c" to 9, "d" to 4, "a" to 1)))
+        // Nothing opened yet, or too few to reorder: as placed
+        assertEquals(pins, orderByUse(pins, emptyMap()))
+        assertEquals(listOf("a", "b"), orderByUse(listOf("a", "b"), mapOf("b" to 3)))
+        // Only one ever opened: it goes first, nothing is put last
+        assertEquals(listOf("d", "a", "b", "c", "e"), orderByUse(pins, mapOf("d" to 2)))
+        // A tie goes to the one placed earlier
+        assertEquals(listOf("b", "a", "c", "e", "d"), orderByUse(pins, mapOf("d" to 5, "b" to 5)))
+        // Counts survive storage, junk is skipped
+        assertEquals(mapOf("a" to 3, "b" to 1), usesFromStored(usesToStored(mapOf("a" to 3, "b" to 1)) + ",bad,=4,c=x"))
+    }
 }

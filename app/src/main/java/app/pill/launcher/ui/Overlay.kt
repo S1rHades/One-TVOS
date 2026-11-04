@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -149,3 +150,10 @@ fun PageFooter(text: String, modifier: Modifier = Modifier) {
 
 /** Room kept under a page, matched at the top by the bar's room minus this, so pages sit centred below the bar. */
 private val PageBottomRoom = 12.dp
+
+/** Whether pages still say "Back to close": true for the first [app.pill.launcher.BackHintTimes] pages opened. */
+val LocalBackHint = staticCompositionLocalOf { true }
+
+/** "Back to close" while the hint is still shown, else null (for listOfNotNull). */
+@Composable
+fun backHint(): String? = if (LocalBackHint.current) "Back to close" else null

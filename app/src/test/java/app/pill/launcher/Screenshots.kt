@@ -405,6 +405,38 @@ class Screenshots {
         check(focusedName().contains("Cinema")) { "Left from the first favourite stays: ${focusedName()}" }
     }
 
+    /**
+     * The press budget from the first favourite: Search is one press (the remote's search
+     * key), All apps one (Down), and Settings no more than six by the bar. Counts are printed
+     * so a change that adds presses shows up in the log before it breaks the budget.
+     */
+    @Test
+    fun pressBudget() {
+        show("misty-valley", pins = favorites)
+        // Search: its key
+        compose.onAllNodes(isFocused()).onFirst().performKeyInput { pressKey(Key.Search) }
+        settle()
+        compose.onNodeWithText("Search apps").assertExists()
+        androidx.test.espresso.Espresso.pressBack()
+        compose.mainClock.advanceTimeBy(800)
+        settle()
+        // All apps: Down
+        focusOn("Cinema")
+        press(Key.DirectionDown)
+        check(focusedName().contains("All")) { "All apps is one press down: ${focusedName()}" }
+        // Settings: Up to the bar, then along it
+        focusOn("Cinema")
+        var presses = 0
+        while (barItems.none { focusedName().startsWith(it) } && !focusedName().startsWith("Internet") && presses < 8) {
+            press(Key.DirectionUp); presses++
+        }
+        while (!focusedName().startsWith("Settings") && presses < 12) {
+            press(Key.DirectionRight); presses++
+        }
+        println("PRESS BUDGET · Search 1 · All apps 1 · Settings $presses")
+        check(focusedName().startsWith("Settings") && presses <= 6) { "Settings took $presses presses: ${focusedName()}" }
+    }
+
     /** With no widget that takes focus, Up from Favorites and Down from the bar skip the widgets. */
     @Test
     fun navigationWithQuietWidgets() {
@@ -467,11 +499,11 @@ class Screenshots {
         gear.performKeyInput { pressKey(Key.DirectionDown) }
         settle()
         // The home screen behind keeps its own focused tile; the panel's focus is on its first row
-        compose.onNode(isFocused() and (hasText("Background") or hasText("Widgets") or hasText("Favorites row"))).assertExists()
+        compose.onNode(isFocused() and (hasText("Home screen") or hasText("Widgets") or hasText("Notifications"))).assertExists()
         compose.onAllNodesWithContentDescription("Home").onLast().performSemanticsAction(SemanticsActions.OnClick)
         compose.mainClock.advanceTimeBy(600)
         settle()
-        compose.onNodeWithText("Background").assertDoesNotExist()
+        compose.onNodeWithText("Home screen").assertDoesNotExist()
         check(focusedName().contains("Cinema")) { "Home from Settings goes to the first favourite: ${focusedName()}" }
     }
 
@@ -537,12 +569,12 @@ class Screenshots {
         compose.onAllNodesWithContentDescription("Settings").onLast().performSemanticsAction(SemanticsActions.OnClick)
         compose.mainClock.advanceTimeBy(600)
         settle()
-        compose.onNodeWithText("Background").assertExists()
+        compose.onNodeWithText("Home screen").assertExists()
         compose.onNodeWithText("Start test").assertExists()
         androidx.test.espresso.Espresso.pressBack()
         compose.mainClock.advanceTimeBy(800)
         settle()
-        compose.onNodeWithText("Background").assertDoesNotExist()
+        compose.onNodeWithText("Home screen").assertDoesNotExist()
         compose.onNodeWithText("Start test").assertExists()
     }
 
@@ -677,6 +709,9 @@ class Screenshots {
         compose.onNodeWithText("Pill Launcher 3.4 is ready", substring = true).assertIsDisplayed()
         compose.onRoot().captureRoboImage(File(out, "notification-bar.png").path)
         compose.onNodeWithContentDescription("Settings").performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        // Updates sits under TV & system
+        compose.onNodeWithText("TV & system").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
         settle()
         compose.onNodeWithText("Updates").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
         settle()
@@ -821,6 +856,10 @@ class Screenshots {
             compose.onNode(hasText("Files") and hasText("deleting APKs", substring = true)).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
             settle()
             compose.onNodeWithText("Offer to delete installed APKs").assertExists()
+            // The trusted phones wait under Advanced; OK unfolds them
+            compose.onNodeWithText("iPhone").assertDoesNotExist()
+            compose.onNode(hasText("Advanced") and hasText("2 phones", substring = true)).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+            settle()
             compose.onNodeWithText("iPhone").assertExists()
             captureScreenRoboImage(File(out, "settings-files.png").path)
         } finally {

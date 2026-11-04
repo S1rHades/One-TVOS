@@ -117,7 +117,7 @@ fun ClockPage(place: String?, onDismiss: () -> Unit) {
         }
 
         PageFooter(
-            listOfNotNull(place?.takeIf { it.isNotBlank() }, zoneText(now), "Back to close").joinToString(" · "),
+            listOfNotNull(place?.takeIf { it.isNotBlank() }, zoneText(now), backHint()).joinToString(" · "),
             Modifier.padding(top = 16.dp),
         )
     }

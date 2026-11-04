@@ -100,6 +100,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.pill.launcher.AppCategory
+import app.pill.launcher.BackHintTimes
 import app.pill.launcher.AppEntry
 import androidx.compose.animation.core.LinearEasing
 import app.pill.launcher.Fixtures
@@ -286,6 +287,10 @@ fun LauncherScreen(
     // The Internet page, from the rail
     var internetOpen by remember { mutableStateOf(false) }
     val pageOpen = forecastOpen || clockOpen || prayersOpen || hubTeam != null || headlineAt != null || internetOpen || filesOpen
+    // Count the first few pages opened, after which their titles stop saying "Back to close"
+    LaunchedEffect(pageOpen) {
+        if (pageOpen && settings.pagesSeen <= BackHintTimes) onSettingsChange(settings.copy(pagesSeen = settings.pagesSeen + 1))
+    }
     // The All apps chip picked (null: all), and the first chip, where the rail's Apps lands
     var appFilter by remember { mutableStateOf<AppCategory?>(null) }
     val chipFocus = remember { FocusRequester() }
@@ -603,6 +608,7 @@ fun LauncherScreen(
     // The blurred photo for glass surfaces, and Roboto Flex as the default for all text
     CompositionLocalProvider(
         LocalNavBar provides navBar,
+        LocalBackHint provides (settings.pagesSeen <= BackHintTimes),
         LocalBackdrop provides backdrop,
         LocalWallpaperTint provides wallpaperTint,
         LocalTextStyle provides LocalTextStyle.current.merge(TextStyle(fontFamily = Flex)),
@@ -614,11 +620,17 @@ fun LauncherScreen(
                 .onPreviewKeyEvent { event ->
                     lastInput = SystemClock.uptimeMillis()
                     // While idle, a key only wakes the screen; it does not also act
-                    if (idle) {
-                        if (event.type == KeyEventType.KeyDown) idle = false
-                        true
-                    } else {
-                        false
+                    when {
+                        idle -> {
+                            if (event.type == KeyEventType.KeyDown) idle = false
+                            true
+                        }
+                        // The remote's (or a keyboard's) search key goes straight to Search
+                        event.key == Key.Search -> {
+                            if (event.type == KeyEventType.KeyUp) navigate(NavItem.Search)
+                            true
+                        }
+                        else -> false
                     }
                 },
         ) {
@@ -992,6 +1004,7 @@ fun LauncherScreen(
                     app = app,
                     pinned = app.pkg in pins,
                     okHeld = request.okHeld,
+                    movable = !settings.favoritesByUse,
                     onAction = { action ->
                         when (action) {
                             MenuAction.TogglePin -> togglePin(app, fromFavorites = request.fromFavorites)

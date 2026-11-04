@@ -39,7 +39,7 @@ Ideas shown as mockups and passed over are listed in [docs/PLANNED.md](docs/PLAN
 
 A greeting for the time of day sits above the widgets (the clock and weather cards say the date and place), and the [notification bar](#notifications) runs under them. Your favourites run along the bottom, and the photo behind them changes every few seconds, cross-fading to the next only once it has loaded, so it never flashes.
 
-Favourites are app icons, in one row that scrolls or wrapped onto more rows (**Settings → Favorites row → Layout**).
+Favourites are app icons, in one row that scrolls or wrapped onto more rows (**Settings → Home screen → Favorites row → Layout**). **Order** there can put them **by use** instead: the app you open most goes first and the next most opened last, the places people find quickest, with the rest in your own order.
 
 <table>
   <tr>
@@ -85,7 +85,7 @@ Press **Down** from Favorites for every app as a card in its own colour. Chips a
 
 ### Widgets
 
-Up to four cards across the top: clock, weather, sunrise & sunset, system info, headlines, football and prayer times. Switch them on and off and reorder them under **Settings → Widgets**. With two on, the cards are roomy; with four, they switch to compact layouts.
+Up to four cards across the top: clock, weather, sunrise & sunset, system info, headlines, football and prayer times. Switch them on and off and reorder them under **Settings → Widgets**, where the ones that are on sit numbered in their own group, apart from the ones available. With two on, the cards are roomy; with four, they switch to compact layouts.
 
 <table>
   <tr>
@@ -96,7 +96,7 @@ Up to four cards across the top: clock, weather, sunrise & sunset, system info, 
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/widget-settings.png" alt="Settings with the Widgets group: four widgets on with their positions, System info dimmed, and a message saying Maximum of 4 widgets can be active at once"><br><sub><b>Widget settings</b>: OK switches a widget; Left / Right moves it.</sub></td>
+    <td width="50%"><img src="docs/screenshots/widget-settings.png" alt="Settings, Widgets: the four widgets on, numbered, in an On group; System info dimmed under Available; and a message saying Maximum of 4 widgets can be active at once"><br><sub><b>Widget settings</b>: the four on, then the rest; OK switches a widget, Left / Right moves it.</sub></td>
     <td width="50%"><img src="docs/screenshots/weather-icons.png" alt="The weather widget's icons: clear, partly cloudy, cloudy, fog, rain, snow, thunderstorm, clear night and partly cloudy night"><br><sub><b>Weather icons</b>: drawn by the app, with a little movement (sun rays turn, rain falls).</sub></td>
   </tr>
 </table>
@@ -167,7 +167,7 @@ Your phone opens a plain page in its browser, with nothing to install: **Send to
 <table>
   <tr>
     <td width="50%"><img src="docs/screenshots/files-approve.png" alt="Over the home screen, a small card: iPhone wants to connect, with Allow (it can send and save files for 90 days) and Block"><br><sub><b>A typed code</b>: the TV asks before the phone gets in.</sub></td>
-    <td width="50%"><img src="docs/screenshots/settings-files.png" alt="Settings, Files: Keep receiving, Offer to delete installed APKs, Remove files after 30 days, then Trusted devices with iPhone and Computer, and Sign out every phone"><br><sub><b>Settings → Files</b>: keep receiving, tidying, and the trusted phones.</sub></td>
+    <td width="50%"><img src="docs/screenshots/settings-files.png" alt="Settings, Files: Keep receiving, Offer to delete installed APKs, Remove files after 30 days, then Advanced unfolded to the trusted iPhone and Computer, and Sign out every phone"><br><sub><b>Settings → Files</b>: keep receiving, tidying, and under Advanced the trusted phones.</sub></td>
   </tr>
 </table>
 
@@ -179,12 +179,12 @@ Your phone opens a plain page in its browser, with nothing to install: **Send to
 
 ### Settings
 
-**Settings** in the bar opens a floating card for the photos, widgets, favourites, idle screen, how the launcher becomes the home screen, notifications, and the TV's own settings. **TV & system** frees memory and opens the TV's network, display, sound, storage and update screens.
+**Settings** in the bar opens a floating card with six categories, all on screen at once: **Home screen** (the photos, the favourites row and the idle screen), **Widgets**, **Notifications**, **Files**, **Home & startup**, and **TV & system**. **TV & system** holds the launcher's **Updates**, frees memory, and opens the TV's network, display, sound, storage and update screens. Options few people need, such as the prayer times' API address and the list of trusted phones, wait under an **Advanced** row on their page; OK unfolds them.
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/settings.png" alt="The settings card on the right: Background, Widgets, Favorites row, Idle screen, Home and startup, Notifications, Files, and TV and system, each with its current choice underneath"><br><sub><b>Settings</b>: each row shows its current choice.</sub></td>
-    <td width="50%"><img src="docs/screenshots/settings-system.png" alt="Settings, TV and system: Free up memory focused, then Network and Wi-Fi, Display, Sound, Storage and System update"><br><sub><b>TV & system</b>: the TV's own screens, one press away.</sub></td>
+    <td width="50%"><img src="docs/screenshots/settings.png" alt="The settings card on the right: Home screen, Widgets, Notifications, Files, Home and startup, and TV and system, each with its current choice underneath"><br><sub><b>Settings</b>: each row shows its current choice.</sub></td>
+    <td width="50%"><img src="docs/screenshots/settings-system.png" alt="Settings, TV and system: Updates with its status, then Free up memory, Network and Wi-Fi, Display, Sound, Storage and System update"><br><sub><b>TV & system</b>: the launcher's updates, then the TV's own screens.</sub></td>
   </tr>
 </table>
 
@@ -192,7 +192,7 @@ Your phone opens a plain page in its browser, with nothing to install: **Send to
 
 When a newer Pill Launcher is on GitHub, the notification bar says so, with the first line of what's new. **OK** on it (or **Update** in the list) downloads it with a progress bar, then Android asks you to confirm the install; settings and favourites stay, since every release is signed with the same key. **Later**, or holding **OK** on it, puts it off until the next version. The first time, Android asks to allow Pill Launcher to install apps. After an update, "Updated to …" says what was new.
 
-**Settings → Updates** checks by hand, installs from there with the same progress, lists what's new, and turns off the check every few hours.
+**Settings → TV & system → Updates** checks by hand, installs from there with the same progress, lists what's new, and turns off the check every few hours.
 
 <p align="center"><img src="docs/screenshots/settings-updates.png" width="50%" alt="Settings, Updates: Check for updates, Update to 3.4 with its size, Check automatically switched on, and what's new in 3.4"><br><sub><b>Settings → Updates</b>: check, install and what's new.</sub></p>
 
@@ -204,7 +204,7 @@ If the launcher ever crashes twice within a minute (after a bad update, say), it
 
 ### Idle screen
 
-After a while without a key press (two minutes by default, under **Settings → Idle screen**), everything but the widgets fades away (the notification bar too) and the photo slowly zooms. Nothing else is on the photo: no captions or credits. Any key brings the home screen back.
+After a while without a key press (two minutes by default, under **Settings → Home screen → Idle screen**), everything but the widgets fades away (the notification bar too) and the photo slowly zooms. Nothing else is on the photo: no captions or credits. Any key brings the home screen back.
 
 <p align="center"><img src="docs/screenshots/idle.png" width="100%" alt="The idle screen: only the clock, weather and football cards over a slowly zooming photo of snowy mountains"></p>
 
@@ -232,7 +232,7 @@ On TVs that ignore that command, turning off the stock launcher works too (turn 
 
 The `latest` release is rebuilt automatically every time `main` changes, so installing it again always gets you the newest version.
 
-Every version also keeps its own release, named after it (**Pill Launcher 3.4.5**, tag `v3.4.5`, file `pill-launcher-3.4.5.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v3.4.5/pill-launcher-3.4.5.apk`. The newest is titled **Pill Launcher 3.4.5 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
+Every version also keeps its own release, named after it (**Pill Launcher 3.5**, tag `v3.5`, file `pill-launcher-3.5.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v3.5/pill-launcher-3.5.apk`. The newest is titled **Pill Launcher 3.5 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
 
 ### Uninstalling
 
@@ -255,24 +255,25 @@ If the launcher won't open, use the TV's own **Settings → Apps → Pill Launch
 | Open, install, send to a phone or delete a file on the TV | **Files**, then **OK** on it, or hold **OK** |
 | Keep receiving files after leaving the launcher | **Keep receiving** on the Files page or in **Settings → Files** (15 minutes) |
 | Let in a phone that typed the code | **Allow** on the card the TV shows |
-| Remove a trusted phone, or sign every phone out | **Settings → Files** |
+| Remove a trusted phone, or sign every phone out | **Settings → Files → Advanced** |
 | Delete an installed app's APK | **OK** on its notice in the bar, then **Delete** (hold **OK** to keep it) |
 | Files tidying: asking about installed APKs, removing files after 30 days | **Settings → Files** |
 | Hide the text of private messages | **Settings → Notifications → Hide private messages** |
 | See all apps | **Down** from Favorites |
 | Show only video, music or game apps | **Down** to the chips above All apps, **Left** / **Right**, then **OK** |
-| Find an app | **Search** in the bar, then letters from the strip (**Left** / **Right**, OK), or **Up** to the field for the keyboard |
+| Find an app | The remote's search key, or **Search** in the bar, then letters from the strip (**Left** / **Right**, OK), or **Up** to the field for the keyboard |
 | Test the internet speed, or open Wi-Fi settings | **Wi-Fi** in the bar, then **Start test** or **Network settings** |
 | See if a VPN is on | The Internet page says so |
-| Change how favourites are laid out | **Settings → Favorites row → Layout**: Scroll or Wrap |
+| Change how favourites are laid out | **Settings → Home screen → Favorites row → Layout**: Scroll or Wrap |
+| Order favourites by how often you open them | **Settings → Home screen → Favorites row → Order**: By use |
 | Wake the idle screen | Any key |
 | App menu: pin / unpin, move, app info, uninstall | Hold **OK** for half a second, or press **Menu** (☰) |
-| Reorder favourites | App menu → **Move**, then **Left** / **Right**, and **OK** when done |
+| Reorder favourites | App menu → **Move**, then **Left** / **Right**, and **OK** when done (not while they're ordered by use) |
 | Open settings | **Settings** (the gear) in the bar, then **OK** |
 | Rename an app | App menu → **Rename…**, then **Save** |
 | Flip through a widget stack | With it focused, **Up** / **Down** |
 | Choose and order a widget stack's widgets | **Settings → Widgets → Widget stack**: OK adds or removes one; hold OK, then **Left** / **Right**, moves it |
-| Install a newer version | **OK** on its notice in the notification bar, or **Settings → Updates** |
+| Install a newer version | **OK** on its notice in the notification bar, or **Settings → TV & system → Updates** |
 | Choose the town the weather is for | **Settings → Widgets → Weather location**, type its name, then **OK** on it |
 | Change how often the photo changes, or the weather unit | In settings, **Left** / **Right** on that row |
 | Turn widgets on or off | **Settings → Widgets**, **OK** on a widget (up to four at once) |
@@ -287,7 +288,7 @@ If the launcher won't open, use the TV's own **Settings → Apps → Pill Launch
 | Open the prayer page, and refresh the times | Go up to the prayer card, then **OK**; **Refresh** at the top left |
 | Free up memory, or open the TV's network, display, sound or update screens | **Settings → TV & system** |
 | Uninstall Pill Launcher (OK twice, then confirm) | **Settings → TV & system → Uninstall Pill Launcher** |
-| Close a page or settings | **Back** |
+| Close a page or settings | **Back** (pages say so the first three times) |
 
 Settings and favourites are saved on the TV and survive restarts and updates.
 
@@ -405,7 +406,7 @@ gradle assembleDebug                                   # app/build/outputs/apk/d
 gradle :app:testDebugUnitTest --tests '*Screenshots*'  # re-render docs/screenshots
 ```
 
-**Builds are automated.** `.github/workflows/build.yml` builds the APK for every pull request and push; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v3.4.5`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
+**Builds are automated.** `.github/workflows/build.yml` builds the APK for every pull request and push; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v3.5`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
 
 <details>
 <summary><b>Architecture</b></summary>

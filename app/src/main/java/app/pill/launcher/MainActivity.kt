@@ -114,6 +114,8 @@ class MainActivity : ComponentActivity() {
             var names by remember { mutableStateOf(store.readNames()) }
             val apps = remember(scanned, names) { scanned?.let { withNames(it, names) } }
             var pins by remember { mutableStateOf(store.readPins()) }
+            // Openings per app, for favourites ordered by use
+            var uses by remember { mutableStateOf(store.readUses()) }
             var settings by remember { mutableStateOf(store.load()) }
             // Safe mode: no widgets (so no data is fetched), no Files; a minute of normal running forgets the crashes
             val safe = safeMode
@@ -332,13 +334,16 @@ class MainActivity : ComponentActivity() {
                 searchTeams = { query -> withContext(Dispatchers.IO) { findTeams(query) } },
                 searchPlaces = { query -> withContext(Dispatchers.IO) { runCatching { searchPlaces(query) } } },
                 onlinePhotos = onlinePhotos,
-                pins = pins,
+                pins = if (settings.favoritesByUse) orderByUse(pins, uses) else pins,
                 settings = if (safe != null) settings.copy(widgets = emptyList()) else settings,
                 onSettingsChange = {
                     settings = it
                     store.save(it)
                 },
-                onOpen = { openApp(it) },
+                onOpen = {
+                    uses = store.addUse(it.pkg)
+                    openApp(it)
+                },
                 onTogglePin = { app ->
                     pins = if (app.pkg in pins) pins - app.pkg else pins + app.pkg
                     store.savePins(pins)

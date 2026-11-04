@@ -68,7 +68,7 @@ fun HeadlinePage(picked: List<PickedHeadline>, start: Int, onDismiss: () -> Unit
         }
         PageTitle(
             "Headlines",
-            listOf(if (picked.size == 1) "1 story" else "${picked.size} stories", "Up / Down for more", "Back to close").joinToString(" · "),
+            listOfNotNull(if (picked.size == 1) "1 story" else "${picked.size} stories", "Up / Down for more", backHint()).joinToString(" · "),
             Modifier.reveal(0),
         )
         Row(Modifier.fillMaxWidth().height(PageBodyHeight), horizontalArrangement = Arrangement.spacedBy(12.dp)) {

@@ -82,7 +82,7 @@ fun PrayerPage(
                 },
                 if (times != null && !today) "yesterday's times" else null,
                 "MAWAQIT",
-                "Back to close",
+                backHint(),
             ).joinToString(" · "),
             Modifier.reveal(0),
         )

@@ -24,6 +24,10 @@ data class LauncherSettings(
     val favoritesLayout: FavoritesLayout = FavoritesLayout.Scroll,
     /** Sliding and reordering animations in the favourites row. */
     val favoritesAnimation: Boolean = true,
+    /** Favourites ordered by use (see [orderByUse]) instead of where they were put. */
+    val favoritesByUse: Boolean = false,
+    /** Pages opened so far, up to [BackHintTimes]: their titles say "Back to close" only the first few times. */
+    val pagesSeen: Int = 0,
     /** Header cards, in display order; at most [MaxWidgets]. */
     val widgets: List<WidgetKind> = DefaultWidgets,
     /** "Not now" on the home-screen prompt to make Pill Launcher the home screen. */
@@ -90,6 +94,8 @@ class SettingsStore(context: Context) {
             ?.let { name -> FavoritesLayout.entries.firstOrNull { it.name == name } }
             ?: FavoritesLayout.Scroll,
         favoritesAnimation = prefs.getBoolean("favoritesAnimation", true),
+        favoritesByUse = prefs.getBoolean("favoritesByUse", false),
+        pagesSeen = prefs.getInt("pagesSeen", 0),
         // Before widgets, the weather setting had an Off choice; it maps to the widget being off
         widgets = parseWidgets(prefs.getString("widgets", null))
             ?: if (prefs.getString("weather", null) == WeatherMode.Off.name) DefaultWidgets - WidgetKind.Weather else DefaultWidgets,
@@ -127,6 +133,8 @@ class SettingsStore(context: Context) {
             .putBoolean("idleAnimation", settings.idleAnimation)
             .putString("favoritesLayout", settings.favoritesLayout.name)
             .putBoolean("favoritesAnimation", settings.favoritesAnimation)
+            .putBoolean("favoritesByUse", settings.favoritesByUse)
+            .putInt("pagesSeen", settings.pagesSeen)
             .putString("widgets", settings.widgets.toStored())
             .putBoolean("homePromptDismissed", settings.homePromptDismissed)
             .putBoolean("onlinePhotos", settings.onlinePhotos)
@@ -154,6 +162,17 @@ class SettingsStore(context: Context) {
 
     fun savePins(pins: List<String>) {
         prefs.edit().putString("pins", pins.joinToString(",")).apply()
+    }
+
+    /** How many times each app has been opened from the launcher, by package. */
+    fun readUses(): Map<String, Int> = usesFromStored(prefs.getString("uses", null))
+
+    /** Counts one more opening of [pkg] and returns the new counts. */
+    fun addUse(pkg: String): Map<String, Int> {
+        val uses = readUses().toMutableMap()
+        uses[pkg] = (uses[pkg] ?: 0) + 1
+        prefs.edit().putString("uses", usesToStored(uses)).apply()
+        return uses
     }
 
     /** Names given to apps in the launcher, by package. The apps themselves keep theirs. */
@@ -211,3 +230,36 @@ fun cleanName(name: String, original: String): String? =
     name.trim().replace(Regex("\\s+"), " ").take(MaxNameLength).takeIf { it.isNotEmpty() && it != original }
 
 const val MaxNameLength = 30
+
+/** "pkg=3,other=1" ↔ counts; anything unreadable is skipped. */
+fun usesFromStored(text: String?): Map<String, Int> =
+    text.orEmpty().split(",").mapNotNull { part ->
+        val pkg = part.substringBefore("=", "").trim()
+        val n = part.substringAfter("=", "").trim().toIntOrNull()
+        if (pkg.isEmpty() || n == null || n <= 0) null else pkg to n
+    }.toMap()
+
+fun usesToStored(uses: Map<String, Int>): String = uses.entries.joinToString(",") { "${it.key}=${it.value}" }
+
+/**
+ * The favourites in order of use, for the serial position effect: people find the first
+ * and last places easiest, so the most-opened app goes first and the runner-up last. The
+ * rest keep the order they were put in. Apps never opened from the launcher stay where
+ * they are; with fewer than three favourites, or nothing opened yet, nothing moves.
+ */
+fun orderByUse(pins: List<String>, uses: Map<String, Int>): List<String> {
+    if (pins.size < 3) return pins
+    // Most used first; a tie goes to the one placed earlier
+    val ranked = pins.withIndex()
+        .filter { (uses[it.value] ?: 0) > 0 }
+        .sortedWith(compareByDescending<IndexedValue<String>> { uses[it.value] ?: 0 }.thenBy { it.index })
+        .map { it.value }
+    if (ranked.isEmpty()) return pins
+    val first = ranked[0]
+    val last = ranked.getOrNull(1)
+    val middle = pins.filter { it != first && it != last }
+    return listOf(first) + middle + listOfNotNull(last)
+}
+
+/** How many page openings show "Back to close" before the hint goes (Occam's razor: once learned, it's clutter). */
+const val BackHintTimes = 3

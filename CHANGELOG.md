@@ -3,6 +3,18 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 3.5 (November 2026)
+
+Fewer presses and fewer choices, the first part of a plan built on well-known UX laws (Hick's, Fitts's and Miller's laws, the serial position effect, progressive disclosure, and Occam's razor):
+
+- **Settings has six categories instead of nine**, so the whole list fits without scrolling. **Home screen** holds Background, Favorites row and Idle screen; **Updates** moved under **TV & system**.
+- **Widgets settings**: the widgets that are on sit in their own numbered group, apart from the ones available. Turning one on or off moves it to the other group, and focus goes with it.
+- **The remote's search key** opens Search directly. (Some remotes send their microphone button to Google Assistant instead; those still use Search in the bar.)
+- **Favourites by use**: **Settings → Home screen → Favorites row → Order** can put the app you open most first and the next most opened last, with the rest in your own order. Move is hidden in the app menu while it's on.
+- **Advanced**: the prayer times' API address and the list of trusted phones are folded under an **Advanced** row on their pages.
+- **"Back to close"** shows on the first three pages you open, then the titles drop it.
+- A new test keeps a press budget: Search one press, All apps one, Settings no more than six.
+
 ## 3.4.5 (November 2026)
 
 More animation fixes, from a frame-by-frame look at the menus and pages the last round didn't cover:
