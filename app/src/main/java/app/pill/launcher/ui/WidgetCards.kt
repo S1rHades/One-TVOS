@@ -510,9 +510,9 @@ private fun CardLabel(text: String, modifier: Modifier = Modifier, color: Color 
     FitText(
         text.uppercase(),
         shorter = shorter.map { it.uppercase() },
+        modifier = modifier.padding(end = LocalLabelEndRoom.current),
         style = TextStyle(fontFamily = Flex, color = color, fontSize = 12.sp, fontWeight = FontWeight(650), letterSpacing = 1.3.sp),
         maxLines = 1,
-        modifier = modifier,
     )
 }
 
@@ -700,6 +700,8 @@ private fun FootballCard(
         onKey = keys,
         onFocusChange = { cardFocused = it },
     ) {
+        // The card's top line keeps clear of the team dots in its top right corner
+        CompositionLocalProvider(LocalLabelEndRoom provides if (count > 1 && moment == null) 26.dp else 0.dp) {
         Crossfade(current, animationSpec = tween(600), label = "footballTeam", modifier = Modifier.align(Alignment.Center)) { f ->
             Box(Modifier.fillMaxSize().clipToBounds(), contentAlignment = Alignment.CenterStart) {
                 when {
@@ -708,6 +710,7 @@ private fun FootballCard(
                     else -> TeamFixtures(f, if (f.team.id == current?.team?.id) phase else MatchPhase.None, now, compact)
                 }
             }
+        }
         }
         if (moment?.kind == MomentKind.Win) Confetti(moment.at, Modifier.matchParentSize())
         if (count > 1 && moment == null) {
@@ -1398,3 +1401,6 @@ internal fun FitText(
         }
     }
 }
+
+/** Room a card's top line leaves at its end, for something drawn there (the football card's team dots). */
+private val LocalLabelEndRoom = staticCompositionLocalOf { 0.dp }

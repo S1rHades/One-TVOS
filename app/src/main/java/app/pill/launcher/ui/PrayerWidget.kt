@@ -4,6 +4,7 @@ import android.text.format.DateFormat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -147,8 +148,22 @@ fun PrayerWidget(
 /** The five prayers side by side, the next one in white with a green dot. */
 @Composable
 private fun PrayerStrip(times: PrayerTimes, next: NextPrayer?, clock: DateTimeFormatter, modifier: Modifier = Modifier, picked: Prayer? = null) {
-    Row(modifier, horizontalArrangement = Arrangement.SpaceBetween) {
-        for ((prayer, time) in times.list) {
+    // As much as the card's width allows: all five with AM / PM, then all five without it,
+    // then the bright one with the prayers either side of it
+    BoxWithConstraints(modifier) {
+    val per = maxWidth / times.list.size.coerceAtLeast(1)
+    val bright = picked ?: next?.prayer
+    val shown = when {
+        per >= 44.dp -> times.list
+        else -> {
+            val at = times.list.indexOfFirst { it.first == bright }.coerceAtLeast(0)
+            val from = (at - 1).coerceIn(0, (times.list.size - 3).coerceAtLeast(0))
+            times.list.drop(from).take(3)
+        }
+    }
+    val bare = per < 84.dp
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        for ((prayer, time) in shown) {
             // The one in the big line is the bright one: the next prayer, or the one picked by hand
             val current = prayer == (picked ?: next?.prayer)
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -164,12 +179,15 @@ private fun PrayerStrip(times: PrayerTimes, next: NextPrayer?, clock: DateTimeFo
                     )
                 }
                 Text(
-                    time.format(clock),
+                    // Short of room, "12:14" says it; the AM / PM is plain from the prayer
+                    time.format(clock).let { if (bare) it.replace(Regex("""\s?[AaPp]\.?\s?[Mm]\.?$"""), "") else it },
                     style = prayerStyle(13.sp, if (current) Palette.TextPrimary else Palette.TextSecondary, if (current) 600 else 500),
                     maxLines = 1,
+                    softWrap = false,
                 )
             }
         }
+    }
     }
 }
 
