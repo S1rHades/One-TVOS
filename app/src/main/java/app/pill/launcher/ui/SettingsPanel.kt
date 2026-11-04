@@ -705,7 +705,7 @@ private fun Group(label: String?, content: @Composable ColumnScope.() -> Unit) {
         verticalArrangement = Arrangement.spacedBy(2.dp),
         content = content,
     )
-    Spacer(Modifier.height(14.dp))
+    Spacer(Modifier.height(Space.Group))
 }
 
 /**

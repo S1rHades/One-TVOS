@@ -10,6 +10,7 @@ import app.pill.launcher.R
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 /** Shared colours, so every surface and text tint comes from one place. */
 object Palette {
@@ -76,3 +77,21 @@ val FlexDisplay = FontFamily(
         )
     },
 )
+
+/**
+ * Spacing, so that what belongs together sits closer than what doesn't (proximity): a
+ * label against its value, rows within a group, groups apart.
+ */
+object Space {
+    val Tight = 4.dp
+    val Item = 12.dp
+    val Group = 24.dp
+}
+
+/** The type scale pages keep to: one hero, then title, body and caption (visual hierarchy). */
+object TypeScale {
+    val Hero = 60.sp
+    val Title = 30.sp
+    val Body = 17.sp
+    val Caption = 13.sp
+}

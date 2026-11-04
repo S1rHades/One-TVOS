@@ -437,6 +437,95 @@ class Screenshots {
         check(focusedName().startsWith("Settings") && presses <= 6) { "Settings took $presses presses: ${focusedName()}" }
     }
 
+    /**
+     * Solid white means focus and nothing else (the Von Restorff effect only works for one
+     * thing at a time): Settings, the app menu and a page each show exactly one solid white
+     * shape, the focused item. Counted on the rendered screen in 12 px blocks, so text and
+     * thin rings don't count, only filled shapes.
+     */
+    @Test
+    fun oneWhiteThingAtATime() {
+        show("pine-forest", pins = favorites)
+        fun blobs(name: String): Int {
+            val file = File(out, "_$name.png")
+            captureScreenRoboImage(file.path)
+            val bmp = BitmapFactory.decodeFile(file.path)
+            file.delete()
+            val n = whiteBlobs(bmp)
+            println("WHITE SHAPES · $name: $n")
+            return n
+        }
+        compose.onNodeWithContentDescription("Settings").performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        val settingsCount = blobs("settings")
+        check(settingsCount == 1) { "Settings shows $settingsCount solid white shapes" }
+        androidx.test.espresso.Espresso.pressBack()
+        compose.mainClock.advanceTimeBy(800)
+        settle()
+        focusOn("Cinema")
+        compose.onAllNodes(isFocused()).onFirst().performKeyInput { pressKey(Key.Menu) }
+        settle()
+        val menuCount = blobs("menu")
+        check(menuCount == 1) { "The app menu shows $menuCount solid white shapes" }
+    }
+
+    /** Menu (or holding OK) on a widget: its settings, moving it, and removing it, without going through Settings. */
+    @Test
+    fun widgetMenu() {
+        show("misty-valley", pins = favorites, weather = forecastWeather)
+        val card = compose.onAllNodes(hasClickAction() and hasText("Lisbon", substring = true)).onFirst()
+        card.requestFocus()
+        settle()
+        card.performKeyInput { pressKey(Key.Menu) }
+        settle()
+        compose.onNodeWithText("Widget settings").assertExists()
+        compose.onNodeWithText("Move left").assertExists()
+        compose.onNodeWithText("Remove widget").assertExists()
+        captureScreenRoboImage(File(out, "widget-menu.png").path)
+        compose.onNodeWithText("Remove widget").performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        check(WidgetKind.Weather !in currentSettings.widgets) { "Remove widget turns it off: ${currentSettings.widgets}" }
+    }
+
+    /** Connected areas of near-white 12 px blocks at least four blocks big. */
+    private fun whiteBlobs(bmp: Bitmap): Int {
+        val size = 12
+        val cols = bmp.width / size
+        val rows = bmp.height / size
+        val white = Array(rows) { r ->
+            BooleanArray(cols) { c ->
+                var count = 0
+                for (y in 0 until size step 3) for (x in 0 until size step 3) {
+                    val p = bmp.getPixel(c * size + x, r * size + y)
+                    if ((p shr 16 and 0xFF) >= 240 && (p shr 8 and 0xFF) >= 240 && (p and 0xFF) >= 240) count++
+                }
+                count >= 15 // of 16 samples
+            }
+        }
+        val seen = Array(rows) { BooleanArray(cols) }
+        var found = 0
+        for (r in 0 until rows) for (c in 0 until cols) {
+            if (!white[r][c] || seen[r][c]) continue
+            var area = 0
+            val stack = ArrayDeque(listOf(r to c))
+            seen[r][c] = true
+            while (stack.isNotEmpty()) {
+                val (y, x) = stack.removeLast()
+                area++
+                for ((dy, dx) in listOf(1 to 0, -1 to 0, 0 to 1, 0 to -1)) {
+                    val ny = y + dy
+                    val nx = x + dx
+                    if (ny in 0 until rows && nx in 0 until cols && white[ny][nx] && !seen[ny][nx]) {
+                        seen[ny][nx] = true
+                        stack.addLast(ny to nx)
+                    }
+                }
+            }
+            if (area >= 4) found++
+        }
+        return found
+    }
+
     /** With no widget that takes focus, Up from Favorites and Down from the bar skip the widgets. */
     @Test
     fun navigationWithQuietWidgets() {

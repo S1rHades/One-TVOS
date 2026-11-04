@@ -275,3 +275,23 @@ class NotificationWatcher : NotificationListenerService() {
         }
     }
 }
+
+/**
+ * The list's groups: each source (Pill Launcher's updates, Files, football, the connection,
+ * each other app) once, with its notices under it, newest group first. A shared card per
+ * source groups them at a glance (common region), however they arrived.
+ */
+fun noticeGroups(notices: List<Notice>, appLabel: (String) -> String?): List<Pair<String, List<Notice>>> {
+    val groups = LinkedHashMap<String, MutableList<Notice>>()
+    for (n in notices) {
+        val source = when (n.kind) {
+            NoticeKind.Update, NoticeKind.Updated -> "Pill Launcher"
+            NoticeKind.File -> "Files"
+            NoticeKind.Football -> "Football"
+            NoticeKind.Connection -> "Connection"
+            NoticeKind.App -> n.pkg?.let(appLabel) ?: n.title.ifBlank { "Other apps" }
+        }
+        groups.getOrPut(source) { mutableListOf() } += n
+    }
+    return groups.map { it.key to it.value }
+}

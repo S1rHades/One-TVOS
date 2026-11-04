@@ -279,9 +279,25 @@ private fun ResultRow(label: String, value: String, unit: String) {
  * growing a little, like the pills elsewhere. [icon] draws in the text's colour.
  */
 @Composable
-fun PageButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier, icon: (@Composable (Color) -> Unit)? = null) {
+fun PageButton(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    /** False for the quieter choice beside a main one ("Not now", "Later"): no fill at rest. */
+    primary: Boolean = true,
+    enabled: Boolean = true,
+    icon: (@Composable (Color) -> Unit)? = null,
+) {
     var focused by remember { mutableStateOf(false) }
-    val bg by animateColorAsState(if (focused) Palette.Focus else Color(0x1FFFFFFF), tween(Motion.Quick), label = "pageButtonBg")
+    val bg by animateColorAsState(
+        when {
+            focused -> Palette.Focus
+            primary -> Color(0x1FFFFFFF)
+            else -> Color.Transparent
+        },
+        tween(Motion.Quick),
+        label = "pageButtonBg",
+    )
     val fg by animateColorAsState(if (focused) Palette.Ink else Palette.TextPrimary, tween(Motion.Quick), label = "pageButtonFg")
     val scale by animateFloatAsState(if (focused) 1.05f else 1f, FocusSpring, label = "pageButtonScale")
     Row(
@@ -289,6 +305,7 @@ fun PageButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
+                alpha = if (enabled) 1f else 0.4f
             }
             .height(42.dp)
             .shadow(if (focused) 10.dp else 0.dp, RoundedCornerShape(50))
@@ -296,7 +313,7 @@ fun PageButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier
             .background(bg)
             .border(1.dp, if (focused) Color.Transparent else Color(0x33FFFFFF), RoundedCornerShape(50))
             .onFocusChanged { focused = it.isFocused }
-            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick)
+            .clickable(enabled = enabled, interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick)
             .padding(horizontal = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,

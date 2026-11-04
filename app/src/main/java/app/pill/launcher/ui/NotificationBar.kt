@@ -81,6 +81,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import app.pill.launcher.AppEntry
 import app.pill.launcher.Notice
+import app.pill.launcher.noticeGroups
 import app.pill.launcher.NoticeKind
 import app.pill.launcher.UpdatePhase
 import app.pill.launcher.UpdateState
@@ -139,7 +140,10 @@ fun NotificationBar(
     // Each row's focus, so dismissing one hands focus to the one that takes its place
     val rowFocus = remember { HashMap<String, FocusRequester>() }
     var refocusAt by remember { mutableStateOf<Int?>(null) }
-    val currentNotices by rememberUpdatedState(notices)
+    // Grouped by where they came from; focus and dismissal follow this order
+    val groups = remember(notices, apps) { noticeGroups(notices) { pkg -> apps.firstOrNull { it.pkg == pkg }?.label } }
+    val ordered = remember(groups) { groups.flatMap { it.second } }
+    val currentNotices by rememberUpdatedState(ordered)
     LaunchedEffect(refocusAt) {
         val at = refocusAt ?: return@LaunchedEffect
         // A few frames for the list to lose the dismissed row
@@ -285,7 +289,23 @@ fun NotificationBar(
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
                         )
                     }
-                    for ((i, n) in notices.withIndex()) {
+                    for ((source, group) in groups) {
+                        key("group:$source") {
+                        Text(
+                            source.uppercase(),
+                            color = Palette.TextTertiary,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            letterSpacing = 1.3.sp,
+                            maxLines = 1,
+                            modifier = Modifier.padding(start = 14.dp, top = 8.dp, bottom = 2.dp),
+                        )
+                        Column(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Color(0x0FFFFFFF)),
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                        ) {
+                    for (n in group) {
+                        val i = ordered.indexOf(n)
                         key(n.id) {
                             NoticeRow(
                                 notice = n,
@@ -303,6 +323,9 @@ fun NotificationBar(
                                     .focusRequester(rowFocus.getOrPut(n.id) { FocusRequester() })
                                     .then(if (i == 0) Modifier.focusRequester(firstRow) else Modifier),
                             )
+                        }
+                    }
+                        }
                         }
                     }
                 }

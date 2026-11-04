@@ -1,5 +1,6 @@
 package app.pill.launcher.ui
 
+import androidx.compose.runtime.staticCompositionLocalOf
 import android.os.Environment
 import android.os.StatFs
 import android.text.format.DateFormat
@@ -207,6 +208,8 @@ fun WidgetRow(
     prayersError: String? = null,
     hasMosque: Boolean = false,
     onOpenPrayers: (() -> Unit)? = null,
+    /** Holding OK (or Menu) on a card: its menu, told whether OK is still down. */
+    onWidgetMenu: ((WidgetKind, okHeld: Boolean) -> Unit)? = null,
 ) {
     val content = WidgetContent(
         weather, weatherError, mode, football, matchDay, headlines, headlinesStatus, animate,
@@ -241,6 +244,7 @@ fun WidgetRow(
             verticalAlignment = Alignment.Top,
         ) {
             items(widgets, key = { it.name }) { kind ->
+                CompositionLocalProvider(LocalWidgetMenu provides onWidgetMenu?.let { menu -> { held: Boolean -> menu(kind, held) } }) {
                 val item = Modifier
                     .animateItem(
                         fadeInSpec = tween(450, delayMillis = 120),
@@ -250,6 +254,7 @@ fun WidgetRow(
                     .width(animateDpAsState(natural(kind, compact) * share, tween(450, easing = FastOutSlowInEasing), label = "widgetWidth").value)
                 if (kind == WidgetKind.Stack) StackCard(stack, stackPreview, content, compact, item)
                 else content.Card(kind, compact, item)
+                }
             }
         }
     }
@@ -440,6 +445,13 @@ private fun WidgetCard(
     val interaction = remember { MutableInteractionSource() }
     val hovered by interaction.collectIsHoveredAsState()
     var ownFocus by remember { mutableStateOf(false) }
+    // Holding OK (or Menu) opens the widget's own menu, as it does on an app
+    val onMenu = LocalWidgetMenu.current
+    val tile = rememberTileInput(
+        onOpen = { onClick?.invoke() },
+        onMenu = { held -> onMenu?.invoke(held) },
+        onFocus = { ownFocus = it },
+    )
     // In a stack, the stack holds focus and does the growing; the card shows the edge
     val slot = LocalStackSlot.current
     if (slot != null) SideEffect {
@@ -471,8 +483,12 @@ private fun WidgetCard(
                 if (onClick == null || slot != null) Modifier
                 else Modifier
                     .then(if (onKey != null) Modifier.onPreviewKeyEvent(onKey) else Modifier)
-                    .onFocusChanged { ownFocus = it.isFocused }
-                    .clickable(interactionSource = interaction, indication = null, onClick = onClick),
+                    .then(
+                        if (onMenu != null) tile.modifier
+                        else Modifier
+                            .onFocusChanged { ownFocus = it.isFocused }
+                            .clickable(interactionSource = interaction, indication = null, onClick = onClick),
+                    ),
             )
             .glass(CardShape)
             .background(Brush.linearGradient(listOf(washColor.copy(alpha = (washAlpha + flash + 0.08f * lift).coerceAtMost(1f)), Color.Transparent), start = Offset.Zero, end = Offset(520f, 360f)))
@@ -1253,3 +1269,6 @@ private fun formatBytes(bytes: Long): String {
     val gb = bytes / 1e9
     return if (gb >= 10) "%.0f GB".format(gb) else if (gb >= 1) "%.1f GB".format(gb) else "%.0f MB".format(bytes / 1e6)
 }
+
+/** The menu for the widget being drawn (hold OK or Menu on it); null where there is none, as inside a stack. */
+val LocalWidgetMenu = staticCompositionLocalOf<((okHeld: Boolean) -> Unit)?> { null }
