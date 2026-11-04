@@ -45,11 +45,14 @@ data class NextPrayer(val prayer: Prayer, val at: ZonedDateTime, val tomorrow: B
 const val DefaultPrayerApi = "https://mawaqit-api.vercel.app/api/v1"
 
 /** A mosque's name on MAWAQIT, as in its page's address: letters, digits and dashes. */
-fun cleanMosqueSlug(text: String): String =
-    text.trim().trimEnd('/').substringAfterLast('/').substringBefore('?').lowercase().filter { it.isLetterOrDigit() || it == '-' || it == '_' }
+fun cleanMosqueSlug(text: String): String {
+    // A MAWAQIT ID, as its screen shows it ("ID 1234", "1234")
+    Regex("""^\s*(?:id\s*[:#]?\s*)?(\d+)\s*$""", RegexOption.IGNORE_CASE).find(text)?.let { return it.groupValues[1] }
+    return text.trim().trimEnd('/').substringAfterLast('/').substringBefore('?').lowercase().filter { it.isLetterOrDigit() || it == '-' || it == '_' }
+}
 
 /** A name to show from the mosque's address when the answer has none: "grande-mosquee-de-paris" → "Grande Mosquee De Paris". */
-fun mosqueName(slug: String): String =
+fun mosqueName(slug: String): String = if (slug.isNotEmpty() && slug.all { it.isDigit() }) "Mosque $slug" else
     slug.split('-', '_').filter { it.isNotBlank() }.joinToString(" ") { w -> w.replaceFirstChar { it.titlecase() } }
 
 /** The API's address with no trailing slash, or the default when blank or not a web address. */
@@ -183,7 +186,12 @@ private fun iqamaFor(text: String?, prayer: LocalTime?): LocalTime? {
  * answer, so the card shows the saved times at once after a restart or while offline.
  * Call off the main thread.
  */
-class PrayerSource(context: Context, private val zone: ZoneId = ZoneId.systemDefault()) {
+class PrayerSource(
+    context: Context,
+    private val zone: ZoneId = ZoneId.systemDefault(),
+    /** MAWAQIT's own website, whose mosque pages carry the day's times; changed only by tests. */
+    private val site: String = MawaqitSite,
+) {
     private val prefs = context.getSharedPreferences("prayers", Context.MODE_PRIVATE)
 
     /** The saved answer for [slug], marked as from the cache; null when there is none or it is for another mosque. */
@@ -196,22 +204,33 @@ class PrayerSource(context: Context, private val zone: ZoneId = ZoneId.systemDef
     }.getOrNull()
 
     /**
-     * Today's times for [slug] from [api]: the mosque's own entry, or, when that address
-     * fails, the API's plain `prayer-times` entry for it. Both failing names both reasons,
-     * for Settings.
+     * Today's times for [slug]: a mosque's MAWAQIT ID (the number at the bottom left of its
+     * MAWAQIT screen) or the end of its mawaqit.net address. Tried in turn: the mosque's
+     * page on mawaqit.net itself (its data is in the page, as the community API reads it),
+     * then the community API at [api], whole and times alone. All failing names what each
+     * said, for Settings; all "not found" means there is no such mosque.
      */
     fun fetch(api: String, slug: String): Result<PrayerTimes> = runCatching {
         require(slug.isNotBlank()) { "Choose a mosque in Settings" }
         val base = cleanPrayerApi(api)
         val now = Instant.now()
         val today = now.atZone(zone).toLocalDate()
-        // The mosque's whole page first (its name and iqama with the times), then the times alone
-        val body = runCatching { httpGet("$base/$slug/", PrayerUserAgent) }.getOrElse { first ->
-            runCatching { httpGet("$base/$slug/prayer-times", PrayerUserAgent) }.getOrElse { second ->
-                // Both "not found": the address names no mosque (a town's name, say), which is no network trouble
-                if (shortReason(first) == "HTTP 404" && shortReason(second) == "HTTP 404") throw NoSuchMosque(slug)
-                throw IOException("${shortReason(first)}; prayer-times: ${shortReason(second)}")
-            }
+        val byId = slug.all { it.isDigit() }
+        val tries = listOf<Pair<String, () -> String>>(
+            "mawaqit.net" to { confDataIn(httpGet(if (byId) "$site/fr/id/$slug" else "$site/fr/$slug", SiteUserAgent)) },
+            "API" to { httpGet("$base/$slug/", PrayerUserAgent) },
+            "API times" to { httpGet("$base/$slug/prayer-times", PrayerUserAgent) },
+        )
+        val failures = ArrayList<Pair<String, Throwable>>()
+        var body: String? = null
+        for ((name, attempt) in tries) {
+            body = runCatching { attempt().also { parsePrayerTimes(it, now, today) } }.onFailure { failures += name to it }.getOrNull()
+            if (body != null) break
+        }
+        if (body == null) {
+            // Everything "not found": no mosque by that ID or address, which is no network trouble
+            if (failures.all { shortReason(it.second) == "HTTP 404" }) throw NoSuchMosque(slug)
+            throw IOException(failures.joinToString("; ") { (name, e) -> "$name: ${shortReason(e)}" })
         }
         val times = parsePrayerTimes(body, now, today, fallbackName = mosqueName(slug))
         prefs.edit()
@@ -230,15 +249,47 @@ class PrayerSource(context: Context, private val zone: ZoneId = ZoneId.systemDef
 /** MAWAQIT has no mosque at this address. */
 class NoSuchMosque(val slug: String) : IOException("No mosque at $slug")
 
+/** Where MAWAQIT's mosque pages are. */
+const val MawaqitSite = "https://mawaqit.net"
+
+/** Asks for the page as a browser on the TV would. */
+private const val SiteUserAgent = "Mozilla/5.0 (Linux; Android 11; Android TV) PillLauncher/3.4"
+
+/**
+ * The mosque's data in its MAWAQIT page: the object assigned to `confData` in a script
+ * (`var confData = {…};`), taken whole by matching its braces, strings and all. An
+ * error when the page has none (a page that isn't a mosque's).
+ */
+fun confDataIn(html: String): String {
+    val at = Regex("""\bconfData\s*=\s*\{""").find(html) ?: error("No mosque data on the page")
+    val start = at.range.last
+    var depth = 0
+    var inString = false
+    var quote = ' '
+    var i = start
+    while (i < html.length) {
+        val c = html[i]
+        if (inString) {
+            if (c == '\\') i++ else if (c == quote) inString = false
+        } else when (c) {
+            '"', '\'' -> { inString = true; quote = c }
+            '{' -> depth++
+            '}' -> if (--depth == 0) return html.substring(start, i + 1)
+        }
+        i++
+    }
+    error("The mosque data on the page is cut short")
+}
+
 /**
  * What to say when the times couldn't be fetched, at [at] ("12:31", so a Refresh that
  * fails the same way still shows it tried): a mosque that isn't there, or the reason
  * MAWAQIT couldn't be reached.
  */
 fun prayerProblem(error: Throwable, at: String): String = when (error) {
-    is NoSuchMosque -> "MAWAQIT has no mosque at “${error.slug}”. Use the end of its mawaqit.net address, such as obada-benisaf · checked $at"
+    is NoSuchMosque -> "MAWAQIT has no mosque “${error.slug}”. Type its ID (the number at the bottom left of its MAWAQIT screen) or the end of its mawaqit.net address · checked $at"
     is IllegalArgumentException -> error.message.orEmpty()
-    else -> "Can't reach MAWAQIT (${shortReason(error)}) · checked $at"
+    else -> "Can't get the times (" + (error.message?.takeIf { ": " in it } ?: shortReason(error)) + ") · checked $at"
 }
 
 private const val PrayerUserAgent = "PillLauncher/3.4 github.com/S1rHades/One-TVOS"
@@ -246,5 +297,11 @@ private const val PrayerUserAgent = "PillLauncher/3.4 github.com/S1rHades/One-TV
 /** "HTTP 404" or the root cause's class name, e.g. "UnknownHostException". */
 private fun shortReason(error: Throwable): String {
     val root = generateSequence(error) { it.cause }.last()
-    return root.message?.takeIf { it.startsWith("HTTP ") } ?: root::class.java.simpleName
+    val message = root.message
+    return when {
+        message != null && message.startsWith("HTTP ") -> message
+        // Our own words ("No mosque data on the page")
+        root is IllegalStateException && message != null && message.length < 80 -> message
+        else -> root::class.java.simpleName
+    }
 }

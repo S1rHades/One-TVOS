@@ -3,6 +3,11 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 3.4.3 (November 2026)
+
+- **Prayer times by mosque ID**: type the number at the bottom left of the mosque's MAWAQIT screen (or "ID 1234" as it shows it) under **Settings → Widgets → Prayer times**. A mawaqit.net address still works too.
+- **Times straight from MAWAQIT**: the times are now read from the mosque's own MAWAQIT page, where its screen gets them, and the community API is only a fallback, so the widget no longer depends on that third-party server. When nothing works, the message names what each source answered.
+
 ## 3.4.2 (November 2026)
 
 - **Files: scanning the code** still ended in Chrome's ERR_TOO_MANY_RETRIES for some phones. The TV now always answers: when something goes wrong while it answers a phone, the phone gets a page saying what, instead of a connection closed with no answer (which is what makes Chrome retry until it gives up). The Files page also shows the last phone that reached the TV, from which address, and how that went, so a scan that never reaches the TV (a phone on mobile data or a VPN, say) can be told apart from one that does.

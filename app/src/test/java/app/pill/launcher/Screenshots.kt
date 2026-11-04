@@ -1103,7 +1103,7 @@ class Screenshots {
         compose.onNode(hasText("Prayer times") and hasText("No mosque chosen")).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
         settle()
         compose.onNodeWithText("Refresh now").assertIsDisplayed()
-        compose.onNodeWithText("MAWAQIT address", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("Mosque ID", substring = true).assertIsDisplayed()
         captureScreenRoboImage(File(out, "settings-prayers.png").path)
     }
 

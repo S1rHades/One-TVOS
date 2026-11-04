@@ -1238,7 +1238,7 @@ private fun PrayersPage(
         Box(Modifier.padding(horizontal = 18.dp, vertical = 6.dp)) {
             TextRow(
                 value = mosque,
-                hint = "The mosque's MAWAQIT address, e.g. obada-benisaf",
+                hint = "Mosque ID or address, e.g. 1234",
                 onChange = { mosque = it },
                 onDone = { onChange(settings.copy(mosque = cleanMosqueSlug(mosque))) },
                 // With no mosque yet the page opens on the field; once there is one, on Refresh now (focusing
@@ -1246,7 +1246,7 @@ private fun PrayersPage(
                 modifier = if (settings.mosque.isBlank()) firstModifier else Modifier,
             )
         }
-        Note("MAWAQIT doesn't let other apps search its mosques, so: find yours on mawaqit.net (on a phone), and type the end of its address here. For mawaqit.net/en/obada-benisaf that is obada-benisaf.")
+        Note("Type the mosque's ID: the number at the bottom left of its MAWAQIT screen. Or the end of its mawaqit.net address, such as obada-benisaf. MAWAQIT doesn't let other apps search its mosques.")
         val status = when {
             settings.mosque.isBlank() -> "Type the mosque, then Done"
             refreshing -> "Asking MAWAQIT…"
