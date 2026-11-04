@@ -1433,30 +1433,6 @@ class Screenshots {
         settle()
     }
 
-    // ---- Widget layouts by count (temporary): the same widgets at one, two, three and four across
-
-    private fun widgetRowShot(name: String, widgets: List<WidgetKind>) {
-        atTwentyToFour { times ->
-            val long = times.copy(mosque = "Mosque Obada Ibn Samit Beni Saf")
-            show(
-                "canyon-river", pins = favorites, prayers = long, news = news, football = matchDay(inMinutes = 60 * 24 * 3), weather = weather.copy(place = "Beni Saf"),
-                settings = LauncherSettings(weather = WeatherMode.Celsius, widgets = widgets, mosque = "4321", newsTopics = setOf(NewsTopic.Russia)),
-            )
-            val dir = File(out, "audit").apply { mkdirs() }
-            val tmp = File(dir, "_w.png")
-            captureScreenRoboImage(tmp.path)
-            val b = BitmapFactory.decodeFile(tmp.path)
-            tmp.delete()
-            val row = Bitmap.createBitmap(b, 0, 120, 1920, 300)
-            java.io.FileOutputStream(File(dir, "$name.png")).use { row.compress(Bitmap.CompressFormat.PNG, 100, it) }
-        }
-    }
-
-    @Test fun auditOneWidget() = widgetRowShot("w1", listOf(WidgetKind.Prayers))
-    @Test fun auditTwoWidgets() = widgetRowShot("w2", listOf(WidgetKind.Weather, WidgetKind.Prayers))
-    @Test fun auditThreeWidgets() = widgetRowShot("w3", listOf(WidgetKind.Weather, WidgetKind.Fennecs, WidgetKind.Prayers))
-    @Test fun auditFourWidgets() = widgetRowShot("w4", listOf(WidgetKind.Weather, WidgetKind.Fennecs, WidgetKind.Prayers, WidgetKind.Headlines))
-
     private fun settle() {
         repeat(8) {
             compose.mainClock.advanceTimeBy(150)
