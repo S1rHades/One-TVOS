@@ -1,5 +1,10 @@
 package app.pill.launcher.ui
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.scaleIn
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -175,8 +180,13 @@ fun InternetPage(onOpenNetworkSettings: () -> Unit, onDismiss: () -> Unit) {
                     modifier = Modifier.align(Alignment.CenterHorizontally),
                 )
                 val verdict = result?.downMbps?.let { speedVerdict(it) }
+                // The test's end is its moment: the verdict springs in, rather than just being there
                 Box(Modifier.fillMaxWidth().height(40.dp), contentAlignment = Alignment.Center) {
-                    if (verdict != null) {
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = verdict != null && !running,
+                        enter = scaleIn(spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessMediumLow), initialScale = 0.7f) + fadeIn(tween(Motion.Quick)),
+                        exit = fadeOut(tween(Motion.Quick)),
+                    ) {
                         Row(
                             Modifier
                                 .clip(RoundedCornerShape(50))
@@ -187,7 +197,7 @@ fun InternetPage(onOpenNetworkSettings: () -> Unit, onDismiss: () -> Unit) {
                         ) {
                             Box(Modifier.size(8.dp).background(GoodGreen, CircleShape))
                             Spacer(Modifier.width(8.dp))
-                            Text(verdict, color = Palette.TextPrimary, fontSize = 15.sp, maxLines = 1)
+                            Text(verdict.orEmpty(), color = Palette.TextPrimary, fontSize = 15.sp, maxLines = 1)
                         }
                     }
                 }

@@ -1062,6 +1062,17 @@ class Screenshots {
         compose.onRoot().captureRoboImage(File(out, "home-prompt.png").path)
     }
 
+    /** A new install: getting started, one step in (installed) plus the favourites, with the home screen next. */
+    @Test
+    fun gettingStarted() {
+        show("canyon-river", pins = favorites, home = HomeStatus(isDefault = false, redirectOn = false), settings = LauncherSettings(weather = WeatherMode.Celsius, setupDone = false))
+        compose.onNodeWithText("Getting started · 2 of 4 done").assertIsDisplayed()
+        compose.onNodeWithText("Set up").assertIsDisplayed()
+        // The old reminder waits until getting started is over
+        compose.onNodeWithText("Closing an app takes you to the TV's own home screen").assertDoesNotExist()
+        compose.onRoot().captureRoboImage(File(out, "getting-started.png").path)
+    }
+
     /** With four on, turning on a fifth is refused with a toast. */
     @Test
     fun widgetLimit() {
@@ -1373,6 +1384,107 @@ class Screenshots {
             )
         }
         settle()
+    }
+
+    // ---- Demo reel (temporary): a scripted tour of 3.5 to 3.7, frame by frame, for a video --
+
+    private val demoDir get() = File(File(out).absoluteFile.parentFile.parentFile, "build/demo-frames").apply { mkdirs() }
+    private var demoFrame = 0
+    private var caption = ""
+    private val captionPaint = Paint().apply { color = 0xFFFFFFFF.toInt(); textSize = 30f; isAntiAlias = true; typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD) }
+    private val tagPaint = Paint().apply { color = 0xD90B0F1A.toInt(); isAntiAlias = true }
+
+    /** [seconds] of the screen as it moves, 20 frames a second, 1280×720, the caption at the bottom. */
+    private fun film(seconds: Double) {
+        val tmp = File(demoDir, "_f.png")
+        repeat((seconds * 20).toInt()) {
+            compose.mainClock.advanceTimeBy(50)
+            captureScreenRoboImage(tmp.path)
+            val src = BitmapFactory.decodeFile(tmp.path)
+            val b = Bitmap.createScaledBitmap(src, 1280, 720, true).copy(Bitmap.Config.ARGB_8888, true)
+            if (caption.isNotEmpty()) {
+                val c = Canvas(b)
+                val w = captionPaint.measureText(caption)
+                val x = (1280 - w) / 2
+                c.drawRoundRect(RectF(x - 24, 636f, x + w + 24, 690f), 27f, 27f, tagPaint)
+                c.drawText(caption, x, 673f, captionPaint)
+            }
+            java.io.FileOutputStream(File(demoDir, "%04d.jpg".format(demoFrame++))).use { b.compress(Bitmap.CompressFormat.JPEG, 90, it) }
+        }
+        tmp.delete()
+    }
+
+    private fun scene(text: String, seconds: Double, action: () -> Unit = {}) {
+        caption = text
+        runCatching(action).onFailure { println("DEMO FAIL $text: $it") }
+        film(seconds)
+    }
+
+    private fun demoBack() {
+        compose.runOnUiThread { org.robolectric.shadows.ShadowDialog.getLatestDialog()?.onBackPressed() }
+    }
+
+    private fun tap(text: String) = compose.onAllNodesWithText(text).onFirst().performSemanticsAction(SemanticsActions.OnClick)
+    private fun tapDesc(desc: String) = compose.onAllNodesWithContentDescription(desc).onFirst().performSemanticsAction(SemanticsActions.OnClick)
+
+    private fun demoKey(key: Key) {
+        compose.onAllNodes(isFocused()).onLast().performKeyInput { pressKey(key) }
+    }
+
+    @Test
+    fun demoReel() {
+        atTwentyToFour { times ->
+            val now = java.time.Instant.now()
+            show(
+                "canyon-river", pins = favorites, prayers = times, weather = forecastWeather,
+                home = HomeStatus(isDefault = false, redirectOn = false),
+                update = UpdateState(UpdatePhase.Available, newRelease, checkedAt = now), notices = sampleNotices(now),
+                settings = LauncherSettings(
+                    weather = WeatherMode.Celsius,
+                    widgets = listOf(WidgetKind.Clock, WidgetKind.Weather, WidgetKind.Prayers),
+                    mosque = "4321",
+                    recentMosques = listOf("4321" to "Moscow Cathedral Mosque", "obada-benisaf" to "Mosque Obada Ibn Samit"),
+                    setupDone = false,
+                ),
+            )
+            compose.mainClock.autoAdvance = false
+            scene("Pill Launcher 3.5 – 3.7", 1.5)
+            scene("3.7 · Getting started: a ring that fills as you go", 2.5)
+            scene("3.5 · The remote's search key opens Search", 2.0) { demoKey(Key.Search) }
+            scene("3.7 · Search forgives a slip: “recipies” finds Recipes", 2.5) {
+                compose.onNode(hasSetTextAction()).performTextReplacement("recipies")
+            }
+            scene("", 0.8) { demoBack() }
+            scene("3.5 · Settings: six categories, all on screen", 2.5) { tapDesc("Settings") }
+            scene("3.5 · Home screen holds the photos, favourites and idle screen", 2.2) { tap("Home screen") }
+            scene("", 0.6) { demoBack() }
+            scene("3.5 · Widgets: the ones on, numbered, then the rest", 2.5) { tap("Widgets") }
+            scene("3.7 · Prayer times: the mosque found by name, and recent ones", 3.0) {
+                compose.onNode(hasText("Prayer times") and hasClickAction() and hasText("Moscow", substring = true)).performSemanticsAction(SemanticsActions.OnClick)
+            }
+            scene("", 0.6) { demoBack() }
+            scene("", 0.6) { demoBack() }
+            scene("3.7 · Getting started moves on: widgets done", 1.8) { demoBack() }
+            scene("3.6 · Hold OK on a widget for its own menu", 2.8) {
+                val card = compose.onAllNodes(hasClickAction() and hasText("Lisbon", substring = true)).onFirst()
+                card.requestFocus()
+                compose.mainClock.advanceTimeBy(300)
+                card.performKeyInput { pressKey(Key.Menu) }
+            }
+            scene("", 0.8) { demoBack() }
+            scene("3.6 · Notifications, grouped by where they came from", 3.0) {
+                compose.onAllNodesWithContentDescription("Notifications", substring = true).onFirst().requestFocus()
+                compose.mainClock.advanceTimeBy(300)
+                demoKey(Key.DirectionCenter)
+            }
+            scene("", 1.0) { androidx.test.espresso.Espresso.pressBack() }
+            scene("3.4.5 · Pages wait for the photo, and leave cleanly", 2.5) {
+                compose.onNodeWithText("Maghrib").performSemanticsAction(SemanticsActions.OnClick)
+            }
+            scene("3.4.5 · Pages wait for the photo, and leave cleanly", 1.5) { demoBack() }
+            scene("Pill Launcher 3.7", 1.5)
+            compose.mainClock.autoAdvance = true
+        }
     }
 
     private fun settle() {

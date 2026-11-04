@@ -3,6 +3,17 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 3.7 (November 2026)
+
+Every press answers back, the last part of the UX-laws plan (the Doherty threshold, feedback loops, recognition over recall, Postel's and Tesler's laws, the goal-gradient effect, and the peak-end rule):
+
+- **Getting started**: a new install shows a card above the favourites with a ring that fills as the steps are done (installed, the home screen, your favourite apps, the widgets), the next step's button, and **Not now**. It starts one step in, says **You're set** at the end, and goes.
+- **Refresh answers**: on the prayer page and in its settings, the refresh arrows turn while MAWAQIT is asked, and the button says **Updated ✓** for a moment once the new times are in.
+- **The mosque by name**: after typing an ID, the prayer settings say **✓ Found:** and the mosque's name, so the right one is recognised rather than trusted. Mosques that worked before stay under **Recent**.
+- **Forgiving search**: accents, capitals and hyphens don't matter ("ain" finds "Aïn"), and with nothing found, one slip in a word of four letters or more is allowed ("recipies" finds Recipes).
+- **Time zone changes**: changing the TV's time zone, date or clock fetches the prayer times again by itself.
+- **The speed test's end**: its verdict springs in under the number when the test finishes.
+
 ## 3.6 (November 2026)
 
 Clear at a glance, the second part of the UX-laws plan (proximity, similarity, common region, visual hierarchy, the Von Restorff effect, Jakob's law, and the aesthetic-usability effect):

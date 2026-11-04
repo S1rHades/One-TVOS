@@ -28,6 +28,12 @@ data class LauncherSettings(
     val favoritesByUse: Boolean = false,
     /** Pages opened so far, up to [BackHintTimes]: their titles say "Back to close" only the first few times. */
     val pagesSeen: Int = 0,
+    /** Getting started is finished or put away. A new install loads false; anyone who used the launcher before it existed, true. */
+    val setupDone: Boolean = true,
+    /** Settings → Widgets has been opened: getting started's last step. */
+    val widgetsVisited: Boolean = false,
+    /** Mosques that worked, newest first: (MAWAQIT ID or address, its name). */
+    val recentMosques: List<Pair<String, String>> = emptyList(),
     /** Header cards, in display order; at most [MaxWidgets]. */
     val widgets: List<WidgetKind> = DefaultWidgets,
     /** "Not now" on the home-screen prompt to make Pill Launcher the home screen. */
@@ -96,6 +102,10 @@ class SettingsStore(context: Context) {
         favoritesAnimation = prefs.getBoolean("favoritesAnimation", true),
         favoritesByUse = prefs.getBoolean("favoritesByUse", false),
         pagesSeen = prefs.getInt("pagesSeen", 0),
+        recentMosques = recentMosquesFromStored(prefs.getString("recentMosques", null)),
+        // Saved favourites mean the launcher was in use before getting started existed
+        setupDone = prefs.getBoolean("setupDone", prefs.contains("pins")),
+        widgetsVisited = prefs.getBoolean("widgetsVisited", false),
         // Before widgets, the weather setting had an Off choice; it maps to the widget being off
         widgets = parseWidgets(prefs.getString("widgets", null))
             ?: if (prefs.getString("weather", null) == WeatherMode.Off.name) DefaultWidgets - WidgetKind.Weather else DefaultWidgets,
@@ -135,6 +145,9 @@ class SettingsStore(context: Context) {
             .putBoolean("favoritesAnimation", settings.favoritesAnimation)
             .putBoolean("favoritesByUse", settings.favoritesByUse)
             .putInt("pagesSeen", settings.pagesSeen)
+            .putString("recentMosques", recentMosquesToStored(settings.recentMosques))
+            .putBoolean("setupDone", settings.setupDone)
+            .putBoolean("widgetsVisited", settings.widgetsVisited)
             .putString("widgets", settings.widgets.toStored())
             .putBoolean("homePromptDismissed", settings.homePromptDismissed)
             .putBoolean("onlinePhotos", settings.onlinePhotos)
@@ -263,3 +276,22 @@ fun orderByUse(pins: List<String>, uses: Map<String, Int>): List<String> {
 
 /** How many page openings show "Back to close" before the hint goes (Occam's razor: once learned, it's clutter). */
 const val BackHintTimes = 3
+
+/** At most this many recent mosques are kept. */
+const val RecentMosquesKept = 4
+
+/** [slug] with [name] first among [recent], without a repeat of it, at most [RecentMosquesKept]. */
+fun withRecentMosque(recent: List<Pair<String, String>>, slug: String, name: String): List<Pair<String, String>> {
+    if (slug.isBlank()) return recent
+    return (listOf(slug to name.ifBlank { slug }) + recent.filter { it.first != slug }).take(RecentMosquesKept)
+}
+
+/** One per line, "slug\tname"; tabs and line breaks never appear in either. */
+fun recentMosquesToStored(recent: List<Pair<String, String>>): String =
+    recent.joinToString("\n") { (slug, name) -> slug + "\t" + name.replace('\t', ' ').replace('\n', ' ') }
+
+fun recentMosquesFromStored(text: String?): List<Pair<String, String>> =
+    text.orEmpty().lines().mapNotNull { line ->
+        val slug = line.substringBefore('\t').trim()
+        if (slug.isEmpty()) null else slug to line.substringAfter('\t', slug).trim()
+    }.take(RecentMosquesKept)

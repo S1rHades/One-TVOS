@@ -79,7 +79,7 @@ Press **Down** from Favorites for every app as a card in its own colour. Chips a
 
 ### Search
 
-**Search** in the bar opens a panel that finds any app by name. It opens on a strip of letters: **Left** / **Right** and OK spell a name with no keyboard, the matches narrow as you go, and letters that no app's name continues with are dimmed. **Delete** and **Space** are at the start of the strip. The TV keyboard is still there: **Up** to the search field, then OK.
+**Search** in the bar opens a panel that finds any app by name. It opens on a strip of letters: **Left** / **Right** and OK spell a name with no keyboard, the matches narrow as you go, and letters that no app's name continues with are dimmed. **Delete** and **Space** are at the start of the strip. The remote's search key opens it too. Search ignores accents, capitals and hyphens ("ain" finds "Aïn"), and when nothing matches it allows one slip in a word of four letters or more, so "recipies" still finds Recipes. The TV keyboard is still there: **Up** to the search field, then OK.
 
 <p align="center"><img src="docs/screenshots/search.png" width="70%" alt="The search panel below the bar: ma in the field, the letter strip with A focused and letters that lead nowhere dimmed, and Maps and Cinema as the matches"></p>
 
@@ -220,7 +220,9 @@ To make it your home screen, open **Settings** (the gear) → **Home & startup**
 
 Many TVs, most Google TV devices among them, don't let any app replace the home screen. On those, use **Settings → Home & startup → Home button helper**: it opens Accessibility settings, where you turn on **Pill Launcher Home button**. Whenever the TV's own home screen opens (Home pressed, an app closed or killed), the helper brings Pill Launcher straight back. It only checks which app came to the front, never what is on screen. On Android 13 and later, a sideloaded app's accessibility switch may be greyed out at first: open **Settings → Apps → Pill Launcher**, choose **⋮ → Allow restricted settings**, then turn it on.
 
-Until one of these is set up, the home screen shows a reminder with a **Set up** button, which tries the first way and then the second. **Not now** hides it.
+A new install starts with **Getting started** above the favourites: a ring that fills as the steps are done (installed, the home screen, your favourite apps, the widgets), the next step with its button, and **Not now**. It begins one step in, and when the last is done it says **You're set** and goes. After that, until the home screen is set up, a reminder with a **Set up** button stays, which tries the first way and then the second. **Not now** hides it.
+
+<p align="center"><img src="docs/screenshots/getting-started.png" width="70%" alt="Getting started above the favourites: a ring at 2 of 4, Make it the home screen, so Home and closed apps come back here, with Set up and Not now buttons"></p>
 
 <p align="center"><img src="docs/screenshots/home-prompt.png" width="70%" alt="A reminder above the favourites: Closing an app takes you to the TV's own home screen, with Set up and Not now buttons"></p>
 
@@ -234,7 +236,7 @@ On TVs that ignore that command, turning off the stock launcher works too (turn 
 
 The `latest` release is rebuilt automatically every time `main` changes, so installing it again always gets you the newest version.
 
-Every version also keeps its own release, named after it (**Pill Launcher 3.6**, tag `v3.6`, file `pill-launcher-3.6.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v3.6/pill-launcher-3.6.apk`. The newest is titled **Pill Launcher 3.6 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
+Every version also keeps its own release, named after it (**Pill Launcher 3.7**, tag `v3.7`, file `pill-launcher-3.7.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v3.7/pill-launcher-3.7.apk`. The newest is titled **Pill Launcher 3.7 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
 
 ### Uninstalling
 
@@ -370,13 +372,13 @@ The prayer times widget shows today's five prayers from your mosque on [MAWAQIT]
 
 <p align="center"><img src="docs/screenshots/prayer-widget.png" width="100%" alt="The home screen with two wide widgets: the clock, and the prayer card for Moscow Cathedral Mosque with Maghrib next in 42 minutes and Fajr, Dhuhr, Asr, Maghrib and Isha with their times along the bottom, Maghrib marked with a green dot"></p>
 
-OK on the card opens the prayer page: the next prayer large with the time left and its iqama, the day as a line from Fajr to Isha with a mark for now, and every prayer with its adhan and iqama times where the mosque gives them. The title says when the times last came. **Refresh** at the top left asks MAWAQIT again.
+OK on the card opens the prayer page: the next prayer large with the time left and its iqama, the day as a line from Fajr to Isha with a mark for now, and every prayer with its adhan and iqama times where the mosque gives them. The title says when the times last came. **Refresh** at the top left asks MAWAQIT again: its arrows turn while it asks, and it says **Updated ✓** for a moment when the new times are in. Changing the TV's time zone, date or clock fetches them again by itself.
 
 <p align="center"><img src="docs/screenshots/prayer-page.png" width="100%" alt="The prayer page for Moscow Cathedral Mosque: a Refresh button at the top left; Next, Maghrib, its time and in 42 min with its iqama; Today as a line from Fajr to Isha with Maghrib's dot in green; and on the right the five prayers with Adhan and Iqama columns"></p>
 
 The times are saved on the TV, so the card has them at once after a restart or while offline (the label turns grey and the page says "saved"), and they refresh on their own just after midnight for the new day. A failed fetch keeps the saved times and tries again, after 10 seconds, then 30, a minute, two, five. Yesterday's times stay up, marked, until the new day's arrive.
 
-Choose the mosque under **Settings → Widgets → Prayer times** by its MAWAQIT ID, the number at the bottom left of the mosque's MAWAQIT screen, or by the end of its mawaqit.net address (for `mawaqit.net/en/obada-benisaf` that is `obada-benisaf`; pasting the whole address works too), then Done. The times are read from the mosque's own MAWAQIT page, where its screen gets them, with the community API as a fallback. There is no mosque search: MAWAQIT doesn't allow other apps to use its search. An ID or address MAWAQIT doesn't know says so, a failure names what each source answered, and every failed check shows the time it was made, so **Refresh** visibly tries again.
+Choose the mosque under **Settings → Widgets → Prayer times** by its MAWAQIT ID, the number at the bottom left of the mosque's MAWAQIT screen, or by the end of its mawaqit.net address (for `mawaqit.net/en/obada-benisaf` that is `obada-benisaf`; pasting the whole address works too), then Done. The page says which mosque that is by name (**✓ Found: …**), so you can tell it's the right one, and mosques that worked before stay under **Recent**, one press away. The times are read from the mosque's own MAWAQIT page, where its screen gets them, with the community API as a fallback. There is no mosque search: MAWAQIT doesn't allow other apps to use its search. An ID or address MAWAQIT doesn't know says so, a failure names what each source answered, and every failed check shows the time it was made, so **Refresh** visibly tries again.
 
 <p align="center"><img src="docs/screenshots/settings-prayers.png" width="100%" alt="Settings, Widgets, Prayer times: a field reading Mosque ID or address, e.g. 1234, a note on where to find the ID and that MAWAQIT doesn't let other apps search, Refresh now, and under API the community address; beside the panel, the home screen's prayer card says Choose a mosque in Settings"></p>
 
@@ -385,7 +387,7 @@ Choose the mosque under **Settings → Widgets → Prayer times** by its MAWAQIT
 **Wi-Fi** in the bar opens the Internet page (pictured [above](#internet)). **Start test** measures the connection against [Cloudflare's speed test](https://speed.cloudflare.com/) service:
 
 1. **Ping**: the quickest of a few tiny requests, in milliseconds.
-2. **Download**: about seven seconds of downloading. The dial follows the speed live.
+2. **Download**: about seven seconds of downloading. The dial follows the speed live, and when the test ends its verdict springs in under the number.
 3. **Upload**: about five seconds of uploading.
 
 When it's done, a chip says in plain words what the speed is good for: 4K streaming (25 Mbps or more), HD streaming (10 or more), standard video (4 or more), or slow. The results card shows all three numbers, the network (with its signal on Wi-Fi, and whether a VPN is on) and when the last test ran. The last result is saved on the TV. Nothing is measured until you press **Start test**, and Back stops a test at once. **Network settings**, at the top left of the page and focused when it opens (**Down** goes to Start test), opens the TV's own Wi-Fi and network screen.
@@ -409,7 +411,7 @@ gradle assembleDebug                                   # app/build/outputs/apk/d
 gradle :app:testDebugUnitTest --tests '*Screenshots*'  # re-render docs/screenshots
 ```
 
-**Builds are automated.** `.github/workflows/build.yml` builds the APK for every pull request and push; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v3.6`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
+**Builds are automated.** `.github/workflows/build.yml` builds the APK for every pull request and push; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v3.7`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
 
 <details>
 <summary><b>Architecture</b></summary>

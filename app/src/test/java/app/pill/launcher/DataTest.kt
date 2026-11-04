@@ -870,4 +870,31 @@ class DataTest {
         // Counts survive storage, junk is skipped
         assertEquals(mapOf("a" to 3, "b" to 1), usesFromStored(usesToStored(mapOf("a" to 3, "b" to 1)) + ",bad,=4,c=x"))
     }
+
+    /** Search takes names however they're typed: accents, case and hyphens aside, and one slip in a longer word. */
+    @Test
+    fun forgivingSearch() {
+        assertTrue(matchesQuery("Aïn Témouchent", "ain tem"))
+        assertTrue(matchesQuery("Béni-Saf", "beni saf"))
+        assertFalse(matchesQuery("Netflix", "netflx"))
+        assertTrue(nearlyMatches("Netflix", "netflx"))
+        assertTrue(nearlyMatches("Spotify", "spotfy"))
+        assertFalse(nearlyMatches("Netflix", "ntx"))
+        assertFalse(nearlyMatches("Music", "photos"))
+        assertTrue(oneEditApart("cinema", "cinemas"))
+        assertFalse(oneEditApart("cinema", "kinemas"))
+        assertTrue('e' in nextLetters(listOf("Télé"), "t"))
+    }
+
+    /** Recent mosques: newest first, no repeats, four at most, and they survive storage. */
+    @Test
+    fun recentMosques() {
+        var recent = emptyList<Pair<String, String>>()
+        for (id in listOf("1", "2", "3", "4", "5")) recent = withRecentMosque(recent, id, "Mosque $id")
+        recent = withRecentMosque(recent, "3", "Mosque Three")
+        assertEquals(listOf("3", "5", "4", "2"), recent.map { it.first })
+        assertEquals("Mosque Three", recent.first().second)
+        assertEquals(recent, recentMosquesFromStored(recentMosquesToStored(recent)))
+        assertEquals(emptyList<Pair<String, String>>(), recentMosquesFromStored(null))
+    }
 }

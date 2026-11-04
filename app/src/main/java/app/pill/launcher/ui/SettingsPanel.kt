@@ -241,6 +241,8 @@ fun SettingsPanel(
     val customizing = page?.root == SettingsPage.Widgets
     LaunchedEffect(customizing) { onCustomizing(customizing) }
     LaunchedEffect(page) {
+        // Getting started's widgets step is done once the page has been seen
+        if (page == SettingsPage.Widgets && !settings.widgetsVisited) onChange(settings.copy(widgetsVisited = true))
         movingStackItem = null
         if (page != SettingsPage.Stack) onStackPreview(null)
     }
@@ -1361,6 +1363,20 @@ private fun PrayersPage(
                 modifier = if (settings.mosque.isBlank()) firstModifier else Modifier,
             )
         }
+        // Which mosque the ID found, by name, so the right one is recognised rather than trusted
+        when {
+            settings.mosque.isBlank() -> Unit
+            refreshing -> Text("Looking up ${settings.mosque}…", color = Palette.TextSecondary, fontSize = 15.sp, modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp))
+            prayers != null && prayers.mosque.isNotBlank() -> Text(
+                "✓ Found: " + prayers.mosque,
+                color = PrayerGreen,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp),
+            )
+        }
         Note("Type the mosque's ID: the number at the bottom left of its MAWAQIT screen. Or the end of its mawaqit.net address, such as obada-benisaf. MAWAQIT doesn't let other apps search its mosques.")
         val status = when {
             settings.mosque.isBlank() -> "Type the mosque, then Done"
@@ -1377,7 +1393,22 @@ private fun PrayersPage(
             onClick = { if (!refreshing) onRefresh() },
             enabled = settings.mosque.isNotBlank(),
             modifier = if (settings.mosque.isBlank()) Modifier else firstModifier,
-        ) { focused -> RefreshIcon(if (focused) Palette.Ink else Palette.TextTertiary, 22.dp) }
+        ) { focused -> RefreshIcon(if (focused) Palette.Ink else Palette.TextTertiary, 22.dp, spinning = refreshing) }
+    }
+    // Mosques that worked before, by name: one press to go back to one
+    val recent = settings.recentMosques.filter { it.first != settings.mosque }
+    if (recent.isNotEmpty()) {
+        Group("Recent") {
+            for ((slug, name) in recent) {
+                key(slug) {
+                    SettingRow(
+                        title = name,
+                        subtitle = if (slug.all { it.isDigit() }) "ID $slug" else slug,
+                        onClick = { onChange(settings.copy(mosque = slug)) },
+                    ) { focused -> Chevron(focused) }
+                }
+            }
+        }
     }
     // Hardly anyone needs the API address: it stays folded unless it was changed
     Group(null) {

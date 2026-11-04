@@ -145,10 +145,10 @@ fun loadApps(pm: PackageManager, self: String): List<AppEntry> {
  * appears in the name, so the search's letter strip can dim the letters that lead nowhere.
  */
 fun nextLetters(labels: List<String>, query: String): Set<Char> {
-    val q = query.lowercase()
+    val q = searchKey(query)
     val out = mutableSetOf<Char>()
     for (label in labels) {
-        val name = label.lowercase()
+        val name = searchKey(label)
         if (q.isEmpty()) {
             out += name.toSet()
             continue
@@ -160,4 +160,55 @@ fun nextLetters(labels: List<String>, query: String): Set<Char> {
         }
     }
     return out
+}
+
+/**
+ * A name as search compares it: lower case, accents off ("Aïn" is "ain"), and hyphens,
+ * dots and underscores as spaces, so a search accepts however the name was typed.
+ */
+fun searchKey(text: String): String =
+    java.text.Normalizer.normalize(text, java.text.Normalizer.Form.NFD)
+        .replace(Regex("\\p{Mn}+"), "")
+        .lowercase()
+        .replace(Regex("[-_.·]"), " ")
+
+/** [label] holds [query], both as [searchKey]s. */
+fun matchesQuery(label: String, query: String): Boolean = searchKey(label).contains(searchKey(query).trim())
+
+/**
+ * [label] holds [query] with one letter wrong, missing or extra ("netflx", "spotfy"), for
+ * queries of four letters or more, where one slip is likely and a stray match is not.
+ */
+fun nearlyMatches(label: String, query: String): Boolean {
+    val q = searchKey(query).trim()
+    if (q.length < 4) return false
+    val name = searchKey(label)
+    for (len in (q.length - 1)..(q.length + 1)) {
+        for (start in 0..(name.length - len).coerceAtLeast(-1)) {
+            if (start < 0) break
+            if (oneEditApart(name.substring(start, start + len), q)) return true
+        }
+    }
+    return false
+}
+
+/** At most one letter changed, added or removed between [a] and [b]. */
+fun oneEditApart(a: String, b: String): Boolean {
+    if (kotlin.math.abs(a.length - b.length) > 1) return false
+    var i = 0
+    var j = 0
+    var edits = 0
+    while (i < a.length && j < b.length) {
+        if (a[i] == b[j]) {
+            i++; j++
+            continue
+        }
+        if (++edits > 1) return false
+        when {
+            a.length > b.length -> i++
+            a.length < b.length -> j++
+            else -> { i++; j++ }
+        }
+    }
+    return edits + (a.length - i) + (b.length - j) <= 1
 }
