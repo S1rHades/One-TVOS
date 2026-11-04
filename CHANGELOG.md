@@ -9,6 +9,7 @@ Every press answers back, the last part of the UX-laws plan (the Doherty thresho
 
 - **Getting started**: a new install shows a card above the favourites with a ring that fills as the steps are done (installed, the home screen, your favourite apps, the widgets), the next step's button, and **Not now**. It starts one step in, says **You're set** at the end, and goes.
 - **Refresh answers**: on the prayer page and in its settings, the refresh arrows turn while MAWAQIT is asked, and the button says **Updated ✓** for a moment once the new times are in.
+- **The refresh icon**: redrawn as an open circle with a solid arrowhead. It used to be an arc with two loose strokes at one end, which looked broken.
 - **Refresh fixes**: Refresh keeps the times on screen while it asks, instead of first switching the card back to the saved copy. A mosque ID is asked of its MAWAQIT page only (the community API can't look up IDs), so a refresh no longer waits through three sources. **Refresh now** in Settings answers even while a refresh is under way, and works with the prayer widget turned off.
 - **The mosque by name**: after typing an ID, the prayer settings say **✓ Found:** and the mosque's name, so the right one is recognised rather than trusted. Mosques that worked before stay under **Recent**.
 - **Forgiving search**: accents, capitals and hyphens don't matter ("ain" finds "Aïn"), and with nothing found, one slip in a word of four letters or more is allowed ("recipies" finds Recipes).
