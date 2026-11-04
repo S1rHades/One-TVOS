@@ -704,4 +704,61 @@ class DataTest {
         assertEquals("https://example.org/v1", loaded.prayerApi)
         assertEquals(listOf(WidgetKind.Clock, WidgetKind.Prayers), loaded.widgets)
     }
+
+    /** A town found by name: Open-Meteo's place search, down to small towns such as Beni Saf. */
+    @Test
+    fun placesFromTheSearch() {
+        val found = parsePlaces(data("geocoding-beni-saf.json"))
+        // The entry without coordinates is skipped
+        assertEquals(1, found.size)
+        val beniSaf = found.single()
+        assertEquals("Beni Saf", beniSaf.name)
+        assertEquals("Beni Saf, Aïn Témouchent, Algeria", beniSaf.label)
+        assertEquals(35.30099, beniSaf.lat, 1e-6)
+        assertEquals(-1.38226, beniSaf.lon, 1e-6)
+        // Nothing matched: the answer has no results at all
+        assertTrue(parsePlaces("""{"generationtime_ms":0.2}""").isEmpty())
+        assertTrue(runCatching { parsePlaces("not json") }.isFailure)
+        // Saved and read back with the settings
+        assertEquals(beniSaf, placeFromJson(placeToJson(beniSaf)))
+        assertNull(placeFromJson(null))
+        assertNull(placeFromJson("""{"name":"x","lat":95,"lon":0}"""))
+    }
+
+    /** Coordinates typed in are a place of their own; anything else is searched for. */
+    @Test
+    fun coordinatesAsAPlace() {
+        val p = coordinatesPlace(" 35.30, -1.38 ")!!
+        assertEquals(35.30, p.lat, 1e-9)
+        assertEquals(-1.38, p.lon, 1e-9)
+        assertEquals("35.300, -1.380", p.name)
+        assertEquals(listOf(p), searchPlaces("35.30 -1.38"))
+        assertNull(coordinatesPlace("Beni Saf"))
+        assertNull(coordinatesPlace("95, 10"))
+        assertNull(coordinatesPlace("35.3, 190"))
+        assertTrue(searchPlaces("B").isEmpty())
+    }
+
+    /** The saved reading belongs to the place it was fetched for. */
+    @Test
+    fun weatherCacheFollowsThePlace() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val beniSaf = parsePlaces(data("geocoding-beni-saf.json")).single()
+        val prefs = context.getSharedPreferences("weather", android.content.Context.MODE_PRIVATE)
+        // A reading saved before places existed counts as the approximate location's
+        prefs.edit().putString("service", "open-meteo").putString("body", data("openmeteo.json")).putLong("at", 1_700_000_000_000L)
+            .putString("place", "Oran").putFloat("lat", 35.7f).putFloat("lon", -0.6f).apply()
+        val source = WeatherSource(context)
+        assertEquals("Oran", source.cached()!!.place)
+        assertNull(source.cached(beniSaf))
+        prefs.edit().putString("for", beniSaf.key).putString("place", "Beni Saf").apply()
+        assertEquals("Beni Saf", source.cached(beniSaf)!!.place)
+        assertNull(source.cached())
+
+        val store = SettingsStore(context)
+        store.save(LauncherSettings(weatherPlace = beniSaf))
+        assertEquals(beniSaf, store.load().weatherPlace)
+        store.save(LauncherSettings(weatherPlace = null))
+        assertNull(store.load().weatherPlace)
+    }
 }

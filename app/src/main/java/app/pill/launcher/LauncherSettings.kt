@@ -60,6 +60,8 @@ data class LauncherSettings(
     val mosque: String = "",
     /** Where the community MAWAQIT API answers; [DefaultPrayerApi] unless changed. */
     val prayerApi: String = DefaultPrayerApi,
+    /** Where the weather is for; null for the TV's approximate location (from its internet address). */
+    val weatherPlace: Place? = null,
 ) {
     companion object {
         val IntervalOptions = listOf(10, 20, 30, 60)
@@ -112,6 +114,7 @@ class SettingsStore(context: Context) {
         hidePrivate = prefs.getBoolean("hidePrivate", false),
         mosque = prefs.getString("mosque", "").orEmpty(),
         prayerApi = prefs.getString("prayerApi", null) ?: DefaultPrayerApi,
+        weatherPlace = placeFromJson(prefs.getString("weatherPlace", null)),
     ).let { if (it.weather == WeatherMode.Off) it.copy(weather = defaultWeatherMode()) else it }
 
     fun save(settings: LauncherSettings) {
@@ -142,6 +145,7 @@ class SettingsStore(context: Context) {
             .putBoolean("hidePrivate", settings.hidePrivate)
             .putString("mosque", settings.mosque)
             .putString("prayerApi", settings.prayerApi)
+            .putString("weatherPlace", placeToJson(settings.weatherPlace))
             .apply()
     }
 

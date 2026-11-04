@@ -1,0 +1,25 @@
+{
+  "results": [
+    {
+      "id": 2505530,
+      "name": "Beni Saf",
+      "latitude": 35.30099,
+      "longitude": -1.38226,
+      "elevation": 60.0,
+      "feature_code": "PPL",
+      "country_code": "DZ",
+      "admin1_id": 2508228,
+      "timezone": "Africa/Algiers",
+      "population": 42000,
+      "country_id": 2589581,
+      "country": "Algeria",
+      "admin1": "Aïn Témouchent"
+    },
+    {
+      "id": 1,
+      "name": "Broken entry without coordinates",
+      "country": "Nowhere"
+    }
+  ],
+  "generationtime_ms": 0.6
+}

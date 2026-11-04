@@ -2,6 +2,7 @@ package app.pill.launcher
 
 import android.content.Context
 import org.json.JSONObject
+import java.net.URLEncoder
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
@@ -89,7 +90,63 @@ fun formatTemp(celsius: Double, mode: WeatherMode): String {
 }
 
 /**
- * Fetches the weather for the TV's approximate location, found from its IP address.
+ * A place chosen for the weather instead of the TV's approximate location: a town found
+ * by name, or coordinates typed in. The forecast is for its exact point, so a small town
+ * gets its own weather rather than the nearest city's.
+ */
+data class Place(val name: String, val region: String, val country: String, val lat: Double, val lon: Double) {
+    /** "Beni Saf, Aïn Témouchent, Algeria". */
+    val label: String get() = listOf(name, region, country).filter { it.isNotBlank() }.distinct().joinToString(", ")
+
+    /** Which place a saved reading is for. */
+    val key: String get() = String.format(Locale.ROOT, "%.4f,%.4f", lat, lon)
+}
+
+fun placeToJson(place: Place?): String? = place?.let {
+    JSONObject().put("name", it.name).put("region", it.region).put("country", it.country).put("lat", it.lat).put("lon", it.lon).toString()
+}
+
+fun placeFromJson(text: String?): Place? = runCatching {
+    val o = JSONObject(text ?: return null)
+    Place(o.optString("name"), o.optString("region"), o.optString("country"), o.getDouble("lat"), o.getDouble("lon"))
+        .takeIf { it.lat in -90.0..90.0 && it.lon in -180.0..180.0 }
+}.getOrNull()
+
+/**
+ * Open-Meteo's place search (GeoNames underneath, down to small towns and villages). An
+ * answer with no "results" means nothing matched.
+ */
+fun parsePlaces(body: String): List<Place> {
+    val results = JSONObject(body).optJSONArray("results") ?: return emptyList()
+    return (0 until results.length()).mapNotNull { i ->
+        val r = results.optJSONObject(i) ?: return@mapNotNull null
+        val lat = r.optDouble("latitude").takeUnless { it.isNaN() } ?: return@mapNotNull null
+        val lon = r.optDouble("longitude").takeUnless { it.isNaN() } ?: return@mapNotNull null
+        Place(r.optString("name"), r.optString("admin1"), r.optString("country"), lat, lon).takeIf { it.name.isNotBlank() }
+    }
+}
+
+/** "35.30, -1.38" (latitude, longitude) typed in as a place of its own; null for anything else. */
+fun coordinatesPlace(text: String): Place? {
+    val m = Regex("""^\s*(-?\d{1,2}(?:\.\d+)?)\s*[, ]\s*(-?\d{1,3}(?:\.\d+)?)\s*$""").find(text) ?: return null
+    val lat = m.groupValues[1].toDouble()
+    val lon = m.groupValues[2].toDouble()
+    if (lat !in -90.0..90.0 || lon !in -180.0..180.0) return null
+    return Place(String.format(Locale.ROOT, "%.3f, %.3f", lat, lon), "", "", lat, lon)
+}
+
+/** Towns matching [query], best first. Call off the main thread; throws when the search can't be reached. */
+fun searchPlaces(query: String): List<Place> {
+    val q = query.trim()
+    if (q.length < 2) return emptyList()
+    coordinatesPlace(q)?.let { return listOf(it) }
+    val url = "https://geocoding-api.open-meteo.com/v1/search?count=8&language=en&format=json&name=" + URLEncoder.encode(q, "UTF-8")
+    return parsePlaces(httpGet(url))
+}
+
+/**
+ * Fetches the weather for a chosen [Place], or else for the TV's approximate location,
+ * found from its IP address.
  * No API keys: GeoJS for the location and Open-Meteo for the forecast, or MET Norway when
  * Open-Meteo can't be reached. The answer is saved, so the card and the forecast page have
  * the last reading at once after a restart or while offline. Call off the main thread.
@@ -97,8 +154,10 @@ fun formatTemp(celsius: Double, mode: WeatherMode): String {
 class WeatherSource(context: Context) {
     private val prefs = context.getSharedPreferences("weather", Context.MODE_PRIVATE)
 
-    /** The last reading, re-read from the saved answer; marked by its fetch time. */
-    fun cached(): Weather? = runCatching {
+    /** The last reading for [place] (null: the approximate location), re-read from the saved answer; marked by its fetch time. */
+    fun cached(place: Place? = null): Weather? = runCatching {
+        // A reading for somewhere else isn't shown: "Finding your area…" until the new one comes
+        if (prefs.getString("for", Automatic) != (place?.key ?: Automatic)) return null
         val body = prefs.getString("body", null) ?: return null
         val at = Instant.ofEpochMilli(prefs.getLong("at", 0))
         val place = prefs.getString("place", "").orEmpty()
@@ -111,11 +170,13 @@ class WeatherSource(context: Context) {
         }
     }.getOrNull()
 
-    fun fetch(): Result<Weather> = runCatching {
-        val geo = JSONObject(httpGet("https://get.geojs.io/v1/ip/geo.json"))
-        val lat = geo.getString("latitude").toDouble()
-        val lon = geo.getString("longitude").toDouble()
-        val place = geo.optString("city")
+    fun fetch(chosen: Place? = null): Result<Weather> = runCatching {
+        val (lat, lon, place) = if (chosen != null) {
+            Triple(chosen.lat, chosen.lon, chosen.name)
+        } else {
+            val geo = JSONObject(httpGet("https://get.geojs.io/v1/ip/geo.json"))
+            Triple(geo.getString("latitude").toDouble(), geo.getString("longitude").toDouble(), geo.optString("city"))
+        }
         val now = Instant.now()
         // Some networks cannot reach Open-Meteo at all; MET Norway covers the whole world too
         val (service, body) = runCatching { OpenMeteo to httpGet(openMeteoUrl(lat, lon)) }.getOrElse { first ->
@@ -131,12 +192,15 @@ class WeatherSource(context: Context) {
         prefs.edit()
             .putString("service", service).putString("body", body).putLong("at", now.toEpochMilli())
             .putString("place", place).putFloat("lat", lat.toFloat()).putFloat("lon", lon.toFloat())
+            .putString("for", chosen?.key ?: Automatic)
             .apply()
         weather
     }
 }
 
 private const val OpenMeteo = "open-meteo"
+/** Saved readings for the approximate location (from before places could be chosen, too). */
+private const val Automatic = "auto"
 private const val MetNorway = "met-norway"
 private const val MetUserAgent = "PillLauncher/2.5 github.com/S1rHades/One-TVOS"
 

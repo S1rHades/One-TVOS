@@ -128,11 +128,16 @@ class MainActivity : ComponentActivity() {
             val active = if (safe != null) emptySet() else settings.activeWidgets()
             val weatherOn = WidgetKind.Weather in active || WidgetKind.Daylight in active
             var weatherError by remember { mutableStateOf<String?>(null) }
-            val savedWeather = remember { weatherSource.cached() }
-            val weather by produceState(savedWeather, weatherOn) {
+            // A chosen town (Settings → Widgets → Weather location), or the approximate location
+            val weatherPlace = settings.weatherPlace
+            val savedWeather = remember { weatherSource.cached(weatherPlace) }
+            val weather by produceState(savedWeather, weatherOn, weatherPlace) {
+                // A new place: its saved reading if there is one, else nothing until the fetch
+                value = weatherSource.cached(weatherPlace)
+                weatherError = null
                 var failures = 0
                 while (weatherOn) {
-                    val result = withContext(Dispatchers.IO) { weatherSource.fetch() }
+                    val result = withContext(Dispatchers.IO) { weatherSource.fetch(weatherPlace) }
                     result.onSuccess { value = it; weatherError = null; failures = 0 }
                     result.onFailure { weatherError = describe(it); failures++ }
                     delay(if (result.isSuccess) REFRESH_MS else RetryDelaysMs[(failures - 1).coerceAtMost(RetryDelaysMs.lastIndex)])
@@ -324,6 +329,7 @@ class MainActivity : ComponentActivity() {
                 football = football,
                 news = news.takeIf { newsOn },
                 searchTeams = { query -> withContext(Dispatchers.IO) { findTeams(query) } },
+                searchPlaces = { query -> withContext(Dispatchers.IO) { runCatching { searchPlaces(query) } } },
                 onlinePhotos = onlinePhotos,
                 pins = pins,
                 settings = if (safe != null) settings.copy(widgets = emptyList()) else settings,
