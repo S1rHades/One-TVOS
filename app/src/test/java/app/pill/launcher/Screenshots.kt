@@ -1304,7 +1304,8 @@ class Screenshots {
             Notice("f", NoticeKind.File, "holiday.jpg arrived", "From an iPhone", java.time.Instant.now().minusSeconds(600)),
             Notice("c", NoticeKind.Connection, "Back online", "", java.time.Instant.now().minusSeconds(3600)),
         ))
-        focusOn("Notifications")
+        compose.onAllNodesWithContentDescription("Notifications", substring = true).onFirst().requestFocus()
+        settle()
         filmstrip("notifications-open", frames = 12) { pressNow(Key.DirectionCenter) }
         filmstrip("notifications-close", frames = 10) { pressNow(Key.Back) }
     }
