@@ -85,7 +85,7 @@ Press **Down** from Favorites for every app as a card in its own colour. Chips a
 
 ### Widgets
 
-Up to four cards across the top: clock, weather, sunrise & sunset, system info, headlines and football. Switch them on and off and reorder them under **Settings → Widgets**. With two on, the cards are roomy; with four, they switch to compact layouts.
+Up to four cards across the top: clock, weather, sunrise & sunset, system info, headlines, football and prayer times. Switch them on and off and reorder them under **Settings → Widgets**. With two on, the cards are roomy; with four, they switch to compact layouts.
 
 <table>
   <tr>
@@ -115,7 +115,7 @@ OK on the clock card opens the clock page: the time with seconds, the date in th
 
 <p align="center"><img src="docs/screenshots/clock.png" width="100%" alt="The clock page: 12:00:09 AM, Saturday, October 31, 2026, Jumada I 20, 1448 AH, Week 44, day 304 of 365, the October calendar with the 31st circled, and world clocks for Algiers, London, Mecca, Moscow and New York"></p>
 
-The weather, football and headlines pages are described in their own sections below.
+The weather, football, headlines and prayer pages are described in their own sections below.
 
 ### Internet
 
@@ -232,7 +232,7 @@ On TVs that ignore that command, turning off the stock launcher works too (turn 
 
 The `latest` release is rebuilt automatically every time `main` changes, so installing it again always gets you the newest version.
 
-Every version also keeps its own release, named after it (**Pill Launcher 3.3.4**, tag `v3.3.4`, file `pill-launcher-3.3.4.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v3.3.4/pill-launcher-3.3.4.apk`. The newest is titled **Pill Launcher 3.3.4 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
+Every version also keeps its own release, named after it (**Pill Launcher 3.4**, tag `v3.4`, file `pill-launcher-3.4.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v3.4/pill-launcher-3.4.apk`. The newest is titled **Pill Launcher 3.4 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
 
 ### Uninstalling
 
@@ -276,12 +276,14 @@ If the launcher won't open, use the TV's own **Settings → Apps → Pill Launch
 | Change how often the photo changes, or the weather unit | In settings, **Left** / **Right** on that row |
 | Turn widgets on or off | **Settings → Widgets**, **OK** on a widget (up to four at once) |
 | Reorder widgets | **Settings → Widgets**, **Left** / **Right** on a widget that's on |
-| Open the clock page, the weather dashboard, the football page or the news page | Go up to that widget, then **OK** (**Back** closes it) |
+| Open the clock page, the weather dashboard, the football page, the news page or the prayer page | Go up to that widget, then **OK** (**Back** closes it) |
 | Pick a day on the weather dashboard | **Left** / **Right** |
 | Pick a team on the football page, or a story on the news page | **Up** / **Down** |
 | Switch teams on the football card | With it focused, **Left** / **Right** |
 | Follow more teams, or change match day | **Settings → Widgets → Football teams** |
 | Choose headline topics | **Settings → Widgets → Headlines** |
+| Choose the mosque for prayer times, or refresh them now | **Settings → Widgets → Prayer times** |
+| Open the prayer page, and refresh the times | Go up to the prayer card, then **OK**; **Refresh** at the top left |
 | Free up memory, or open the TV's network, display, sound or update screens | **Settings → TV & system** |
 | Uninstall Pill Launcher (OK twice, then confirm) | **Settings → TV & system → Uninstall Pill Launcher** |
 | Close a page or settings | **Back** |
@@ -350,6 +352,22 @@ Neither site has feeds by topic, so the launcher picks stories itself, by sectio
 
 Al Jazeera is read from its RSS feed, or from a copy the Fixtures mirror keeps on `fixtures-data` (headline, link, date and short summary only). RT is only ever read directly by the TV: it is banned from distribution in the EU and blocked in some other countries, so it is never copied to GitHub. Where it is blocked, Settings says "Not available on this network" and the widget carries on with Al Jazeera.
 
+### Prayer times
+
+The prayer times widget shows today's five prayers from your mosque on [MAWAQIT](https://mawaqit.net), fetched through the community MAWAQIT API (`https://mawaqit-api.vercel.app/api/v1/<mosque>`; no account or key). The card names the mosque, shows the next prayer with its time and how long until it, ticking every minute, and the five prayers along the bottom with the next one marked. In a compact layout it shows the prayer after the next instead of the row. After Isha it counts down to tomorrow's Fajr.
+
+<p align="center"><img src="docs/screenshots/prayer-widget.png" width="100%" alt="The home screen with two wide widgets: the clock, and the prayer card for Moscow Cathedral Mosque with Maghrib next in 42 minutes and Fajr, Dhuhr, Asr, Maghrib and Isha with their times along the bottom, Maghrib marked with a green dot"></p>
+
+OK on the card opens the prayer page: the next prayer large with the time left and its iqama, the day as a line from Fajr to Isha with a mark for now, and every prayer with its adhan and iqama times where the mosque gives them. The title says when the times last came. **Refresh** at the top left asks MAWAQIT again.
+
+<p align="center"><img src="docs/screenshots/prayer-page.png" width="100%" alt="The prayer page for Moscow Cathedral Mosque: a Refresh button at the top left; Next, Maghrib, its time and in 42 min with its iqama; Today as a line from Fajr to Isha with Maghrib's dot in green; and on the right the five prayers with Adhan and Iqama columns"></p>
+
+The times are saved on the TV, so the card has them at once after a restart or while offline (the label turns grey and the page says "saved"), and they refresh on their own just after midnight for the new day. A failed fetch keeps the saved times and tries again, after 10 seconds, then 30, a minute, two, five. Yesterday's times stay up, marked, until the new day's arrive.
+
+Choose the mosque under **Settings → Widgets → Prayer times**: type the name from its MAWAQIT address (for `mawaqit.net/fr/grande-mosquee-de-paris` that is `grande-mosquee-de-paris`; pasting the whole address works too), then Done. The page shows what came back and when, has **Refresh now**, and takes the API's address for anyone running their own copy of it. Until a mosque is chosen the card says so, and the launcher contacts MAWAQIT for nothing.
+
+<p align="center"><img src="docs/screenshots/settings-prayers.png" width="100%" alt="Settings, Widgets, Prayer times: a field reading Mosque name on MAWAQIT, a note on finding it on mawaqit.net, Refresh now, and under API the community address"></p>
+
 ### Internet speed test
 
 **Wi-Fi** in the bar opens the Internet page (pictured [above](#internet)). **Start test** measures the connection against [Cloudflare's speed test](https://speed.cloudflare.com/) service:
@@ -379,7 +397,7 @@ gradle assembleDebug                                   # app/build/outputs/apk/d
 gradle :app:testDebugUnitTest --tests '*Screenshots*'  # re-render docs/screenshots
 ```
 
-**Builds are automated.** `.github/workflows/build.yml` builds the APK for every pull request and push; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v3.3.4`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
+**Builds are automated.** `.github/workflows/build.yml` builds the APK for every pull request and push; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v3.4`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
 
 <details>
 <summary><b>Architecture</b></summary>
@@ -394,6 +412,7 @@ app/src/main/java/app/pill/launcher/
   Football.kt            followed teams' fixtures and tables from TheSportsDB or the mirror
   MatchDay.kt            match-day countdown and the kick-off reminder
   News.kt                headlines from Al Jazeera and RT, picked by topic
+  Prayers.kt             prayer times from a mosque on MAWAQIT: the answer, the next prayer, the saved copy
   SpeedTest.kt           ping, download and upload against Cloudflare's speed test
   Updates.kt             newer releases from GitHub: check, download, install, and the installer's answer
   Notifications.kt       the notification bar's notices: kept ones, updates, football, the connection, and other apps' (NotificationWatcher)
@@ -415,9 +434,10 @@ app/src/main/java/app/pill/launcher/
     Overlay.kt           full-screen pages: blurred backdrop, open and close motion
     PageParts.kt         shared page title, cards and sparkline
     AllApps.kt           kind chips and colour app cards
-    ClockPage.kt, ForecastPage.kt, FootballHub.kt, HeadlinePage.kt, InternetPage.kt   the pages
+    ClockPage.kt, ForecastPage.kt, FootballHub.kt, HeadlinePage.kt, InternetPage.kt, PrayerPage.kt   the pages
     WidgetCards.kt       the header's glass widget cards and their row
     WeatherWidget.kt     the weather card's content, with drawn condition icons
+    PrayerWidget.kt      the prayer card's content: the next prayer, the countdown, the five in a row
     FavoritesRow.kt, AppTile.kt   the favourites row and its icon tiles
     SearchPanel.kt, SettingsPanel.kt, AppMenu.kt   panels over the home screen
     HomePrompt.kt        the Set up reminder until Pill Launcher is the home screen

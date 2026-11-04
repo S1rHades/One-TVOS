@@ -22,7 +22,6 @@ Ideas shown as mockups and passed over, so they aren't suggested again:
 - Moon phases
 - Now playing widget
 - Sleep timer
-- Prayer times
 - Occasions and countdowns
 - Photo themes
 - Idle clock styles

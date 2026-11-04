@@ -56,6 +56,10 @@ data class LauncherSettings(
     val tidyOld: Boolean = false,
     /** Other apps' private notifications show only the app's name, not their text. */
     val hidePrivate: Boolean = false,
+    /** The mosque the prayer times widget follows: its name in its MAWAQIT address (blank = none chosen). */
+    val mosque: String = "",
+    /** Where the community MAWAQIT API answers; [DefaultPrayerApi] unless changed. */
+    val prayerApi: String = DefaultPrayerApi,
 ) {
     companion object {
         val IntervalOptions = listOf(10, 20, 30, 60)
@@ -106,6 +110,8 @@ class SettingsStore(context: Context) {
         askInstalledApks = prefs.getBoolean("askInstalledApks", true),
         tidyOld = prefs.getBoolean("tidyOld", false),
         hidePrivate = prefs.getBoolean("hidePrivate", false),
+        mosque = prefs.getString("mosque", "").orEmpty(),
+        prayerApi = prefs.getString("prayerApi", null) ?: DefaultPrayerApi,
     ).let { if (it.weather == WeatherMode.Off) it.copy(weather = defaultWeatherMode()) else it }
 
     fun save(settings: LauncherSettings) {
@@ -134,6 +140,8 @@ class SettingsStore(context: Context) {
             .putBoolean("askInstalledApks", settings.askInstalledApks)
             .putBoolean("tidyOld", settings.tidyOld)
             .putBoolean("hidePrivate", settings.hidePrivate)
+            .putString("mosque", settings.mosque)
+            .putString("prayerApi", settings.prayerApi)
             .apply()
     }
 

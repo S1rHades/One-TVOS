@@ -76,12 +76,17 @@ import app.pill.launcher.Fixtures
 import app.pill.launcher.MatchDayMode
 import app.pill.launcher.MaxTeams
 import app.pill.launcher.News
+import app.pill.launcher.PrayerTimes
+import app.pill.launcher.DefaultPrayerApi
+import app.pill.launcher.cleanMosqueSlug
+import app.pill.launcher.cleanPrayerApi
 import app.pill.launcher.NewsSource
 import app.pill.launcher.NewsTopic
 import app.pill.launcher.TeamHit
 import app.pill.launcher.withAlgeriaFirst
 import androidx.compose.foundation.border
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
@@ -133,6 +138,11 @@ fun SettingsPanel(
     /** Why photos or weather last failed to load, shown under their rows; null when fine. */
     photoError: String? = null,
     weatherError: String? = null,
+    /** The prayer times as fetched, why not, and whether a fetch is running; Refresh now asks again. */
+    prayers: PrayerTimes? = null,
+    prayersError: String? = null,
+    prayersRefreshing: Boolean = false,
+    onRefreshPrayers: () -> Unit = {},
     /** The followed teams' latest fixtures, for each team's status line. */
     football: List<Fixtures> = emptyList(),
     /** The last headlines fetch, for each source's status line. */
@@ -348,6 +358,8 @@ fun SettingsPanel(
                                             on && kind == WidgetKind.Fennecs && football.firstOrNull()?.error != null -> "Can't get fixtures: ${football.first().error}"
                                             on && kind == WidgetKind.Headlines && news != null && news.headlines.isEmpty() -> "Can't get headlines · see Headlines below"
                                             on && kind == WidgetKind.Stack && settings.stackShown().isEmpty() -> "Empty · choose its widgets below"
+                                            on && kind == WidgetKind.Prayers && settings.mosque.isBlank() -> "Choose a mosque · see Prayer times below"
+                                            on && kind == WidgetKind.Prayers && prayers == null && prayersError != null -> "Can't reach MAWAQIT · see Prayer times below"
                                             on && settings.widgets.size > 1 -> "Position ${position + 1} of ${settings.widgets.size} · Left / Right to move"
                                             !on && kind in settings.stackShown() && WidgetKind.Stack in settings.widgets ->
                                                 if (full) "In the widget stack" else "In the widget stack · OK shows it by itself"
@@ -383,6 +395,12 @@ fun SettingsPanel(
                                             subtitle = NewsTopic.entries.filter { it in settings.newsTopics }.joinToString(", ") { it.title },
                                             onClick = { page = SettingsPage.News },
                                             modifier = Modifier.focusRequester(categoryFocus.getValue(SettingsPage.News)),
+                                        ) { focused -> Chevron(focused) }
+                                        SettingRow(
+                                            title = SettingsPage.Prayers.title,
+                                            subtitle = prayers?.mosque?.ifBlank { null } ?: settings.mosque.ifBlank { "No mosque chosen" },
+                                            onClick = { page = SettingsPage.Prayers },
+                                            modifier = Modifier.focusRequester(categoryFocus.getValue(SettingsPage.Prayers)),
                                         ) { focused -> Chevron(focused) }
                                     }
                                     Group(null) {
@@ -518,6 +536,7 @@ fun SettingsPanel(
                                 )
                                 SettingsPage.Football -> FootballPage(settings, onChange, football, searchTeams, Modifier.focusRequester(pageFirst))
                                 SettingsPage.News -> NewsPage(settings, onChange, news, Modifier.focusRequester(pageFirst))
+                                SettingsPage.Prayers -> PrayersPage(settings, onChange, prayers, prayersError, prayersRefreshing, onRefreshPrayers, Modifier.focusRequester(pageFirst))
                                 SettingsPage.Stack -> StackPage(
                                     settings = settings,
                                     onChange = onChange,
@@ -732,6 +751,7 @@ enum class SettingsPage(val title: String, val parent: SettingsPage? = null) {
     Stack("Widget stack", Widgets),
     Football("Football teams", Widgets),
     News("Headlines", Widgets),
+    Prayers("Prayer times", Widgets),
     ;
 
     /** The category this page is under, in the list. */
@@ -767,6 +787,7 @@ private fun summaryOf(page: SettingsPage, settings: LauncherSettings, home: Home
     SettingsPage.Football -> settings.teams.joinToString(", ") { it.name }
     SettingsPage.News -> settings.newsTopics.joinToString(", ") { it.title }
     SettingsPage.Stack -> settings.stack.joinToString(", ") { it.title }
+    SettingsPage.Prayers -> settings.mosque.ifBlank { "No mosque chosen" }
 }
 
 /** Shortcuts on the TV & system page: one action here, the rest open the TV's own screens. */
@@ -1106,6 +1127,103 @@ private fun TeamSearchField(value: String, onChange: (String) -> Unit) {
                     if (value.isEmpty()) Text("Search teams", color = Palette.TextTertiary, fontSize = 19.sp)
                     inner()
                 }
+            }
+        },
+    )
+}
+
+/**
+ * Settings → Widgets → Prayer times: the mosque (its name in its MAWAQIT address, typed
+ * with the TV keyboard, or pasted as the whole address), what came back and when, Refresh
+ * now, and the API's address for anyone running their own copy of it.
+ */
+@Composable
+private fun PrayersPage(
+    settings: LauncherSettings,
+    onChange: (LauncherSettings) -> Unit,
+    prayers: PrayerTimes?,
+    error: String?,
+    refreshing: Boolean,
+    onRefresh: () -> Unit,
+    firstModifier: Modifier,
+) {
+    Group("Mosque") {
+        var mosque by remember(settings.mosque) { mutableStateOf(settings.mosque) }
+        Box(Modifier.padding(horizontal = 18.dp, vertical = 6.dp)) {
+            TextRow(
+                value = mosque,
+                hint = "Mosque name on MAWAQIT, e.g. grande-mosquee-de-paris",
+                onChange = { mosque = it },
+                onDone = { onChange(settings.copy(mosque = cleanMosqueSlug(mosque))) },
+                // With no mosque yet the page opens on the field; once there is one, on Refresh now (focusing
+                // the field would bring up the keyboard each time)
+                modifier = if (settings.mosque.isBlank()) firstModifier else Modifier,
+            )
+        }
+        Note("Find your mosque on mawaqit.net and copy the last part of its address. The whole address pastes too.")
+        val status = when {
+            settings.mosque.isBlank() -> "Type the mosque, then Done"
+            refreshing -> "Asking MAWAQIT…"
+            prayers == null && error != null -> "Can't reach MAWAQIT: $error"
+            prayers == null -> "Loads with the next refresh"
+            error != null -> "Offline · showing times saved " + ageText(prayers.fetchedAt).lowercase()
+            prayers.fromCache -> "Saved " + ageText(prayers.fetchedAt).lowercase() + " · refreshes after midnight"
+            else -> "Updated " + ageText(prayers.fetchedAt).lowercase() + " · refreshes after midnight"
+        }
+        SettingRow(
+            title = "Refresh now",
+            subtitle = (prayers?.mosque?.ifBlank { null }?.let { "$it · " } ?: "") + status,
+            onClick = { if (!refreshing) onRefresh() },
+            enabled = settings.mosque.isNotBlank(),
+            modifier = if (settings.mosque.isBlank()) Modifier else firstModifier,
+        ) { focused -> RefreshIcon(if (focused) Palette.Ink else Palette.TextTertiary, 22.dp) }
+    }
+    Group("API") {
+        var api by remember(settings.prayerApi) { mutableStateOf(settings.prayerApi) }
+        Box(Modifier.padding(horizontal = 18.dp, vertical = 6.dp)) {
+            TextRow(
+                value = api,
+                hint = DefaultPrayerApi,
+                onChange = { api = it },
+                onDone = { onChange(settings.copy(prayerApi = cleanPrayerApi(api))) },
+            )
+        }
+        Note(
+            if (settings.prayerApi == DefaultPrayerApi) "The community MAWAQIT API. Change it only if you run your own copy."
+            else "Your own copy of the API. Clear the field for the community one.",
+        )
+    }
+}
+
+/** A line of text typed with the TV keyboard; OK opens it, Done (or leaving the field) keeps it. */
+@Composable
+private fun TextRow(value: String, hint: String, onChange: (String) -> Unit, onDone: () -> Unit, modifier: Modifier = Modifier) {
+    var focused by remember { mutableStateOf(false) }
+    val border by animateColorAsState(if (focused) Palette.Focus else Palette.Hairline, label = "textRowBorder")
+    BasicTextField(
+        value = value,
+        onValueChange = onChange,
+        singleLine = true,
+        textStyle = TextStyle(fontFamily = Flex, color = Palette.TextPrimary, fontSize = 17.sp),
+        cursorBrush = SolidColor(Palette.Focus),
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+        keyboardActions = KeyboardActions(onDone = { onDone() }),
+        modifier = modifier
+            .fillMaxWidth()
+            .onFocusChanged {
+                if (focused && !it.isFocused) onDone()
+                focused = it.isFocused
+            },
+        decorationBox = { inner ->
+            Box(
+                Modifier
+                    .clip(RowShape)
+                    .background(Color(0x14FFFFFF))
+                    .border(2.dp, border, RowShape)
+                    .padding(horizontal = 18.dp, vertical = 12.dp),
+            ) {
+                if (value.isEmpty()) Text(hint, color = Palette.TextTertiary, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                inner()
             }
         },
     )
