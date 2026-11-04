@@ -1219,6 +1219,182 @@ class Screenshots {
         settle()
     }
 
+    // ---- Menu audit (temporary): the menus' transitions frame by frame, as filmstrips -----
+
+    private val auditDir get() = File(out, "audit").apply { mkdirs() }
+
+    private fun pressNow(key: Key) {
+        compose.onAllNodes(isFocused()).onFirst().performKeyInput { pressKey(key) }
+    }
+
+    /** Back as the TV sends it to the dialog on top (key presses don't reach a dialog's window here). */
+    private fun back() {
+        compose.runOnUiThread { org.robolectric.shadows.ShadowDialog.getLatestDialog()?.onBackPressed() }
+    }
+
+    private fun tap(text: String) = compose.onAllNodesWithText(text).onFirst().performSemanticsAction(SemanticsActions.OnClick)
+    private fun tapDesc(desc: String) = compose.onAllNodesWithContentDescription(desc).onFirst().performSemanticsAction(SemanticsActions.OnClick)
+
+    private fun still(name: String) {
+        settle()
+        captureScreenRoboImage(File(auditDir, "$name.png").path)
+    }
+
+    /** Runs [block], and on a failure says so and carries on, so one missing node doesn't lose the other strips. */
+    private fun step(name: String, block: () -> Unit) {
+        try {
+            block()
+        } catch (e: Throwable) {
+            compose.mainClock.autoAdvance = true
+            println("AUDIT FAIL $name: $e")
+        }
+        println("AUDIT $name · focus: " + runCatching { focusedName() }.getOrDefault("?"))
+    }
+
+    /**
+     * Runs [action] with the clock held, then grabs [frames] frames [stepMs] apart and lays
+     * them out in a grid, each labelled with its time. [crop] is in screen pixels.
+     */
+    private fun filmstrip(name: String, frames: Int = 12, stepMs: Long = 40, crop: android.graphics.Rect? = null, scale: Float = if (crop == null) 0.34f else 1f, action: () -> Unit) {
+        compose.mainClock.autoAdvance = false
+        action()
+        val shots = ArrayList<Bitmap>()
+        val tmp = File(auditDir, "_frame.png")
+        repeat(frames) {
+            compose.mainClock.advanceTimeBy(stepMs)
+            captureScreenRoboImage(tmp.path)
+            var b = BitmapFactory.decodeFile(tmp.path)
+            if (crop != null) b = Bitmap.createBitmap(b, crop.left, crop.top, minOf(crop.width(), b.width - crop.left), minOf(crop.height(), b.height - crop.top))
+            if (scale != 1f) b = Bitmap.createScaledBitmap(b, (b.width * scale).toInt(), (b.height * scale).toInt(), true)
+            shots += b
+        }
+        tmp.delete()
+        compose.mainClock.autoAdvance = true
+        val cols = if (shots.first().width > 900) 3 else 4
+        val rows = (shots.size + cols - 1) / cols
+        val w = shots.first().width
+        val h = shots.first().height
+        val pad = 6
+        val label = 26
+        val grid = Bitmap.createBitmap(cols * (w + pad) + pad, rows * (h + label + pad) + pad, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(grid)
+        canvas.drawColor(0xFF202020.toInt())
+        val text = Paint().apply { color = 0xFFFFFFFF.toInt(); textSize = 20f; isAntiAlias = true; typeface = Typeface.MONOSPACE }
+        for ((i, b) in shots.withIndex()) {
+            val x = pad + (i % cols) * (w + pad)
+            val y = pad + (i / cols) * (h + label + pad)
+            canvas.drawText("${(i + 1) * stepMs} ms", x.toFloat(), (y + 20).toFloat(), text)
+            canvas.drawBitmap(b, x.toFloat(), (y + label).toFloat(), null)
+        }
+        java.io.FileOutputStream(File(auditDir, "$name.png")).use { grid.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        settle()
+    }
+
+    private val panelCrop = android.graphics.Rect(1000, 0, 1920, 1080)
+
+    @Test
+    fun auditAppMenu() {
+        show("misty-valley", pins = favorites)
+        step("menu-open") { filmstrip("menu-open") { compose.onRoot().performKeyInput { pressKey(Key.Menu) } } }
+        step("menu-still") { still("menu-still") }
+        step("menu-down") { filmstrip("menu-down", frames = 8) { pressNow(Key.DirectionDown) } }
+        step("menu-close") { filmstrip("menu-close", frames = 10) { back() } }
+        step("rename-open") {
+            compose.onRoot().performKeyInput { pressKey(Key.Menu) }
+            settle()
+            filmstrip("rename-open") { tap("Rename…") }
+        }
+        step("rename-close") { filmstrip("rename-close", frames = 10) { back() } }
+        step("move-open") {
+            compose.onRoot().performKeyInput { pressKey(Key.Menu) }
+            settle()
+            filmstrip("move-open", frames = 10) { tap("Move") }
+        }
+        step("move-right") { filmstrip("move-right", frames = 8, crop = android.graphics.Rect(0, 640, 1920, 1080), scale = 0.5f) { pressNow(Key.DirectionRight) } }
+        step("move-done") { filmstrip("move-done", frames = 8, crop = android.graphics.Rect(0, 640, 1920, 1080), scale = 0.5f) { pressNow(Key.DirectionCenter) } }
+    }
+
+    @Test
+    fun auditSearch() {
+        show("pine-forest", pins = favorites)
+        step("search-open") { filmstrip("search-open") { tapDesc("Search") } }
+        step("search-letter") { filmstrip("search-letter", frames = 8) { tapDesc("M") } }
+        step("search-letter-2") { filmstrip("search-letter-2", frames = 8) { tapDesc("A") } }
+        step("search-still") { still("search-still") }
+        step("search-down") { filmstrip("search-down", frames = 8) { pressNow(Key.DirectionDown) } }
+        step("search-close") { filmstrip("search-close", frames = 10) { back() } }
+    }
+
+    @Test
+    fun auditSettingsPages() {
+        show("aurora-sky", pins = favorites, news = news)
+        tapDesc("Settings")
+        settle()
+        step("settings-list-down") { filmstrip("settings-list-down", frames = 6, crop = panelCrop, scale = 0.5f) { pressNow(Key.DirectionDown) } }
+        step("settings-open-page") { filmstrip("settings-open-page", frames = 9, crop = panelCrop, scale = 0.5f) { tap("Background") } }
+        step("settings-switch") { filmstrip("settings-switch", frames = 6, crop = panelCrop, scale = 0.5f) { pressNow(Key.DirectionCenter) } }
+        step("settings-back-page") { filmstrip("settings-back-page", frames = 9, crop = panelCrop, scale = 0.5f) { back() } }
+        for (page in listOf("Background", "Favorites row", "Idle screen", "Home & startup", "Widgets")) {
+            step("page $page") {
+                tap(page)
+                still("settings-" + page.lowercase().replace(Regex("[^a-z]+"), "-").trim('-'))
+                if (page != "Widgets") { back(); settle() }
+            }
+        }
+        // Down the long Widgets page: the list scrolls under the header
+        step("settings-widgets-scroll") {
+            filmstrip("settings-widgets-scroll", frames = 8, crop = panelCrop, scale = 0.5f) {
+                compose.onAllNodes(isFocused()).onFirst().performKeyInput { repeat(6) { pressKey(Key.DirectionDown) } }
+            }
+        }
+        for (sub in listOf("Headlines", "Widget stack")) {
+            step("sub $sub") {
+                compose.onAllNodesWithText(sub).onFirst().performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+                still("settings-sub-" + sub.lowercase().replace(' ', '-'))
+                back(); settle()
+            }
+        }
+        step("settings-close") { back(); settle(); filmstrip("settings-close", frames = 10) { back() } }
+    }
+
+    @Test
+    fun auditAllApps() {
+        show("misty-valley", pins = favorites)
+        compose.onRoot().performKeyInput { repeat(3) { pressKey(Key.DirectionDown) } }
+        settle()
+        step("all-apps-right") { filmstrip("all-apps-right", frames = 8, crop = android.graphics.Rect(0, 200, 1920, 1080), scale = 0.5f) { pressNow(Key.DirectionRight) } }
+        step("all-apps-up") { filmstrip("all-apps-up", frames = 8, crop = android.graphics.Rect(0, 0, 1920, 1080), scale = 0.5f) { pressNow(Key.DirectionUp) } }
+        step("all-apps-chip-right") { filmstrip("all-apps-chip-right", frames = 8, crop = android.graphics.Rect(0, 0, 1920, 1080), scale = 0.5f) { pressNow(Key.DirectionRight) } }
+        step("all-apps-chip-ok") { filmstrip("all-apps-chip-ok", frames = 10, crop = android.graphics.Rect(0, 0, 1920, 1080), scale = 0.5f) { tap(focusedName().substringAfter(" / ").ifBlank { focusedName() }) } }
+    }
+
+    @Test
+    fun auditWidgetPages() {
+        val four = listOf(WidgetKind.Clock, WidgetKind.Weather, WidgetKind.Fennecs, WidgetKind.Headlines)
+        show("canyon-river", pins = favorites, news = news, weather = forecastWeather, football = matchDay(inMinutes = 60 * 24 * 3), settings = LauncherSettings(weather = WeatherMode.Celsius, widgets = four, newsTopics = setOf(NewsTopic.Russia)))
+        val weekday = java.time.LocalDate.now().dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.getDefault())
+        val opens = listOf(
+            "clock" to { compose.onAllNodes(hasClickAction() and hasText(weekday, substring = true)).onFirst().performSemanticsAction(SemanticsActions.OnClick) },
+            "forecast" to { compose.onAllNodes(hasClickAction() and hasText("Lisbon", substring = true)).onFirst().performSemanticsAction(SemanticsActions.OnClick) },
+            "football" to { compose.onAllNodes(hasClickAction() and (hasText("Algeria", substring = true) or hasText("ALG", substring = true) or hasText("ARS", substring = true))).onFirst().performSemanticsAction(SemanticsActions.OnClick) },
+            "headlines" to { compose.onNodeWithText("RUSSIA", substring = true).performSemanticsAction(SemanticsActions.OnClick) },
+        )
+        for ((name, open) in opens) {
+            step("$name-open") { filmstrip("$name-open", frames = 12) { open() } }
+            step("$name-down") { filmstrip("$name-down", frames = 6) { pressNow(Key.DirectionDown) } }
+            step("$name-close") { filmstrip("$name-close", frames = 10) { back() } }
+        }
+    }
+
+    @Test
+    fun auditPrayerPage() {
+        atTwentyToFour { times ->
+            show("canyon-river", pins = favorites, prayers = times, settings = LauncherSettings(weather = WeatherMode.Celsius, widgets = listOf(WidgetKind.Clock, WidgetKind.Prayers), mosque = "moscow-cathedral-mosque"))
+            step("prayer-open") { filmstrip("prayer-open", frames = 12) { compose.onNodeWithText("Maghrib").performSemanticsAction(SemanticsActions.OnClick) } }
+            step("prayer-close") { filmstrip("prayer-close", frames = 10) { back() } }
+        }
+    }
+
     private fun settle() {
         repeat(8) {
             compose.mainClock.advanceTimeBy(150)
