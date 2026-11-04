@@ -366,7 +366,7 @@ The times are saved on the TV, so the card has them at once after a restart or w
 
 Choose the mosque under **Settings → Widgets → Prayer times**: type the name from its MAWAQIT address (for `mawaqit.net/fr/grande-mosquee-de-paris` that is `grande-mosquee-de-paris`; pasting the whole address works too), then Done. The page shows what came back and when, has **Refresh now**, and takes the API's address for anyone running their own copy of it. Until a mosque is chosen the card says so, and the launcher contacts MAWAQIT for nothing.
 
-<p align="center"><img src="docs/screenshots/settings-prayers.png" width="100%" alt="Settings, Widgets, Prayer times: a field reading Mosque name on MAWAQIT, a note on finding it on mawaqit.net, Refresh now, and under API the community address"></p>
+<p align="center"><img src="docs/screenshots/settings-prayers.png" width="100%" alt="Settings, Widgets, Prayer times: a field reading Mosque name on MAWAQIT, a note on finding it on mawaqit.net, Refresh now, and under API the community address; beside the panel, the home screen's prayer card says Choose a mosque in Settings"></p>
 
 ### Internet speed test
 

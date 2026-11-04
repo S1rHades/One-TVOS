@@ -134,8 +134,8 @@ fun PrayerPage(
             PageCard(2, Modifier.width(380.dp).fillMaxHeight()) {
                 Row(Modifier.fillMaxWidth()) {
                     PageLabel("Prayer", Modifier.weight(1f))
-                    PageLabel("Adhan", Modifier.width(88.dp))
-                    if (times?.iqama?.isNotEmpty() == true) PageLabel("Iqama", Modifier.width(88.dp))
+                    PageLabel("Adhan", Modifier.width(AdhanWidth))
+                    if (times?.iqama?.isNotEmpty() == true) PageLabel("Iqama", Modifier.width(IqamaWidth))
                 }
                 if (times == null) {
                     for (p in Prayer.entries) TimeRow(p.title, "–", null, current = false)
@@ -157,6 +157,10 @@ fun PrayerPage(
     }
 }
 
+/** Room for "12:14 PM" in each column, at their sizes. */
+private val AdhanWidth = 118.dp
+private val IqamaWidth = 86.dp
+
 @Composable
 private fun TimeRow(name: String, time: String, iqama: String?, current: Boolean) {
     val color = if (current) Palette.TextPrimary else Palette.TextSecondary
@@ -165,8 +169,8 @@ private fun TimeRow(name: String, time: String, iqama: String?, current: Boolean
             if (current) Box(Modifier.size(7.dp).background(PrayerGreen, CircleShape))
         }
         Text(name, color = color, fontSize = 17.sp, fontWeight = if (current) FontWeight(600) else FontWeight(400), modifier = Modifier.weight(1f))
-        Text(time, color = color, fontSize = 22.sp, fontWeight = FontWeight(if (current) 600 else 400), maxLines = 1, modifier = Modifier.width(88.dp))
-        if (iqama != null) Text(iqama, color = Palette.TextTertiary, fontSize = 17.sp, maxLines = 1, modifier = Modifier.width(88.dp))
+        Text(time, color = color, fontSize = 20.sp, fontWeight = FontWeight(if (current) 600 else 400), maxLines = 1, softWrap = false, modifier = Modifier.width(AdhanWidth))
+        if (iqama != null) Text(iqama, color = Palette.TextTertiary, fontSize = 17.sp, maxLines = 1, softWrap = false, modifier = Modifier.width(IqamaWidth))
     }
     Box(Modifier.fillMaxWidth().padding(top = 8.dp).height(1.dp).background(Color(0x1FFFFFFF)))
 }
