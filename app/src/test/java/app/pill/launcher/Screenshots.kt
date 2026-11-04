@@ -182,8 +182,29 @@ class Screenshots {
     /** The fixtures on screen; a test changes them to show what a new fetch brings. */
     private var footballNow by mutableStateOf<List<Fixtures>>(emptyList())
 
+    @get:Rule
+    val testName = org.junit.rules.TestName()
+
+    // A test that hangs says where: after two minutes, its name and the main thread's stack
+    private var watchdog: Thread? = null
+
+    @org.junit.After
+    fun stopWatchdog() {
+        watchdog?.interrupt()
+    }
+
     @Before
     fun setUp() {
+        val main = Thread.currentThread()
+        val name = testName.methodName
+        watchdog = Thread {
+            try {
+                Thread.sleep(120_000)
+                println("HUNG TEST: $name")
+                main.stackTrace.take(40).forEach { println("HUNG   at $it") }
+            } catch (_: InterruptedException) {
+            }
+        }.apply { isDaemon = true; start() }
         out.mkdirs()
     }
 
