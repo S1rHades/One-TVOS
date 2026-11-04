@@ -3,6 +3,11 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 3.4.2 (November 2026)
+
+- **Files: scanning the code** still ended in Chrome's ERR_TOO_MANY_RETRIES for some phones. The TV now always answers: when something goes wrong while it answers a phone, the phone gets a page saying what, instead of a connection closed with no answer (which is what makes Chrome retry until it gives up). The Files page also shows the last phone that reached the TV, from which address, and how that went, so a scan that never reaches the TV (a phone on mobile data or a VPN, say) can be told apart from one that does.
+- **Prayer times**: a mosque address MAWAQIT doesn't know now says so ("MAWAQIT has no mosque at …"), instead of "Can't reach MAWAQIT: HTTP 404". Every failed check shows when it was made, so **Refresh** visibly tries again. The settings page explains how to find a mosque's address (MAWAQIT doesn't allow other apps to search its mosques).
+
 ## 3.4.1 (November 2026)
 
 - **Weather for your own town**: the weather was for the place the TV's internet address points to, often the nearest city. **Settings → Widgets → Weather location** now lets you choose a town by name, using Open-Meteo's place search (it covers small towns and villages), or type a latitude and longitude. The forecast, sunrise and sunset are then for that exact place. **Automatic** keeps the old behaviour.

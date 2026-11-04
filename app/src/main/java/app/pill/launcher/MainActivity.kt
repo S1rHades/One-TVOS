@@ -196,7 +196,8 @@ class MainActivity : ComponentActivity() {
                     }
                     result.onSuccess { value = it; prayersError = null; failures = 0 }
                     result.onFailure { error ->
-                        prayersError = describe(error)
+                        val at = java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern(if (android.text.format.DateFormat.is24HourFormat(this@MainActivity)) "HH:mm" else "h:mm a"))
+                        prayersError = prayerProblem(error, at)
                         failures++
                         value = value?.copy(fromCache = true)
                     }

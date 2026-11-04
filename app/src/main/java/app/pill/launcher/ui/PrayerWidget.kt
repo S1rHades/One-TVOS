@@ -164,6 +164,7 @@ fun PrayerEmpty(error: String?, hasMosque: Boolean, modifier: Modifier = Modifie
         Text(
             when {
                 !hasMosque -> "Choose a mosque in Settings"
+                error != null && error.startsWith("MAWAQIT has no mosque") -> "Mosque not found · see Settings"
                 error != null -> "Can't reach MAWAQIT"
                 else -> "Getting today's times…"
             },

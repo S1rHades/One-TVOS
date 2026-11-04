@@ -1238,7 +1238,7 @@ private fun PrayersPage(
         Box(Modifier.padding(horizontal = 18.dp, vertical = 6.dp)) {
             TextRow(
                 value = mosque,
-                hint = "Mosque name on MAWAQIT, e.g. grande-mosquee-de-paris",
+                hint = "The mosque's MAWAQIT address, e.g. obada-benisaf",
                 onChange = { mosque = it },
                 onDone = { onChange(settings.copy(mosque = cleanMosqueSlug(mosque))) },
                 // With no mosque yet the page opens on the field; once there is one, on Refresh now (focusing
@@ -1246,13 +1246,13 @@ private fun PrayersPage(
                 modifier = if (settings.mosque.isBlank()) firstModifier else Modifier,
             )
         }
-        Note("Find your mosque on mawaqit.net and copy the last part of its address. The whole address pastes too.")
+        Note("MAWAQIT doesn't let other apps search its mosques, so: find yours on mawaqit.net (on a phone), and type the end of its address here. For mawaqit.net/en/obada-benisaf that is obada-benisaf.")
         val status = when {
             settings.mosque.isBlank() -> "Type the mosque, then Done"
             refreshing -> "Asking MAWAQIT…"
-            prayers == null && error != null -> "Can't reach MAWAQIT: $error"
+            prayers == null && error != null -> error
             prayers == null -> "Loads with the next refresh"
-            error != null -> "Offline · showing times saved " + ageText(prayers.fetchedAt).lowercase()
+            error != null -> "Showing times saved " + ageText(prayers.fetchedAt).lowercase() + " · " + error
             prayers.fromCache -> "Saved " + ageText(prayers.fetchedAt).lowercase() + " · refreshes after midnight"
             else -> "Updated " + ageText(prayers.fetchedAt).lowercase() + " · refreshes after midnight"
         }

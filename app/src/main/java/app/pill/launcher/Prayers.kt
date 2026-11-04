@@ -208,6 +208,8 @@ class PrayerSource(context: Context, private val zone: ZoneId = ZoneId.systemDef
         // The mosque's whole page first (its name and iqama with the times), then the times alone
         val body = runCatching { httpGet("$base/$slug/", PrayerUserAgent) }.getOrElse { first ->
             runCatching { httpGet("$base/$slug/prayer-times", PrayerUserAgent) }.getOrElse { second ->
+                // Both "not found": the address names no mosque (a town's name, say), which is no network trouble
+                if (shortReason(first) == "HTTP 404" && shortReason(second) == "HTTP 404") throw NoSuchMosque(slug)
                 throw IOException("${shortReason(first)}; prayer-times: ${shortReason(second)}")
             }
         }
@@ -223,6 +225,20 @@ class PrayerSource(context: Context, private val zone: ZoneId = ZoneId.systemDef
         val midnight = now.toLocalDate().plusDays(1).atStartOfDay(now.zone).plusSeconds(30)
         return Duration.between(now, midnight).coerceIn(Duration.ofMinutes(1), Duration.ofHours(24))
     }
+}
+
+/** MAWAQIT has no mosque at this address. */
+class NoSuchMosque(val slug: String) : IOException("No mosque at $slug")
+
+/**
+ * What to say when the times couldn't be fetched, at [at] ("12:31", so a Refresh that
+ * fails the same way still shows it tried): a mosque that isn't there, or the reason
+ * MAWAQIT couldn't be reached.
+ */
+fun prayerProblem(error: Throwable, at: String): String = when (error) {
+    is NoSuchMosque -> "MAWAQIT has no mosque at “${error.slug}”. Use the end of its mawaqit.net address, such as obada-benisaf · checked $at"
+    is IllegalArgumentException -> error.message.orEmpty()
+    else -> "Can't reach MAWAQIT (${shortReason(error)}) · checked $at"
 }
 
 private const val PrayerUserAgent = "PillLauncher/3.4 github.com/S1rHades/One-TVOS"

@@ -279,6 +279,18 @@ private fun ColumnScope.ReceivePanel(state: app.pill.launcher.ShareState, keepRe
             modifier = Modifier.fillMaxWidth(),
         )
     }
+    // The last phone that reached the TV, and how that went: whether a scan gets here at all
+    Text(
+        state.lastVisit?.let { v ->
+            "Last phone: " + ageText(java.time.Instant.ofEpochMilli(v.at)).lowercase() + " from ${v.from} · ${v.asked} · ${v.outcome}"
+        } ?: if (state.running) "No phone has reached the TV yet" else "",
+        color = if (state.lastVisit?.outcome?.startsWith("failed") == true) Color(0xFFFFC078) else Palette.TextTertiary,
+        fontSize = 12.sp,
+        textAlign = TextAlign.Center,
+        maxLines = 2,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+    )
     Spacer(Modifier.height(12.dp))
     for (t in state.transfers.take(2)) {
         Column(Modifier.fillMaxWidth().padding(bottom = 8.dp).background(Color(0x14FFFFFF), RoundedCornerShape(14.dp)).padding(horizontal = 12.dp, vertical = 9.dp)) {

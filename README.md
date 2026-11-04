@@ -153,11 +153,11 @@ Pill Launcher's own notifications:
 
 **OK** on a file opens it: photos in the launcher's own viewer (**Left** / **Right** for the next one), videos and documents in the TV's apps, and an app's APK with Android's install screen. Holding **OK** offers **Install** or **Open**, **Send to phone** (a code that saves it on your phone) and **Delete**.
 
-Your phone opens a plain page in its browser, with nothing to install: **Send to TV** picks photos, videos or files and shows each one's progress, and the TV's files are listed with **Save**. The phone must be on the same home network as the TV (the TV on a cable and the phone on Wi-Fi is fine; a guest Wi-Fi usually keeps devices apart).
+Your phone opens a plain page in its browser, with nothing to install: **Send to TV** picks photos, videos or files and shows each one's progress, and the TV's files are listed with **Save**. The phone must be on the same home network as the TV (the TV on a cable and the phone on Wi-Fi is fine; a guest Wi-Fi usually keeps devices apart). Under the code, the Files page shows the last phone that reached the TV, from which address, and how that went. If a scan fails and the TV still says no phone has reached it, the phone isn't reaching the TV at all: check that it is on the same Wi-Fi, not on mobile data, and that no VPN is on.
 
 <table>
   <tr>
-    <td width="66%"><img src="docs/screenshots/files.png" alt="The Files page: on the left, Receive, with a QR code, Scan with your phone, the address 192.168.1.24:8642 and code 482913, the space free and Keep receiving: Off; on the right, chips for All 4, Photos, Videos, Apps and Documents over cards for holiday.jpg with a preview, match-highlights.mp4, kinopub-2.4.apk and tv-manual.pdf"><br><sub><b>Files on the TV</b>: receiving on the left, everything on the TV on the right.</sub></td>
+    <td width="66%"><img src="docs/screenshots/files.png" alt="The Files page: on the left, Receive, with a QR code, Scan with your phone, the address 192.168.1.24:8642 and code 482913, No phone has reached the TV yet, the space free and Keep receiving: Off; on the right, chips for All 4, Photos, Videos, Apps and Documents over cards for holiday.jpg with a preview, match-highlights.mp4, kinopub-2.4.apk and tv-manual.pdf"><br><sub><b>Files on the TV</b>: receiving on the left, everything on the TV on the right.</sub></td>
     <td width="34%"><img src="docs/files-phone.png" alt="The phone's page: Your TV, Send to TV, kinopub-2.5.apk on its way at 34.6 of 48 MB, and the TV's files with Save beside each"><br><sub><b>On the phone</b>: send, or save what's on the TV.</sub></td>
   </tr>
 </table>
@@ -232,7 +232,7 @@ On TVs that ignore that command, turning off the stock launcher works too (turn 
 
 The `latest` release is rebuilt automatically every time `main` changes, so installing it again always gets you the newest version.
 
-Every version also keeps its own release, named after it (**Pill Launcher 3.4.1**, tag `v3.4.1`, file `pill-launcher-3.4.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v3.4.1/pill-launcher-3.4.apk`. The newest is titled **Pill Launcher 3.4.1 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
+Every version also keeps its own release, named after it (**Pill Launcher 3.4.2**, tag `v3.4.2`, file `pill-launcher-3.4.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v3.4.2/pill-launcher-3.4.apk`. The newest is titled **Pill Launcher 3.4.2 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
 
 ### Uninstalling
 
@@ -372,9 +372,9 @@ OK on the card opens the prayer page: the next prayer large with the time left a
 
 The times are saved on the TV, so the card has them at once after a restart or while offline (the label turns grey and the page says "saved"), and they refresh on their own just after midnight for the new day. A failed fetch keeps the saved times and tries again, after 10 seconds, then 30, a minute, two, five. Yesterday's times stay up, marked, until the new day's arrive.
 
-Choose the mosque under **Settings → Widgets → Prayer times**: type the name from its MAWAQIT address (for `mawaqit.net/fr/grande-mosquee-de-paris` that is `grande-mosquee-de-paris`; pasting the whole address works too), then Done. The page shows what came back and when, has **Refresh now**, and takes the API's address for anyone running their own copy of it. Until a mosque is chosen the card says so, and the launcher contacts MAWAQIT for nothing.
+Choose the mosque under **Settings → Widgets → Prayer times**: type the end of its MAWAQIT address (for `mawaqit.net/en/obada-benisaf` that is `obada-benisaf`; pasting the whole address works too), then Done. There is no mosque search: MAWAQIT doesn't allow other apps to use its search, so find the mosque on mawaqit.net first, on a phone. An address MAWAQIT doesn't know says so, and every failed check shows the time it was made, so **Refresh** visibly tries again. The page shows what came back and when, has **Refresh now**, and takes the API's address for anyone running their own copy of it. Until a mosque is chosen the card says so, and the launcher contacts MAWAQIT for nothing.
 
-<p align="center"><img src="docs/screenshots/settings-prayers.png" width="100%" alt="Settings, Widgets, Prayer times: a field reading Mosque name on MAWAQIT, a note on finding it on mawaqit.net, Refresh now, and under API the community address; beside the panel, the home screen's prayer card says Choose a mosque in Settings"></p>
+<p align="center"><img src="docs/screenshots/settings-prayers.png" width="100%" alt="Settings, Widgets, Prayer times: a field reading The mosque's MAWAQIT address, e.g. obada-benisaf, a note that MAWAQIT doesn't let other apps search and how to find the address on mawaqit.net, Refresh now, and under API the community address; beside the panel, the home screen's prayer card says Choose a mosque in Settings"></p>
 
 ### Internet speed test
 
@@ -405,7 +405,7 @@ gradle assembleDebug                                   # app/build/outputs/apk/d
 gradle :app:testDebugUnitTest --tests '*Screenshots*'  # re-render docs/screenshots
 ```
 
-**Builds are automated.** `.github/workflows/build.yml` builds the APK for every pull request and push; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v3.4.1`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
+**Builds are automated.** `.github/workflows/build.yml` builds the APK for every pull request and push; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v3.4.2`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
 
 <details>
 <summary><b>Architecture</b></summary>

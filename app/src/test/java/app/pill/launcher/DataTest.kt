@@ -761,4 +761,31 @@ class DataTest {
         store.save(LauncherSettings(weatherPlace = null))
         assertNull(store.load().weatherPlace)
     }
+
+    /** A mosque address MAWAQIT doesn't know says so plainly, with when it was checked. */
+    @Test
+    fun aMosqueThatIsNotThere() {
+        // A stand-in for the API that knows no mosque: every request gets 404
+        val server = java.net.ServerSocket(0, 8, java.net.InetAddress.getByName("127.0.0.1"))
+        Thread {
+            while (!server.isClosed) {
+                val c = runCatching { server.accept() }.getOrNull() ?: break
+                c.use {
+                    val input = it.getInputStream().bufferedReader()
+                    while (input.readLine().orEmpty().isNotEmpty()) Unit
+                    it.getOutputStream().write("HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".toByteArray())
+                }
+            }
+        }.apply { isDaemon = true }.start()
+        try {
+            val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+            val failed = PrayerSource(context).fetch("http://127.0.0.1:${server.localPort}/api/v1", "benisaf")
+            val error = failed.exceptionOrNull()!!
+            assertTrue(error.toString(), error is NoSuchMosque)
+            assertEquals("MAWAQIT has no mosque at “benisaf”. Use the end of its mawaqit.net address, such as obada-benisaf · checked 12:31", prayerProblem(error, "12:31"))
+            assertEquals("Can't reach MAWAQIT (SocketTimeoutException) · checked 12:31", prayerProblem(java.io.IOException(java.net.SocketTimeoutException()), "12:31"))
+        } finally {
+            server.close()
+        }
+    }
 }
