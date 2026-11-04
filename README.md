@@ -234,7 +234,7 @@ On TVs that ignore that command, turning off the stock launcher works too (turn 
 
 The `latest` release is rebuilt automatically every time `main` changes, so installing it again always gets you the newest version.
 
-Every version also keeps its own release, named after it (**Pill Launcher 3.5**, tag `v3.5`, file `pill-launcher-3.5.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v3.5/pill-launcher-3.5.apk`. The newest is titled **Pill Launcher 3.5 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
+Every version also keeps its own release, named after it (**Pill Launcher 3.6**, tag `v3.6`, file `pill-launcher-3.6.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v3.6/pill-launcher-3.6.apk`. The newest is titled **Pill Launcher 3.6 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
 
 ### Uninstalling
 
@@ -409,7 +409,7 @@ gradle assembleDebug                                   # app/build/outputs/apk/d
 gradle :app:testDebugUnitTest --tests '*Screenshots*'  # re-render docs/screenshots
 ```
 
-**Builds are automated.** `.github/workflows/build.yml` builds the APK for every pull request and push; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v3.5`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
+**Builds are automated.** `.github/workflows/build.yml` builds the APK for every pull request and push; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v3.6`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
 
 <details>
 <summary><b>Architecture</b></summary>
