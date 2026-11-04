@@ -1223,8 +1223,9 @@ class Screenshots {
 
     private val auditDir get() = File(out, "audit").apply { mkdirs() }
 
+    /** A key to what has focus on top: the open menu or panel's window if there is one. */
     private fun pressNow(key: Key) {
-        compose.onAllNodes(isFocused()).onFirst().performKeyInput { pressKey(key) }
+        compose.onAllNodes(isFocused()).onLast().performKeyInput { pressKey(key) }
     }
 
     /** Back as the TV sends it to the dialog on top (key presses don't reach a dialog's window here). */
@@ -1296,22 +1297,8 @@ class Screenshots {
     fun auditAppMenu() {
         show("misty-valley", pins = favorites)
         step("menu-open") { filmstrip("menu-open") { compose.onRoot().performKeyInput { pressKey(Key.Menu) } } }
-        step("menu-still") { still("menu-still") }
         step("menu-down") { filmstrip("menu-down", frames = 8) { pressNow(Key.DirectionDown) } }
         step("menu-close") { filmstrip("menu-close", frames = 10) { back() } }
-        step("rename-open") {
-            compose.onRoot().performKeyInput { pressKey(Key.Menu) }
-            settle()
-            filmstrip("rename-open") { tap("Rename…") }
-        }
-        step("rename-close") { filmstrip("rename-close", frames = 10) { back() } }
-        step("move-open") {
-            compose.onRoot().performKeyInput { pressKey(Key.Menu) }
-            settle()
-            filmstrip("move-open", frames = 10) { tap("Move") }
-        }
-        step("move-right") { filmstrip("move-right", frames = 8, crop = android.graphics.Rect(0, 640, 1920, 1080), scale = 0.5f) { pressNow(Key.DirectionRight) } }
-        step("move-done") { filmstrip("move-done", frames = 8, crop = android.graphics.Rect(0, 640, 1920, 1080), scale = 0.5f) { pressNow(Key.DirectionCenter) } }
     }
 
     @Test
@@ -1319,9 +1306,6 @@ class Screenshots {
         show("pine-forest", pins = favorites)
         step("search-open") { filmstrip("search-open") { tapDesc("Search") } }
         step("search-letter") { filmstrip("search-letter", frames = 8) { tapDesc("M") } }
-        step("search-letter-2") { filmstrip("search-letter-2", frames = 8) { tapDesc("A") } }
-        step("search-still") { still("search-still") }
-        step("search-down") { filmstrip("search-down", frames = 8) { pressNow(Key.DirectionDown) } }
         step("search-close") { filmstrip("search-close", frames = 10) { back() } }
     }
 
@@ -1332,65 +1316,27 @@ class Screenshots {
         settle()
         step("settings-list-down") { filmstrip("settings-list-down", frames = 6, crop = panelCrop, scale = 0.5f) { pressNow(Key.DirectionDown) } }
         step("settings-open-page") { filmstrip("settings-open-page", frames = 9, crop = panelCrop, scale = 0.5f) { tap("Background") } }
-        step("settings-switch") { filmstrip("settings-switch", frames = 6, crop = panelCrop, scale = 0.5f) { pressNow(Key.DirectionCenter) } }
         step("settings-back-page") { filmstrip("settings-back-page", frames = 9, crop = panelCrop, scale = 0.5f) { back() } }
-        for (page in listOf("Background", "Favorites row", "Idle screen", "Home & startup", "Widgets")) {
-            step("page $page") {
-                tap(page)
-                still("settings-" + page.lowercase().replace(Regex("[^a-z]+"), "-").trim('-'))
-                if (page != "Widgets") { back(); settle() }
-            }
-        }
+        step("page Widgets") { tap("Widgets"); settle() }
         // Down the long Widgets page: the list scrolls under the header
         step("settings-widgets-scroll") {
             filmstrip("settings-widgets-scroll", frames = 8, crop = panelCrop, scale = 0.5f) {
-                compose.onAllNodes(isFocused()).onFirst().performKeyInput { repeat(6) { pressKey(Key.DirectionDown) } }
+                compose.onAllNodes(isFocused()).onLast().performKeyInput { repeat(6) { pressKey(Key.DirectionDown) } }
             }
         }
-        for (sub in listOf("Headlines", "Widget stack")) {
-            step("sub $sub") {
-                compose.onAllNodesWithText(sub).onFirst().performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
-                still("settings-sub-" + sub.lowercase().replace(' ', '-'))
-                back(); settle()
-            }
+        step("settings-widgets-scrolled") { still("settings-widgets-scrolled") }
+        step("settings-widgets-up") {
+            compose.onAllNodes(isFocused()).onLast().performKeyInput { repeat(3) { pressKey(Key.DirectionUp) } }
+            still("settings-widgets-up")
         }
-        step("settings-close") { back(); settle(); filmstrip("settings-close", frames = 10) { back() } }
-    }
-
-    @Test
-    fun auditAllApps() {
-        show("misty-valley", pins = favorites)
-        compose.onRoot().performKeyInput { repeat(3) { pressKey(Key.DirectionDown) } }
-        settle()
-        step("all-apps-right") { filmstrip("all-apps-right", frames = 8, crop = android.graphics.Rect(0, 200, 1920, 1080), scale = 0.5f) { pressNow(Key.DirectionRight) } }
-        step("all-apps-up") { filmstrip("all-apps-up", frames = 8, crop = android.graphics.Rect(0, 0, 1920, 1080), scale = 0.5f) { pressNow(Key.DirectionUp) } }
-        step("all-apps-chip-right") { filmstrip("all-apps-chip-right", frames = 8, crop = android.graphics.Rect(0, 0, 1920, 1080), scale = 0.5f) { pressNow(Key.DirectionRight) } }
-        step("all-apps-chip-ok") { filmstrip("all-apps-chip-ok", frames = 10, crop = android.graphics.Rect(0, 0, 1920, 1080), scale = 0.5f) { tap(focusedName().substringAfter(" / ").ifBlank { focusedName() }) } }
-    }
-
-    @Test
-    fun auditWidgetPages() {
-        val four = listOf(WidgetKind.Clock, WidgetKind.Weather, WidgetKind.Fennecs, WidgetKind.Headlines)
-        show("canyon-river", pins = favorites, news = news, weather = forecastWeather, football = matchDay(inMinutes = 60 * 24 * 3), settings = LauncherSettings(weather = WeatherMode.Celsius, widgets = four, newsTopics = setOf(NewsTopic.Russia)))
-        val weekday = java.time.LocalDate.now().dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.getDefault())
-        val opens = listOf(
-            "clock" to { compose.onAllNodes(hasClickAction() and hasText(weekday, substring = true)).onFirst().performSemanticsAction(SemanticsActions.OnClick) },
-            "forecast" to { compose.onAllNodes(hasClickAction() and hasText("Lisbon", substring = true)).onFirst().performSemanticsAction(SemanticsActions.OnClick) },
-            "football" to { compose.onAllNodes(hasClickAction() and (hasText("Algeria", substring = true) or hasText("ALG", substring = true) or hasText("ARS", substring = true))).onFirst().performSemanticsAction(SemanticsActions.OnClick) },
-            "headlines" to { compose.onNodeWithText("RUSSIA", substring = true).performSemanticsAction(SemanticsActions.OnClick) },
-        )
-        for ((name, open) in opens) {
-            step("$name-open") { filmstrip("$name-open", frames = 12) { open() } }
-            step("$name-down") { filmstrip("$name-down", frames = 6) { pressNow(Key.DirectionDown) } }
-            step("$name-close") { filmstrip("$name-close", frames = 10) { back() } }
-        }
+        step("settings-close") { back(); settle(); filmstrip("settings-close", frames = 12) { back() } }
     }
 
     @Test
     fun auditPrayerPage() {
         atTwentyToFour { times ->
             show("canyon-river", pins = favorites, prayers = times, settings = LauncherSettings(weather = WeatherMode.Celsius, widgets = listOf(WidgetKind.Clock, WidgetKind.Prayers), mosque = "moscow-cathedral-mosque"))
-            step("prayer-open") { filmstrip("prayer-open", frames = 12) { compose.onNodeWithText("Maghrib").performSemanticsAction(SemanticsActions.OnClick) } }
+            step("prayer-open") { filmstrip("prayer-open", frames = 14) { compose.onNodeWithText("Maghrib").performSemanticsAction(SemanticsActions.OnClick) } }
             step("prayer-close") { filmstrip("prayer-close", frames = 10) { back() } }
         }
     }

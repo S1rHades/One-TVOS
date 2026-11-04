@@ -1,18 +1,29 @@
 package app.pill.launcher.ui
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.tween
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.ScrollState
 
 /**
  * Glass motion: the one way things move in the launcher.
@@ -122,3 +133,35 @@ fun staggered(shown: Float, step: Int, steps: Int, spread: Float = 0.45f): Float
     val lead = spread * step.coerceIn(0, steps - 1) / (steps - 1)
     return ((shown * (1f + spread) - lead) / 1f).coerceIn(0f, 1f)
 }
+
+/**
+ * The dim behind a menu or panel, 0..1: from nothing as it opens and back as it closes,
+ * over [durationMs]: quickly in, and out slowly at first so it clears after what sits on
+ * it. (Animated from 0 rather than from its first target, so it fades in instead of
+ * appearing at full in the first frame.)
+ */
+@Composable
+fun rememberDim(shown: Boolean, durationMs: Int): State<Float> {
+    val dim = remember { Animatable(0f) }
+    LaunchedEffect(shown) {
+        dim.animateTo(if (shown) 1f else 0f, tween(durationMs, easing = if (shown) Motion.EnterEasing else Motion.ExitEasing))
+    }
+    return dim.asState()
+}
+
+/**
+ * Fades this scrolling list out over [edge] at the top and bottom where there is more to
+ * scroll to, so rows go soft at the edge instead of being cut through.
+ */
+fun Modifier.fadingEdges(scroll: ScrollState, edge: Dp = 28.dp): Modifier = this
+    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+    .drawWithContent {
+        drawContent()
+        val e = edge.toPx()
+        if (scroll.value > 0) {
+            drawRect(Brush.verticalGradient(0f to Color.Transparent, 1f to Color.Black, startY = 0f, endY = e), blendMode = BlendMode.DstIn)
+        }
+        if (scroll.value < scroll.maxValue) {
+            drawRect(Brush.verticalGradient(0f to Color.Black, 1f to Color.Transparent, startY = size.height - e, endY = size.height), blendMode = BlendMode.DstIn)
+        }
+    }

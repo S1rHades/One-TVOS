@@ -3,7 +3,6 @@ package app.pill.launcher.ui
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.MutableTransitionState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -87,7 +86,7 @@ fun RenameDialog(app: AppEntry, onRename: (String) -> Unit, onDismiss: () -> Uni
             result?.let(onRename)
         }
     }
-    val scrimAlpha by animateFloatAsState(if (visible.targetState) 1f else 0f, tween(Motion.Quick), label = "renameScrim")
+    val scrimAlpha by rememberDim(visible.targetState, Motion.Quick)
 
     Dialog(onDismissRequest = close, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Box(Modifier.fillMaxSize()) {

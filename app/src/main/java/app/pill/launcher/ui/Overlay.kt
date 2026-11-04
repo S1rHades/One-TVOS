@@ -38,6 +38,9 @@ import androidx.compose.ui.window.DialogProperties
 
 private val PageShape = RoundedCornerShape(30.dp)
 
+/** How long a page's items wait for the softened photo to hide the home screen. */
+private const val PageLead = 120
+
 /**
  * A page opened from a widget or the rail, in glass motion: the photo racks focus (goes
  * soft) behind it, then the page dissolves in, its parts in a wave ([reveal] steps); Back
@@ -58,21 +61,26 @@ fun OverlayPage(
 ) {
     var showing by remember { mutableStateOf(true) }
     val close = { showing = false }
-    // The wave's clock: up to its end on the way in, quickly back to 0 on the way out
+    // The way in: the softened photo and the dim come first, and the page's wave starts
+    // [PageLead] later, once the home screen is mostly hidden, so the page's text never
+    // lies over it. The way out ([leaving], 0 to 1): the whole page fades quickly, then the
+    // photo clears, so it is never left standing still and never shows through the home screen
     val clock = remember { Animatable(0f) }
+    val leaving = remember { Animatable(0f) }
     LaunchedEffect(showing) {
         if (showing) {
-            clock.animateTo(Motion.RevealMs.toFloat(), tween(Motion.RevealMs, easing = LinearEasing))
+            clock.animateTo((Motion.RevealMs + PageLead).toFloat(), tween(Motion.RevealMs + PageLead, easing = LinearEasing))
         } else {
-            clock.animateTo(0f, tween(Motion.Exit + Motion.Step * 4, easing = LinearEasing))
+            leaving.animateTo(1f, tween(Motion.Exit, easing = LinearEasing))
             onDismiss()
         }
     }
-    val revealed = remember { derivedStateOf { clock.value } }
-    // The softened photo and the dim behind the page, ahead of the wave: the home screen is
-    // mostly hidden before the page's first items show, so their text never lies over it.
-    // Going out, it clears last, after the page's items
-    val focusOut = { Motion.EnterEasing.transform((clock.value / (Motion.Enter * 0.6f)).coerceIn(0f, 1f)) }
+    val revealed = remember { derivedStateOf { (clock.value - PageLead).coerceAtLeast(0f) } }
+    val pageShown = { 1f - Motion.ExitEasing.transform((leaving.value / 0.6f).coerceIn(0f, 1f)) }
+    val focusOut = {
+        Motion.EnterEasing.transform((clock.value / (Motion.Enter * 0.6f)).coerceIn(0f, 1f)) *
+            (1f - Motion.EnterEasing.transform(((leaving.value - 0.35f) / 0.65f).coerceIn(0f, 1f)))
+    }
     val backdrop = LocalBackdrop.current
     Dialog(onDismissRequest = close, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         CompositionLocalProvider(LocalReveal provides revealed) {
@@ -86,6 +94,7 @@ fun OverlayPage(
                 topLeft?.let { button ->
                     Box(
                         Modifier
+                            .graphicsLayer { alpha = pageShown() }
                             .align(Alignment.TopCenter)
                             .padding(top = NavTop)
                             .width(width)
@@ -96,6 +105,7 @@ fun OverlayPage(
                 }
                 Column(
                     Modifier
+                        .graphicsLayer { alpha = pageShown() }
                         .align(Alignment.Center)
                         .padding(top = NavRoom - PageBottomRoom, bottom = 0.dp)
                         .width(width)

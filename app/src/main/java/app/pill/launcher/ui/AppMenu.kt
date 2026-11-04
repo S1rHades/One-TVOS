@@ -130,7 +130,7 @@ fun MenuCard(
             chosen?.act?.invoke()
         }
     }
-    val scrimAlpha by animateFloatAsState(if (visible.targetState) 1f else 0f, tween(MENU_MS), label = "menuScrim")
+    val scrimAlpha by rememberDim(visible.targetState, MENU_MS)
 
     Dialog(onDismissRequest = close, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Box(
