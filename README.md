@@ -303,7 +303,7 @@ Settings and favourites are saved on the TV and survive restarts and updates.
 The forecast comes from [Open-Meteo](https://open-meteo.com/), or from [MET Norway](https://api.met.no/) if Open-Meteo can't be reached, for an exact point, so a small town gets its own weather. Where that point is depends on **Settings → Widgets → Weather location**:
 
 - **Automatic** (the default) finds the TV's approximate location from its internet address with [GeoJS](https://www.geojs.io/). That is often the provider's nearest city rather than your town.
-- **A town you choose**: type its name, and OK on it in the list. Open-Meteo's place search covers small towns and villages, such as Beni Saf. Typing a latitude and longitude, such as `35.30, -1.38`, works too.
+- **A town you choose**: type its name, and OK on it in the list. Open-Meteo's place search covers small towns and villages, such as Beni Saf; it is tried as typed and without accents or hyphens, and when it finds nothing, OpenStreetMap's place search is asked too. Typing a latitude and longitude, such as `35.30, -1.38`, works too.
 
 <p align="center"><img src="docs/screenshots/settings-weather-place.png" width="100%" alt="Settings, Widgets, Weather location: Automatic, then Choose a town with beni saf typed in, and Beni Saf, Aïn Témouchent, Algeria and Beni Saf Port listed with their coordinates"></p>
 

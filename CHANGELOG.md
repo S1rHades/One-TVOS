@@ -17,6 +17,7 @@ Every press answers back, the last part of the UX-laws plan (the Doherty thresho
 - **The speed test's end**: its verdict springs in under the number when the test finishes.
 - **Widget text fits its card**: long place names, teams, headlines and prayer lines shrink a little to fit before anything is cut with "…".
 - **Football on match day**: the card still turns only between the teams that play, but **Left** / **Right** now reach every team you follow, and the card comes back to the match after one turn.
+- **Finding your town for the weather**: the town search under **Settings → Widgets → Weather location** now also tries the name without accents or with hyphens and spaces swapped ("Béni-Saf", "beni saf"), and when Open-Meteo finds nothing it asks OpenStreetMap, which knows small towns everywhere. **Automatic** still follows your internet connection, which for many providers is the nearest big city, so choosing your town is what makes the weather local.
 - **Other prayer times on the card**: with the prayer card focused, **Left** / **Right** step through the day's prayers, each with its time and how long ago or until it; the card goes back to the next prayer after ten seconds or when focus moves on.
 
 ## 3.6 (November 2026)

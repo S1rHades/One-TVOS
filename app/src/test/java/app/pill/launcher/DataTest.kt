@@ -897,4 +897,20 @@ class DataTest {
         assertEquals(recent, recentMosquesFromStored(recentMosquesToStored(recent)))
         assertEquals(emptyList<Pair<String, String>>(), recentMosquesFromStored(null))
     }
+
+    /** OpenStreetMap's place search, the fallback for small towns: name, region, country and position. */
+    @Test
+    fun osmPlaces() {
+        val body = """[
+            {"lat":"35.3009","lon":"-1.3822","name":"Beni Saf","display_name":"Beni Saf, Aïn Témouchent, Algeria",
+             "address":{"town":"Beni Saf","state":"Aïn Témouchent","country":"Algeria"}},
+            {"lat":"35.30","lon":"-1.38","name":"","address":{"village":"Sidi Safi","state":"Aïn Témouchent","country":"Algeria"}},
+            {"lat":"x","lon":"1"}
+        ]"""
+        val places = parseOsmPlaces(body)
+        assertEquals(2, places.size)
+        assertEquals("Beni Saf, Aïn Témouchent, Algeria", places[0].label)
+        assertEquals(35.3009, places[0].lat, 1e-6)
+        assertEquals("Sidi Safi", places[1].name)
+    }
 }
