@@ -3,6 +3,15 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 3.4.5 (November 2026)
+
+More animation fixes, from a frame-by-frame look at the menus and pages the last round didn't cover:
+
+- **Dims fade in**: the app menu, Rename, Search and Settings now fade the screen behind them down. The dim used to appear at full strength in the first frame.
+- **Settings**: moving between the list and a page, the old rows fade before the new ones come in, so the two no longer lie over each other mid-slide. The heading changes with the page instead of a moment before it. Long lists go soft at an edge with more beyond it instead of cutting a row in half, and the row with focus stops clear of that edge.
+- **Search**: the card grows to fit the matches instead of jumping to its new height. Its letters and matches come in once the glass is there and leave before it, so they no longer show over the home screen or All apps while it opens and closes.
+- **Pages from the widgets** (weather, football, news, clock, prayer times, Internet): the page's text now waits for the blurred photo to hide the home screen. Closing, the page fades straight away and the photo clears after it. It used to stand still for a third of a second, then show through the home screen as both faded together.
+
 ## 3.4.4 (November 2026)
 
 Animation fixes, found by rendering the main transitions frame by frame:
