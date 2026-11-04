@@ -290,6 +290,8 @@ fun SettingsPanel(
                     AnimatedContent(
                         targetState = page,
                         transitionSpec = { fadeIn(tween(PageIn, delayMillis = PageOut)) togetherWith fadeOut(tween(PageOut)) },
+                        // The panel's width, so a longer heading is never clipped while it grows
+                        modifier = Modifier.fillMaxWidth(),
                         label = "settingsHeading",
                     ) { shown ->
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 8.dp)) {

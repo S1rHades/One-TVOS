@@ -76,10 +76,11 @@ fun OverlayPage(
         }
     }
     val revealed = remember { derivedStateOf { (clock.value - PageLead).coerceAtLeast(0f) } }
-    val pageShown = { 1f - Motion.ExitEasing.transform((leaving.value / 0.6f).coerceIn(0f, 1f)) }
+    // Going out the page answers at once and is gone by half way; the photo holds, then clears
+    val pageShown = { 1f - Motion.EnterEasing.transform((leaving.value / 0.5f).coerceIn(0f, 1f)) }
     val focusOut = {
         Motion.EnterEasing.transform((clock.value / (Motion.Enter * 0.6f)).coerceIn(0f, 1f)) *
-            (1f - Motion.EnterEasing.transform(((leaving.value - 0.35f) / 0.65f).coerceIn(0f, 1f)))
+            (1f - Motion.ExitEasing.transform(((leaving.value - 0.25f) / 0.75f).coerceIn(0f, 1f)))
     }
     val backdrop = LocalBackdrop.current
     Dialog(onDismissRequest = close, properties = DialogProperties(usePlatformDefaultWidth = false)) {

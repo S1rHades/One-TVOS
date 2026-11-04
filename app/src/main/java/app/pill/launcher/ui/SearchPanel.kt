@@ -64,7 +64,7 @@ import app.pill.launcher.AppEntry
 import kotlinx.coroutines.delay
 
 private const val PANEL_MS = 260
-private const val ContentLag = 100
+private const val ContentLag = 150
 private val CardShape = RoundedCornerShape(28.dp)
 
 /**
@@ -120,8 +120,8 @@ fun SearchPanel(
                         // The words come once the glass is there to hide the home screen
                         // behind them, and go before it: never text over text
                         .animateEnterExit(
-                            enter = fadeIn(tween(PANEL_MS - ContentLag, delayMillis = ContentLag)),
-                            exit = fadeOut(tween(ContentLag)),
+                            enter = fadeIn(tween(160, delayMillis = ContentLag)),
+                            exit = fadeOut(tween(100)),
                         ),
                 ) {
                     SearchField(query, { query = it }, Modifier.focusRequester(field))
