@@ -669,6 +669,51 @@ class Screenshots {
         check(text() == first) { "no turn while focused: ${text()}" }
     }
 
+    /** On a match day the card stays on the match, but Right still reaches the other team, and it comes back by itself. */
+    @Test
+    fun footballMatchDaySwitch() {
+        val now = java.time.LocalDateTime.now()
+        val inMinutes = if (now.plusMinutes(135).toLocalDate() == now.toLocalDate()) 135L else 5L
+        show("mountain-lake", pins = favorites, football = matchDay(inMinutes))
+        val card = compose.onNode(hasClickAction() and (hasText("Algeria", substring = true) or hasText("ALG", substring = true) or hasText("Arsenal", substring = true) or hasText("ARS", substring = true)))
+        fun text(): String {
+            val t = card.fetchSemanticsNode().config.getOrElseNullable(androidx.compose.ui.semantics.SemanticsProperties.Text) { null }?.joinToString(" ").orEmpty()
+            return if (t.contains("Algeria") || t.contains("ALG") || t.contains("Fennecs")) "Algeria" else "Arsenal"
+        }
+        check(text() == "Algeria") { "match day shows the match: ${text()}" }
+        card.requestFocus()
+        settle()
+        card.performKeyInput { pressKey(Key.DirectionRight) }
+        settle()
+        check(text() == "Arsenal") { "Right reaches the other team on a match day: ${text()}" }
+        // Focus elsewhere: after a turn the card is back on the match
+        focusOn("Cinema")
+        compose.mainClock.advanceTimeBy(25_000)
+        settle()
+        check(text() == "Algeria") { "back to the match: ${text()}" }
+    }
+
+    /** Left / Right on the prayer card show another prayer's time; it goes back to the next one by itself. */
+    @Test
+    fun prayerPicking() {
+        atTwentyToFour { times ->
+            show("canyon-river", pins = favorites, prayers = times, settings = LauncherSettings(weather = WeatherMode.Celsius, widgets = listOf(WidgetKind.Clock, WidgetKind.Prayers), mosque = "moscow-cathedral-mosque"))
+            val card = compose.onAllNodes(hasClickAction() and hasText("Maghrib", substring = true)).onFirst()
+            card.requestFocus()
+            settle()
+            compose.onNodeWithText("in 4", substring = true).assertExists()
+            // Left: Asr (13:49), which has passed
+            card.performKeyInput { pressKey(Key.DirectionLeft) }
+            settle()
+            compose.onNodeWithText("ago", substring = true).assertExists()
+            compose.onNodeWithText("in 4", substring = true).assertDoesNotExist()
+            // Ten seconds later it's back on Maghrib, counting down
+            compose.mainClock.advanceTimeBy(11_000)
+            settle()
+            compose.onNodeWithText("in 4", substring = true).assertExists()
+        }
+    }
+
     /** Settings from the bar on a page opens over the page; closing Settings shows the page again. */
     @Test
     fun navigationSettingsOverAPage() {

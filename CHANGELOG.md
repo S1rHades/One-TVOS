@@ -15,6 +15,9 @@ Every press answers back, the last part of the UX-laws plan (the Doherty thresho
 - **Forgiving search**: accents, capitals and hyphens don't matter ("ain" finds "Aïn"), and with nothing found, one slip in a word of four letters or more is allowed ("recipies" finds Recipes).
 - **Time zone changes**: changing the TV's time zone, date or clock fetches the prayer times again by itself.
 - **The speed test's end**: its verdict springs in under the number when the test finishes.
+- **Widget text fits its card**: long place names, teams, headlines and prayer lines shrink a little to fit before anything is cut with "…".
+- **Football on match day**: the card still turns only between the teams that play, but **Left** / **Right** now reach every team you follow, and the card comes back to the match after one turn.
+- **Other prayer times on the card**: with the prayer card focused, **Left** / **Right** step through the day's prayers, each with its time and how long ago or until it; the card goes back to the next prayer after ten seconds or when focus moves on.
 
 ## 3.6 (November 2026)
 

@@ -1,5 +1,8 @@
 package app.pill.launcher.ui
 
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.unit.isSpecified
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.runtime.staticCompositionLocalOf
 import android.os.Environment
 import android.os.StatFs
@@ -100,6 +103,8 @@ import app.pill.launcher.matchPhase
 import app.pill.launcher.Weather
 import app.pill.launcher.WeatherMode
 import app.pill.launcher.PrayerTimes
+import app.pill.launcher.nextPrayer
+import app.pill.launcher.Prayer
 import app.pill.launcher.WidgetKind
 import app.pill.launcher.FootballMoment
 import app.pill.launcher.MomentKind
@@ -374,7 +379,7 @@ private fun StackCard(stack: List<WidgetKind>, preview: WidgetKind?, content: Wi
     ) {
         if (shown == null) {
             WidgetCard(accent = NeutralTint, modifier = Modifier.fillMaxSize()) {
-                Text(
+                FitText(
                     "Choose its widgets in Settings → Widgets → Widget stack",
                     style = lineStyle(15.sp, Palette.TextPrimary),
                     maxLines = 3,
@@ -500,7 +505,7 @@ private fun WidgetCard(
 
 @Composable
 private fun CardLabel(text: String, modifier: Modifier = Modifier, color: Color = Palette.TextTertiary) {
-    Text(
+    FitText(
         text.uppercase(),
         style = TextStyle(fontFamily = Flex, color = color, fontSize = 12.sp, fontWeight = FontWeight(650), letterSpacing = 1.3.sp),
         maxLines = 1,
@@ -545,7 +550,7 @@ private fun ClockCard(compact: Boolean, modifier: Modifier, onClick: (() -> Unit
                 style = TextStyle(fontFamily = FlexDisplay, color = Color.White, fontSize = if (compact) 46.sp else 54.sp, fontWeight = FontWeight(260), letterSpacing = (-1.2).sp),
                 maxLines = 1,
             )
-            Text(now.format(date), style = lineStyle(if (compact) 15.sp else 17.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            FitText(now.format(date), style = lineStyle(if (compact) 15.sp else 17.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -559,7 +564,7 @@ private fun WeatherCard(weather: Weather?, error: String?, mode: WeatherMode, co
             Column(Modifier.align(Alignment.Center)) {
                 CardLabel("Weather")
                 Spacer(Modifier.height(6.dp))
-                Text(if (error != null) "Can't reach the weather service" else "Finding your area…", style = lineStyle(16.sp), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                FitText(if (error != null) "Can't reach the weather service" else "Finding your area…", style = lineStyle(16.sp), maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
         } else {
             WeatherWidget(weather, mode, compact, Modifier.align(Alignment.Center), animate = animate)
@@ -598,16 +603,22 @@ private fun FootballCard(
             delay(if (counting) 1000L - System.currentTimeMillis() % 1000L else 30_000L)
         }
     }
-    val shown = cardTeams(football, matchDay, now, zone)
+    // On a match day the card turns between the teams that play; Left / Right still reach
+    // every followed team, after them, and the card comes back to the match on its own
+    val matchTeams = cardTeams(football, matchDay, now, zone)
+    val shown = matchTeams + football.filter { f -> matchTeams.none { it.team.id == f.team.id } }
     // Which team is on show. Every 20 seconds the next takes over, a line along the bottom
     // filling up until then; while the card has focus it waits, and Left / Right flip by hand.
     var turn by remember { mutableIntStateOf(0) }
     var cardFocused by remember { mutableStateOf(false) }
     val count = shown.size
+    val autoCount = matchTeams.size.coerceAtMost(count)
     val index = if (count == 0) 0 else turn.mod(count)
     var turnProgress by remember { mutableFloatStateOf(0f) }
-    LaunchedEffect(count, turn, cardFocused, moment) {
-        if (count < 2 || moment != null) {
+    LaunchedEffect(count, autoCount, turn, cardFocused, moment) {
+        // A team flipped to by hand outside the match day's: back to the match after a turn
+        val away = index >= autoCount
+        if ((autoCount < 2 && !away) || moment != null) {
             turnProgress = 0f
             return@LaunchedEffect
         }
@@ -622,7 +633,7 @@ private fun FootballCard(
             }
             if (p >= 1f) {
                 turnProgress = 0f
-                turn++
+                turn = if (index + 1 >= autoCount) 0 else index + 1
                 break
             }
             turnProgress = p
@@ -738,7 +749,7 @@ private fun MomentFixtures(m: FootballMoment, f: Fixtures, now: Instant, compact
             color = GoalText,
         )
         Teams(match, compact, showScore = true)
-        Text(
+        FitText(
             momentText(m, compact),
             style = lineStyle(14.sp, GoalText, 640),
             maxLines = 1,
@@ -795,7 +806,7 @@ private fun TeamFixtures(f: Fixtures, phase: MatchPhase, now: Instant, compact: 
                     CardLabel(if (compact) "Live" else "Live · " + shortCompetition(live.competition), color = Color(0xFFFF8A9B))
                 }
                 Teams(live, compact, showScore = true)
-                Text(
+                FitText(
                     (if (f.team.isAlgeria) "Les Fennecs" else f.team.name) + " are playing now",
                     style = lineStyle(14.sp, Palette.TextTertiary),
                     maxLines = 1,
@@ -806,14 +817,14 @@ private fun TeamFixtures(f: Fixtures, phase: MatchPhase, now: Instant, compact: 
             upcoming != null -> {
                 CardLabel(if (compact) "Next" else "Next · ${shortCompetition(upcoming.competition)}")
                 Teams(upcoming, compact, showScore = false)
-                Text(kickoffText(upcoming.kickoff, compact), style = lineStyle(15.sp, Palette.TextPrimary, 560), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                FitText(kickoffText(upcoming.kickoff, compact), style = lineStyle(15.sp, Palette.TextPrimary, 560), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             else -> {
                 CardLabel(if (f.team.isAlgeria) "Les Fennecs" else f.team.name)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Crest(Side(f.team.id, f.team.name, f.team.badge), 26.dp)
                     Spacer(Modifier.width(10.dp))
-                    Text(
+                    FitText(
                         when {
                             f.fetchedAt != Instant.EPOCH -> "No match scheduled yet"
                             f.error != null -> "Can't reach match data · see Settings"
@@ -853,7 +864,7 @@ private fun MatchDayCountdown(match: Match, now: Instant, compact: Boolean) {
         style = TextStyle(fontFamily = FlexDisplay, color = Color.White, fontSize = if (compact) 30.sp else 34.sp, fontWeight = FontWeight(300), fontFeatureSettings = "tnum"),
         maxLines = 1,
     )
-    Text(
+    FitText(
         "${shortCode(match.home.name)} v ${shortCode(match.away.name)} · " + kickoffText(match.kickoff, compact).substringAfter(" · "),
         style = lineStyle(14.sp, Palette.TextPrimary, 600),
         maxLines = 1,
@@ -881,7 +892,7 @@ private fun Teams(match: Match, compact: Boolean, showScore: Boolean) {
         val style = lineStyle(if (compact) 17.sp else 19.sp, Palette.TextPrimary, 640)
         val gap = if (compact) 4.dp else 7.dp
         // Each name gives way (with an ellipsis) before the score does, so long names never push it out
-        Text(home, style = style, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+        FitText(home, style = style, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
         Spacer(Modifier.width(gap))
         if (showScore && match.homeScore != null && match.awayScore != null) {
             FlipNumber(match.homeScore, style.copy(color = Palette.TextTertiary, fontWeight = FontWeight(700)))
@@ -891,7 +902,7 @@ private fun Teams(match: Match, compact: Boolean, showScore: Boolean) {
             Text("v", style = style.copy(color = Palette.TextTertiary, fontWeight = FontWeight(500)))
         }
         Spacer(Modifier.width(gap))
-        Text(away, style = style, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+        FitText(away, style = style, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
         Spacer(Modifier.width(if (compact) 6.dp else 8.dp))
         Crest(match.away, 24.dp)
     }
@@ -928,7 +939,7 @@ private fun LastResult(match: Match, compact: Boolean) {
         }
         Spacer(Modifier.width(7.dp))
         val opponent = if (compact) shortCode(match.opponent.name) else match.opponent.name
-        Text(
+        FitText(
             "${if (compact) "" else "Last  "}${match.ourScore}–${match.opponentScore} v $opponent",
             style = lineStyle(14.sp, Palette.TextTertiary),
             maxLines = 1,
@@ -1045,14 +1056,14 @@ private fun HeadlinesCard(picked: List<PickedHeadline>, status: String?, compact
             Column(Modifier.align(Alignment.CenterStart)) {
                 CardLabel("Headlines")
                 Spacer(Modifier.height(6.dp))
-                Text(status ?: "Loading headlines…", style = lineStyle(15.sp), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                FitText(status ?: "Loading headlines…", style = lineStyle(15.sp), maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
         } else {
             Crossfade(item, animationSpec = tween(500), label = "headline", modifier = Modifier.align(Alignment.CenterStart)) { shown ->
                 Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     val topic = shown.topic?.let { if (compact && it == NewsTopic.World) "World" else it.title } ?: "Top stories"
                     CardLabel(if (compact) topic else "$topic · ${shown.headline.source.title}", color = Color(0xFFFFC9C9))
-                    Text(
+                    FitText(
                         shown.headline.title,
                         style = lineStyle(if (compact) 15.sp else 16.sp, Palette.TextPrimary, 600).copy(lineHeight = if (compact) 18.sp else 20.sp),
                         maxLines = 2,
@@ -1109,11 +1120,50 @@ fun ageText(at: Instant, now: Instant = Instant.now()): String {
 /** Today's prayers from the mosque on MAWAQIT; OK opens the prayer page (also without times, to say why). */
 @Composable
 private fun PrayerCard(times: PrayerTimes?, error: String?, hasMosque: Boolean, compact: Boolean, modifier: Modifier, onClick: (() -> Unit)?) {
-    WidgetCard(PrayerGreen, modifier, onClick = onClick) {
+    // Left / Right on the focused card step through the day's prayers; it goes back to the
+    // next prayer ten seconds after the last press, or when focus moves on
+    var picked by remember { mutableStateOf<Prayer?>(null) }
+    var presses by remember { mutableIntStateOf(0) }
+    LaunchedEffect(presses) {
+        if (presses == 0) return@LaunchedEffect
+        delay(PrayerPickMs)
+        picked = null
+    }
+    val keys: (KeyEvent) -> Boolean = keys@{ event ->
+        val day = times ?: return@keys false
+        val list = day.list.map { it.first }
+        val by = when (event.key) {
+            Key.DirectionLeft -> -1
+            Key.DirectionRight -> 1
+            else -> return@keys false
+        }
+        // From the picked one, else the next; after Isha (next is tomorrow's Fajr), Left goes back to Isha
+        val from = picked?.let { list.indexOf(it) }
+            ?: nextPrayer(day, ZonedDateTime.now())?.let { n -> if (n.tomorrow) list.size else list.indexOf(n.prayer) }
+            ?: 0
+        val to = from + by
+        // Past the first or last prayer, Left / Right move on to the next widget as usual
+        if (to !in list.indices) return@keys false
+        if (event.type == KeyEventType.KeyDown) {
+            picked = list[to]
+            presses++
+        }
+        true
+    }
+    WidgetCard(
+        PrayerGreen,
+        modifier,
+        onClick = onClick,
+        onKey = if (times != null) keys else null,
+        onFocusChange = { focused -> if (!focused) picked = null },
+    ) {
         if (times == null) PrayerEmpty(error, hasMosque, Modifier.align(Alignment.CenterStart))
-        else PrayerWidget(times, compact, Modifier.align(Alignment.CenterStart))
+        else PrayerWidget(times, compact, Modifier.align(Alignment.CenterStart), picked = picked)
     }
 }
+
+/** How long a prayer picked with Left / Right stays before the card goes back to the next one. */
+private const val PrayerPickMs = 10_000L
 
 // ---- Sunrise & sunset --------------------------------------------------------------
 
@@ -1272,3 +1322,39 @@ private fun formatBytes(bytes: Long): String {
 
 /** The menu for the widget being drawn (hold OK or Menu on it); null where there is none, as inside a stack. */
 val LocalWidgetMenu = staticCompositionLocalOf<((okHeld: Boolean) -> Unit)?> { null }
+
+/**
+ * A widget's line of text that fits its card: it shrinks (to [minScale] of its size at the
+ * most) until it fits in [maxLines], and only past that is it cut with an ellipsis. It shows
+ * once it fits, so it never flashes cut off; a new text starts from the size the last one fitted.
+ */
+@Composable
+internal fun FitText(
+    text: String,
+    modifier: Modifier = Modifier,
+    style: TextStyle = LocalTextStyle.current,
+    color: Color = Color.Unspecified,
+    fontSize: TextUnit = TextUnit.Unspecified,
+    fontWeight: FontWeight? = null,
+    maxLines: Int = 1,
+    softWrap: Boolean = maxLines > 1,
+    overflow: TextOverflow = TextOverflow.Ellipsis,
+    minScale: Float = 0.7f,
+) {
+    val base = style.merge(TextStyle(color = color, fontSize = fontSize, fontWeight = fontWeight))
+    val size = if (base.fontSize.isSpecified) base.fontSize else 16.sp
+    var scale by remember(base) { mutableFloatStateOf(1f) }
+    var fitted by remember(base) { mutableStateOf<String?>(null) }
+    Text(
+        text,
+        style = base.copy(fontSize = size * scale),
+        maxLines = maxLines,
+        softWrap = softWrap,
+        overflow = overflow,
+        modifier = modifier.drawWithContent { if (fitted == text) drawContent() },
+        onTextLayout = { layout ->
+            if (layout.hasVisualOverflow && scale > minScale) scale = (scale - 0.06f).coerceAtLeast(minScale)
+            else fitted = text
+        },
+    )
+}

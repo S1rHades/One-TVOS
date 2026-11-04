@@ -34,6 +34,7 @@ import app.pill.launcher.Prayer
 import app.pill.launcher.PrayerTimes
 import app.pill.launcher.nextPrayer
 import app.pill.launcher.untilText
+import app.pill.launcher.whenText
 import kotlinx.coroutines.delay
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -69,10 +70,19 @@ private fun prayerStyle(size: TextUnit, color: Color = Palette.TextSecondary, we
  * the row gives way to the following prayer alone.
  */
 @Composable
-fun PrayerWidget(times: PrayerTimes, compact: Boolean, modifier: Modifier = Modifier) {
+fun PrayerWidget(
+    times: PrayerTimes,
+    compact: Boolean,
+    modifier: Modifier = Modifier,
+    /** A prayer picked with Left / Right on the card, shown in the next one's place; null for the next. */
+    picked: Prayer? = null,
+) {
     val now by rememberMinute()
     val clock = rememberClockFormat()
     val next = remember(times, now) { nextPrayer(times, now) }
+    // The picked prayer, today, in the big line instead of the next one
+    val pickedAt = picked?.let { p -> times.times[p]?.let { ZonedDateTime.of(now.toLocalDate(), it, now.zone) } }
+    val big = if (picked != null && pickedAt != null && picked != next?.prayer) picked to pickedAt else null
     Column(modifier, verticalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 5.dp)) {
         // The mosque, and quietly how old the times are (grey once they are only the saved copy)
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -95,13 +105,16 @@ fun PrayerWidget(times: PrayerTimes, compact: Boolean, modifier: Modifier = Modi
             return@Column
         }
         Row(verticalAlignment = Alignment.Bottom) {
-            Text(next.prayer.title, style = prayerStyle(if (compact) 18.sp else 22.sp, Palette.TextPrimary, 600), maxLines = 1)
+            val title = big?.first?.title ?: next.prayer.title
+            val at = big?.second ?: next.at
+            Text(title, style = prayerStyle(if (compact) 18.sp else 22.sp, Palette.TextPrimary, 600), maxLines = 1, softWrap = false)
             Spacer(Modifier.width(8.dp))
-            Text(next.at.format(clock), style = prayerStyle(if (compact) 16.sp else 18.sp, Palette.TextPrimary, 500), maxLines = 1, modifier = Modifier.padding(bottom = 1.dp))
+            Text(at.format(clock), style = prayerStyle(if (compact) 16.sp else 18.sp, Palette.TextPrimary, 500), maxLines = 1, softWrap = false, modifier = Modifier.padding(bottom = 1.dp))
             Spacer(Modifier.width(8.dp))
-            Text(
-                untilText(next.at, now) + if (next.tomorrow) " · tomorrow" else "",
-                style = prayerStyle(if (compact) 13.sp else 14.sp, PrayerGreen, 600),
+            FitText(
+                if (big != null) whenText(big.second, now) else untilText(next.at, now) + if (next.tomorrow) " · tomorrow" else "",
+                // Green counts down to the next prayer; another one picked by hand is quieter
+                style = prayerStyle(if (compact) 13.sp else 14.sp, if (big != null) Palette.TextSecondary else PrayerGreen, 600),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(bottom = 2.dp),
@@ -109,28 +122,32 @@ fun PrayerWidget(times: PrayerTimes, compact: Boolean, modifier: Modifier = Modi
         }
         if (compact) {
             val after = times.list.firstOrNull { (p, _) -> p.ordinal > next.prayer.ordinal && !next.tomorrow }
-            Text(
-                after?.let { (p, t) -> "Then ${p.title} ${t.format(clock)}" } ?: lastLine(times),
+            FitText(
+                when {
+                    big != null -> "Next: ${next.prayer.title} ${next.at.format(clock)}"
+                    else -> after?.let { (p, t) -> "Then ${p.title} ${t.format(clock)}" } ?: lastLine(times)
+                },
                 style = prayerStyle(12.sp, Palette.TextTertiary),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         } else {
-            PrayerStrip(times, next, clock, Modifier.fillMaxWidth())
+            PrayerStrip(times, next, clock, Modifier.fillMaxWidth(), picked = big?.first)
         }
     }
 }
 
 /** The five prayers side by side, the next one in white with a green dot. */
 @Composable
-private fun PrayerStrip(times: PrayerTimes, next: NextPrayer?, clock: DateTimeFormatter, modifier: Modifier = Modifier) {
+private fun PrayerStrip(times: PrayerTimes, next: NextPrayer?, clock: DateTimeFormatter, modifier: Modifier = Modifier, picked: Prayer? = null) {
     Row(modifier, horizontalArrangement = Arrangement.SpaceBetween) {
         for ((prayer, time) in times.list) {
-            val current = prayer == next?.prayer
+            // The one in the big line is the bright one: the next prayer, or the one picked by hand
+            val current = prayer == (picked ?: next?.prayer)
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (current) {
-                        Box(Modifier.size(5.dp).background(PrayerGreen, CircleShape))
+                        Box(Modifier.size(5.dp).background(if (picked != null) Palette.TextPrimary else PrayerGreen, CircleShape))
                         Spacer(Modifier.width(4.dp))
                     }
                     Text(
@@ -161,7 +178,7 @@ fun PrayerEmpty(error: String?, hasMosque: Boolean, modifier: Modifier = Modifie
     Column(modifier) {
         PageLabel("Prayer times")
         Spacer(Modifier.height(6.dp))
-        Text(
+        FitText(
             when {
                 !hasMosque -> "Choose a mosque in Settings"
                 error != null && error.startsWith("MAWAQIT has no mosque") -> "Mosque not found · see Settings"

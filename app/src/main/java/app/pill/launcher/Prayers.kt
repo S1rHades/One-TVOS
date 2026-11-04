@@ -88,6 +88,17 @@ fun untilText(at: ZonedDateTime, now: ZonedDateTime): String {
     }
 }
 
+/** "in 42 min" for a time still to come, "2 h 05 min ago" for one that has passed. */
+fun whenText(at: ZonedDateTime, now: ZonedDateTime): String {
+    if (!at.isBefore(now)) return untilText(at, now)
+    val minutes = Duration.between(at, now).toMinutes()
+    return when {
+        minutes < 1 -> "now"
+        minutes < 60 -> "$minutes min ago"
+        else -> "${minutes / 60} h ${"%02d".format(minutes % 60)} min ago"
+    }
+}
+
 /**
  * MAWAQIT's answer, in any of the shapes the community API gives or has given:
  * - `/{mosque}/prayer-times`: the six times flat, with MAWAQIT's own key names

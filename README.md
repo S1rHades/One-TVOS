@@ -85,7 +85,7 @@ Press **Down** from Favorites for every app as a card in its own colour. Chips a
 
 ### Widgets
 
-Up to four cards across the top: clock, weather, sunrise & sunset, system info, headlines, football and prayer times. Switch them on and off and reorder them under **Settings → Widgets**, where the ones that are on sit numbered in their own group, apart from the ones available. **Hold OK** (or press **Menu**) on a card for its own menu: its settings, **Move left** / **Move right**, and **Remove widget**.
+Up to four cards across the top: clock, weather, sunrise & sunset, system info, headlines, football and prayer times. Their text always fits the card: a long place name, team or headline shrinks a little first, and only past that is it shortened with "…". Switch them on and off and reorder them under **Settings → Widgets**, where the ones that are on sit numbered in their own group, apart from the ones available. **Hold OK** (or press **Menu**) on a card for its own menu: its settings, **Move left** / **Move right**, and **Remove widget**.
 
 <p align="center"><img src="docs/screenshots/widget-menu.png" width="50%" alt="The weather card's menu over the dimmed home screen: Widget settings (location and unit), Move left, Move right and Remove widget"><br><sub><b>A widget's menu</b>: hold OK on the card.</sub></p> With two on, the cards are roomy; with four, they switch to compact layouts.
 
@@ -290,6 +290,7 @@ If the launcher won't open, use the TV's own **Settings → Apps → Pill Launch
 | Follow more teams, or change match day | **Settings → Widgets → Football teams** |
 | Choose headline topics | **Settings → Widgets → Headlines** |
 | Choose the mosque for prayer times, or refresh them now | **Settings → Widgets → Prayer times** |
+| See another prayer's time on the prayer card | With it focused, **Left** / **Right** (it goes back to the next prayer after 10 seconds) |
 | Open the prayer page, and refresh the times | Go up to the prayer card, then **OK**; **Refresh** at the top left |
 | Free up memory, or open the TV's network, display, sound or update screens | **Settings → TV & system** |
 | Uninstall Pill Launcher (OK twice, then confirm) | **Settings → TV & system → Uninstall Pill Launcher** |
@@ -322,7 +323,7 @@ MET Norway gives no "feels like", UV or chance of rain, so with it the page show
 
 The football widget follows Algeria's men's team (always first) and up to five more teams you add under **Settings → Widgets → Football teams**: search for a club or a country. The card takes turns between them every 20 seconds, each with its next fixture (competition, crests and kick-off in the TV's time zone) and latest result, marked W, D or L. During a match it shows **LIVE** and the score.
 
-With more than one team, the card takes turns between them every 20 seconds, and a thin line along its bottom fills up until the next one. With the card focused it waits, and **Left** / **Right** flip between the teams by hand (past the first or last, they move on to the next widget).
+With more than one team, the card takes turns between them every 20 seconds, and a thin line along its bottom fills up until the next one. With the card focused it waits, and **Left** / **Right** flip between the teams by hand (past the first or last, they move on to the next widget). On a match day the card takes turns only between the teams that play, but **Left** / **Right** still reach every team you follow, and after one turn the card comes back to the match.
 
 <p align="center"><img src="docs/screenshots/football-card.png" width="45%" alt="The football card part way through a turn: the next match, the latest result, two dots at the top right for the two teams, and the thin turn line along the bottom"></p>
 
@@ -368,7 +369,7 @@ Al Jazeera is read from its RSS feed, or from a copy the Fixtures mirror keeps o
 
 ### Prayer times
 
-The prayer times widget shows today's five prayers from your mosque on [MAWAQIT](https://mawaqit.net), read from the mosque's page on mawaqit.net, with the community MAWAQIT API (`https://mawaqit-api.vercel.app/api/v1/<mosque>/`) as a fallback; no account or key. The card names the mosque, shows the next prayer with its time and how long until it, ticking every minute, and the five prayers along the bottom with the next one marked. In a compact layout it shows the prayer after the next instead of the row. After Isha it counts down to tomorrow's Fajr.
+The prayer times widget shows today's five prayers from your mosque on [MAWAQIT](https://mawaqit.net), read from the mosque's page on mawaqit.net, with the community MAWAQIT API (`https://mawaqit-api.vercel.app/api/v1/<mosque>/`) as a fallback; no account or key. The card names the mosque, shows the next prayer with its time and how long until it, ticking every minute, and the five prayers along the bottom with the next one marked. In a compact layout it shows the prayer after the next instead of the row. After Isha it counts down to tomorrow's Fajr. With the card focused, **Left** / **Right** step through the day's prayers: the picked one's time takes the big line, with how long ago it was or how long until it, and the card goes back to the next prayer ten seconds after the last press, or when you move off it.
 
 <p align="center"><img src="docs/screenshots/prayer-widget.png" width="100%" alt="The home screen with two wide widgets: the clock, and the prayer card for Moscow Cathedral Mosque with Maghrib next in 42 minutes and Fajr, Dhuhr, Asr, Maghrib and Isha with their times along the bottom, Maghrib marked with a green dot"></p>
 
