@@ -222,6 +222,9 @@ class FileShareTest {
         assertEquals("answered", v.outcome)
         call("GET", "/api/files")
         assertEquals("turned away (401)", share.state.value.lastVisit!!.outcome)
+        // The browser's icon request leaves it as it was
+        call("GET", "/favicon.ico", header = false)
+        assertEquals("GET /api/files", share.state.value.lastVisit!!.asked)
     }
 
     /**

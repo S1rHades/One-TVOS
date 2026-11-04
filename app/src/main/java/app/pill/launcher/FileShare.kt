@@ -416,7 +416,8 @@ class FileShare(
         val answer = StatusOut(out)
         try {
             serve(request, remote, answer)
-            visit(remote, asked, answer.status?.let { if (it < 400) "answered" else "turned away ($it)" } ?: "answered")
+            // The browser's own icon request says nothing about how the visit went
+            if (request.path != "/favicon.ico") visit(remote, asked, answer.status?.let { if (it < 400) "answered" else "turned away ($it)" } ?: "answered")
         } catch (e: Throwable) {
             // Throwable: an Error (a method this Android version lacks, say) mustn't close the connection silently either
             visit(remote, asked, "failed: " + (e.message?.let { "${e::class.java.simpleName}: $it" } ?: e::class.java.simpleName))
