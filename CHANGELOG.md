@@ -3,6 +3,10 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 3.4 (November 2026)
+
+- **Prayer times widget**: today's five prayers from your mosque on [MAWAQIT](https://mawaqit.net), through the community API. The card names the mosque, shows the next prayer with its time and a countdown that ticks every minute, and the five along the bottom with the next one marked; compact, it shows the one after instead. **OK** opens the prayer page: the next prayer large, the day as a line from Fajr to Isha, every prayer with its adhan and iqama times, when the times last came, and a **Refresh** button. Times are saved on the TV, so the card has them at once after a restart or offline (marked as saved), and they refresh on their own just after midnight; failures retry and keep the saved copy. Choose the mosque under **Settings → Widgets → Prayer times** (the name from its MAWAQIT address; the whole address pastes too), with **Refresh now** and, for anyone running their own copy of the API, its address.
+
 ## 3.3.4 (November 2026)
 
 - **Notification bar focus**: the bell and Files no longer show a bump when focused (their white glow was cut off by the bar's rounded edge; the white disc alone marks focus now).

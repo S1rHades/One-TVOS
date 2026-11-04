@@ -1011,6 +1011,78 @@ class Screenshots {
         captureScreenRoboImage(File(out, "headline-page.png").path)
     }
 
+    /**
+     * Moscow's prayer times on a November day, seen at 15:39 so Maghrib (16:22) is next, in
+     * 42 minutes. The test can't set the clock, so it sets the time zone instead: one in
+     * which it is now 15:39, whatever the hour where the test runs.
+     */
+    private fun <T> atTwentyToFour(block: (PrayerTimes) -> T): T {
+        // Far enough from the minute's end that the countdown can't tick over mid-test
+        while (java.time.Instant.now().atZone(java.time.ZoneOffset.UTC).second > 40) Thread.sleep(500)
+        val utc = java.time.Instant.now().atZone(java.time.ZoneOffset.UTC)
+        var minutes = 15 * 60 + 39 - (utc.hour * 60 + utc.minute)
+        if (minutes > 12 * 60) minutes -= 24 * 60
+        if (minutes < -12 * 60) minutes += 24 * 60
+        val sign = if (minutes < 0) "-" else "+"
+        val zone = java.util.TimeZone.getTimeZone("GMT$sign%02d:%02d".format(Math.abs(minutes) / 60, Math.abs(minutes) % 60))
+        val before = java.util.TimeZone.getDefault()
+        java.util.TimeZone.setDefault(zone)
+        try {
+            fun t(h: Int, m: Int) = java.time.LocalTime.of(h, m)
+            return block(
+                PrayerTimes(
+                    mosque = "Moscow Cathedral Mosque",
+                    times = mapOf(Prayer.Fajr to t(6, 1), Prayer.Dhuhr to t(12, 14), Prayer.Asr to t(13, 49), Prayer.Maghrib to t(16, 22), Prayer.Isha to t(18, 7)),
+                    shuruq = t(7, 55),
+                    iqama = mapOf(Prayer.Fajr to t(6, 20), Prayer.Dhuhr to t(12, 30), Prayer.Asr to t(14, 0), Prayer.Maghrib to t(16, 27), Prayer.Isha to t(18, 20)),
+                    forDate = java.time.LocalDate.now(zone.toZoneId()),
+                    fetchedAt = java.time.Instant.now().minusSeconds(3 * 3600),
+                ),
+            )
+        } finally {
+            java.util.TimeZone.setDefault(before)
+        }
+    }
+
+    /** The prayer card with its mosque, Maghrib next, and the five along the bottom; OK opens the page. */
+    @Test
+    fun prayerTimes() {
+        atTwentyToFour { times -> prayerTimesAt(times) }
+    }
+
+    private fun prayerTimesAt(times: PrayerTimes) {
+        show(
+            "canyon-river", pins = favorites, prayers = times,
+            settings = LauncherSettings(weather = WeatherMode.Celsius, widgets = listOf(WidgetKind.Clock, WidgetKind.Prayers), mosque = "moscow-cathedral-mosque"),
+        )
+        compose.onNodeWithText("MOSCOW CATHEDRAL MOSQUE").assertIsDisplayed()
+        compose.onNodeWithText("Maghrib").assertIsDisplayed()
+        compose.onNodeWithText("in 4", substring = true).assertIsDisplayed()
+        compose.onRoot().captureRoboImage(File(out, "prayer-widget.png").path)
+        compose.onNodeWithText("Maghrib").performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNode(isFocused() and hasText("Refresh")).assertExists()
+        // "Iqama" and its time under the next prayer (the column header reads IQAMA)
+        compose.onNodeWithText("Iqama ", substring = true).assertIsDisplayed()
+        captureScreenRoboImage(File(out, "prayer-page.png").path)
+    }
+
+    /** No mosque chosen: the card says where to choose one; the setting page takes the mosque's name. */
+    @Test
+    fun settingsPrayers() {
+        show("pine-forest", pins = favorites, settings = LauncherSettings(weather = WeatherMode.Celsius, widgets = listOf(WidgetKind.Clock, WidgetKind.Weather, WidgetKind.Prayers)))
+        compose.onNodeWithText("Choose a mosque in Settings").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Settings").performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNodeWithText("Widgets").performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNode(hasText("Prayer times") and hasText("No mosque chosen")).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNodeWithText("Refresh now").assertIsDisplayed()
+        compose.onNodeWithText("Mosque name on MAWAQIT", substring = true).assertIsDisplayed()
+        captureScreenRoboImage(File(out, "settings-prayers.png").path)
+    }
+
     /** The rail's Internet page: the speed test, ready to start, and a way to network settings. */
     @Test
     fun internetPage() {
@@ -1073,6 +1145,8 @@ class Screenshots {
         notices: List<Notice> = emptyList(),
         share: FileShare? = null,
         safeMode: String? = null,
+        prayers: PrayerTimes? = null,
+        prayersError: String? = null,
     ) {
         check(fixtures.next != null && fixtures.last?.outcome == 'W') { "fixtures didn't parse: $fixtures" }
         currentPins = pins
@@ -1089,6 +1163,8 @@ class Screenshots {
                 onDismissNotice = { n -> kept = kept.filter { it.id != n.id } },
                 share = share,
                 safeMode = safeMode,
+                prayers = prayers,
+                prayersError = prayersError,
                 apps = withNames(apps, names),
                 weather = weather,
                 football = footballNow,

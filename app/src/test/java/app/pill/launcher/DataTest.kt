@@ -587,4 +587,121 @@ class DataTest {
         val open = n.copy(isPrivate = false)
         assertEquals(open, shownNotice(open, hide = true))
     }
+
+    /** MAWAQIT's answer as an object of times, with iqama as offsets and as a clock time. */
+    @Test
+    fun prayerTimesFromMawaqit() {
+        val at = Instant.parse("2026-11-03T08:00:00Z")
+        val day = java.time.LocalDate.of(2026, 11, 3)
+        val t = parsePrayerTimes(data("mawaqit.json"), at, day)
+        assertEquals("Moscow Cathedral Mosque", t.mosque)
+        assertEquals(listOf("05:15", "13:30", "16:45", "19:15", "20:30"), t.list.map { it.second.toString() })
+        assertEquals("06:42", t.shuruq.toString())
+        assertEquals("05:35", t.iqama.getValue(Prayer.Fajr).toString())
+        assertEquals("20:45", t.iqama.getValue(Prayer.Isha).toString())
+        assertFalse(t.fromCache)
+
+        // The other shape the community API has used: a list of five, and the mosque under "name"
+        val list = parsePrayerTimes("""{"name":"Al Noor","times":["5:15","13:30","16:45","19:15","20:30"],"shuruq":"06:42"}""", at, day)
+        assertEquals("Al Noor", list.mosque)
+        assertEquals("05:15", list.times.getValue(Prayer.Fajr).toString())
+        assertEquals("06:42", list.shuruq.toString())
+        // Six put sunrise second
+        val six = parsePrayerTimes("""{"times":["05:15","06:42","13:30","16:45","19:15","20:30"]}""", at, day, fallbackName = "my-mosque")
+        assertEquals("my-mosque", six.mosque)
+        assertEquals("13:30", six.times.getValue(Prayer.Dhuhr).toString())
+        assertEquals("06:42", six.shuruq.toString())
+
+        // The prayer-times endpoint as the community API answers: flat, MAWAQIT's own names, no mosque
+        val flat = parsePrayerTimes("""{"fajr":"06:01","sunrise":"07:55","dohr":"12:14","asr":"13:49","maghreb":"16:22","icha":"18:07"}""", at, day, fallbackName = mosqueName("moscow-cathedral-mosque"))
+        assertEquals("Moscow Cathedral Mosque", flat.mosque)
+        assertEquals(listOf("06:01", "12:14", "13:49", "16:22", "18:07"), flat.list.map { it.second.toString() })
+        assertEquals("07:55", flat.shuruq.toString())
+        // The mosque's page data, wrapped in rawdata: the name, the five, shuruq, and today's iqama from the year's calendar
+        val iqamaYear = (1..12).joinToString(",", "[", "]") { m -> if (m == 11) """{"3":["+20","+10","+10","+5","+15"]}""" else "{}" }
+        val raw = parsePrayerTimes("""{"rawdata":{"name":"Al Noor","times":["06:01","12:14","13:49","16:22","18:07"],"shuruq":"07:55","iqamaCalendar":$iqamaYear}}""", at, day)
+        assertEquals("Al Noor", raw.mosque)
+        assertEquals("16:22", raw.times.getValue(Prayer.Maghrib).toString())
+        assertEquals("07:55", raw.shuruq.toString())
+        assertEquals("06:21", raw.iqama.getValue(Prayer.Fajr).toString())
+        assertEquals("18:22", raw.iqama.getValue(Prayer.Isha).toString())
+        // Another day of the year has no iqama in this calendar
+        assertTrue(parsePrayerTimes("""{"rawdata":{"times":["06:01","12:14","13:49","16:22","18:07"],"iqamaCalendar":$iqamaYear}}""", at, day.plusDays(1)).iqama.isEmpty())
+
+        // Missing or unreadable entries are left out; no prayers at all is an error
+        val partial = parsePrayerTimes("""{"mosque":"X","times":{"fajr":"05:15","dhuhr":"noon","isha":null}}""", at, day)
+        assertEquals(listOf(Prayer.Fajr), partial.list.map { it.first })
+        assertTrue(partial.iqama.isEmpty())
+        assertTrue(runCatching { parsePrayerTimes("""{"mosque":"X","times":{}}""", at, day) }.isFailure)
+        assertTrue(runCatching { parsePrayerTimes("not json", at, day) }.isFailure)
+        assertTrue(runCatching { parsePrayerTimes("", at, day) }.isFailure)
+    }
+
+    /** The next prayer follows the clock round the day, then on to tomorrow's Fajr. */
+    @Test
+    fun nextPrayerAndCountdown() {
+        val day = java.time.LocalDate.of(2026, 11, 3)
+        val t = parsePrayerTimes(data("mawaqit.json"), Instant.EPOCH, day)
+        val zone = ZoneId.of("Europe/Moscow")
+        fun at(h: Int, m: Int) = java.time.ZonedDateTime.of(day, java.time.LocalTime.of(h, m), zone)
+        val morning = nextPrayer(t, at(8, 0))!!
+        assertEquals(Prayer.Dhuhr, morning.prayer)
+        assertFalse(morning.tomorrow)
+        assertEquals("in 5 h 30 min", untilText(morning.at, at(8, 0)))
+        val evening = nextPrayer(t, at(18, 33))!!
+        assertEquals(Prayer.Maghrib, evening.prayer)
+        assertEquals("in 42 min", untilText(evening.at, at(18, 33)))
+        assertEquals("now", untilText(evening.at, at(19, 15)))
+        // On the dot still counts as next
+        assertEquals(Prayer.Isha, nextPrayer(t, at(20, 30))!!.prayer)
+        val night = nextPrayer(t, at(23, 0))!!
+        assertEquals(Prayer.Fajr, night.prayer)
+        assertTrue(night.tomorrow)
+        assertEquals(day.plusDays(1), night.at.toLocalDate())
+        assertNull(nextPrayer(t.copy(times = emptyMap()), at(8, 0)))
+    }
+
+    /** What's typed for the mosque and the API is tidied; the saved copy is kept per mosque. */
+    @Test
+    fun prayerSettingsAndCache() {
+        assertEquals("grande-mosquee-de-paris", cleanMosqueSlug("  https://mawaqit.net/fr/grande-mosquee-de-paris?x=1 "))
+        assertEquals("al-noor_2", cleanMosqueSlug("Al-Noor_2"))
+        assertEquals("grande-mosquee-de-paris", cleanMosqueSlug("mawaqit.net/fr/grande-mosquee-de-paris/"))
+        assertEquals("Grande Mosquee De Paris", mosqueName("grande-mosquee-de-paris"))
+        assertEquals(DefaultPrayerApi, cleanPrayerApi("   "))
+        assertEquals(DefaultPrayerApi, cleanPrayerApi("mawaqit"))
+        assertEquals("https://example.org/api", cleanPrayerApi("https://example.org/api/"))
+
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val zone = ZoneId.of("Europe/Moscow")
+        val source = PrayerSource(context, zone)
+        assertNull(source.cached("my-mosque"))
+        // A fetch that can't reach anything fails, naming the reasons, and leaves no cache
+        val failed = source.fetch("http://127.0.0.1:9", "my-mosque")
+        assertTrue(failed.isFailure)
+        assertTrue(failed.exceptionOrNull()!!.message!!.contains("prayer-times"))
+        assertNull(source.cached("my-mosque"))
+        assertTrue(source.fetch(DefaultPrayerApi, "").isFailure)
+        // Saved answers come back marked, and only for their own mosque
+        context.getSharedPreferences("prayers", android.content.Context.MODE_PRIVATE).edit()
+            .putString("slug", "my-mosque").putString("body", data("mawaqit.json")).putLong("at", 1_700_000_000_000L).putString("date", "2026-11-02").apply()
+        val saved = source.cached("my-mosque")!!
+        assertTrue(saved.fromCache)
+        assertEquals(java.time.LocalDate.of(2026, 11, 2), saved.forDate)
+        assertNull(source.cached("other-mosque"))
+        // After a good fetch the next one is just past midnight
+        val wait = source.untilNextDay(java.time.ZonedDateTime.of(2026, 11, 3, 22, 0, 0, 0, zone))
+        assertTrue(wait.toMinutes() in 120..121)
+    }
+
+    @Test
+    fun prayerSettingsRoundTrip() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val store = SettingsStore(context)
+        store.save(LauncherSettings(mosque = "my-mosque", prayerApi = "https://example.org/v1", widgets = listOf(WidgetKind.Clock, WidgetKind.Prayers)))
+        val loaded = store.load()
+        assertEquals("my-mosque", loaded.mosque)
+        assertEquals("https://example.org/v1", loaded.prayerApi)
+        assertEquals(listOf(WidgetKind.Clock, WidgetKind.Prayers), loaded.widgets)
+    }
 }

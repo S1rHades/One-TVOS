@@ -9,6 +9,7 @@ enum class WidgetKind(val title: String, val description: String) {
     Daylight("Sunrise & sunset", "Today's daylight, with the sun's place in it"),
     System("System info", "Connection and free storage"),
     Headlines("Headlines", "Al Jazeera English and RT, by topic"),
+    Prayers("Prayer times", "Today's prayers from your mosque on MAWAQIT, with the next one counted down"),
     Stack("Widget stack", "Several widgets in one place, taking turns"),
 }
 

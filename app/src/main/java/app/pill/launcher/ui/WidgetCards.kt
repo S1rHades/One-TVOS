@@ -98,6 +98,7 @@ import app.pill.launcher.matchDayApplies
 import app.pill.launcher.matchPhase
 import app.pill.launcher.Weather
 import app.pill.launcher.WeatherMode
+import app.pill.launcher.PrayerTimes
 import app.pill.launcher.WidgetKind
 import app.pill.launcher.FootballMoment
 import app.pill.launcher.MomentKind
@@ -162,6 +163,7 @@ private fun naturalWidth(kind: WidgetKind, compact: Boolean): Dp = when (kind) {
     WidgetKind.Daylight -> if (compact) 146.dp else 200.dp
     WidgetKind.System -> if (compact) 176.dp else 220.dp
     WidgetKind.Headlines -> if (compact) 176.dp else 280.dp
+    WidgetKind.Prayers -> if (compact) 186.dp else 290.dp
     // As wide as the widest card inside it; see WidgetRow
     WidgetKind.Stack -> if (compact) 176.dp else 280.dp
 }
@@ -200,10 +202,16 @@ fun WidgetRow(
     stackPreview: WidgetKind? = null,
     /** A goal or a win to celebrate on the football card; null the rest of the time. */
     moment: FootballMoment? = null,
+    /** Today's prayer times, why they couldn't be fetched, and whether a mosque is chosen at all. */
+    prayers: PrayerTimes? = null,
+    prayersError: String? = null,
+    hasMosque: Boolean = false,
+    onOpenPrayers: (() -> Unit)? = null,
 ) {
     val content = WidgetContent(
         weather, weatherError, mode, football, matchDay, headlines, headlinesStatus, animate,
         onOpenClock, onOpenWeather, onOpenFootball, onOpenHeadline, moment,
+        prayers, prayersError, hasMosque, onOpenPrayers,
     )
     BoxWithConstraints(modifier) {
         val gaps = Gap * (widgets.size - 1).coerceAtLeast(0)
@@ -262,6 +270,10 @@ private class WidgetContent(
     val onOpenFootball: ((Team) -> Unit)?,
     val onOpenHeadline: ((Int) -> Unit)?,
     val moment: FootballMoment?,
+    val prayers: PrayerTimes?,
+    val prayersError: String?,
+    val hasMosque: Boolean,
+    val onOpenPrayers: (() -> Unit)?,
 ) {
     @Composable
     fun Card(kind: WidgetKind, compact: Boolean, modifier: Modifier) {
@@ -272,6 +284,7 @@ private class WidgetContent(
             WidgetKind.Daylight -> DaylightCard(weather, compact, modifier)
             WidgetKind.System -> SystemCard(compact, modifier)
             WidgetKind.Headlines -> HeadlinesCard(headlines, headlinesStatus, compact, modifier, onOpenHeadline)
+            WidgetKind.Prayers -> PrayerCard(prayers, prayersError, hasMosque, compact, modifier, onOpenPrayers)
             WidgetKind.Stack -> Unit
         }
     }
@@ -1072,6 +1085,17 @@ fun ageText(at: Instant, now: Instant = Instant.now()): String {
         d.toHours() < 24 -> "${d.toHours()} h ago"
         d.toDays() == 1L -> "Yesterday"
         else -> "${d.toDays()} days ago"
+    }
+}
+
+// ---- Prayer times ------------------------------------------------------------------
+
+/** Today's prayers from the mosque on MAWAQIT; OK opens the prayer page (also without times, to say why). */
+@Composable
+private fun PrayerCard(times: PrayerTimes?, error: String?, hasMosque: Boolean, compact: Boolean, modifier: Modifier, onClick: (() -> Unit)?) {
+    WidgetCard(PrayerGreen, modifier, onClick = onClick) {
+        if (times == null) PrayerEmpty(error, hasMosque, Modifier.align(Alignment.CenterStart))
+        else PrayerWidget(times, compact, Modifier.align(Alignment.CenterStart))
     }
 }
 

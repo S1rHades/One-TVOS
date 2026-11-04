@@ -82,6 +82,9 @@ class MainActivity : ComponentActivity() {
     private var safeMode: String? = null
     private lateinit var footballSource: FootballSource
     private lateinit var weatherSource: WeatherSource
+    private lateinit var prayerSource: PrayerSource
+    /** Bumped by Refresh on the prayer page or in Settings: fetches again now. */
+    private var prayerRefresh by mutableIntStateOf(0)
     private lateinit var newsFeed: NewsFeed
     private lateinit var photoFeed: PhotoFeed
 
@@ -97,6 +100,7 @@ class MainActivity : ComponentActivity() {
         runCatching { getSystemService(LauncherApps::class.java)?.registerCallback(appWatch, Handler(Looper.getMainLooper())) }
         footballSource = FootballSource(this)
         weatherSource = WeatherSource(this)
+        prayerSource = PrayerSource(this)
         newsFeed = NewsFeed(this)
         photoFeed = PhotoFeed(this)
 
@@ -160,6 +164,38 @@ class MainActivity : ComponentActivity() {
                             else -> REFRESH_MS
                         },
                     )
+                }
+            }
+
+            // Today's prayer times from MAWAQIT while the widget is on: the saved copy at once, then a fetch,
+            // then again just after midnight for the new day (or sooner after a failure, or on Refresh)
+            val prayersOn = WidgetKind.Prayers in active
+            val mosque = settings.mosque
+            val prayerApi = settings.prayerApi
+            var prayersError by remember { mutableStateOf<String?>(null) }
+            var prayersRefreshing by remember { mutableStateOf(false) }
+            val prayers by produceState<PrayerTimes?>(null, prayersOn, mosque, prayerApi, prayerRefresh) {
+                value = prayerSource.cached(mosque)
+                if (mosque.isBlank()) {
+                    prayersError = null
+                    return@produceState
+                }
+                var failures = 0
+                while (prayersOn) {
+                    prayersRefreshing = true
+                    // Cleared even when a new mosque or Refresh cancels this fetch part way
+                    val result = try {
+                        withContext(Dispatchers.IO) { prayerSource.fetch(prayerApi, mosque) }
+                    } finally {
+                        prayersRefreshing = false
+                    }
+                    result.onSuccess { value = it; prayersError = null; failures = 0 }
+                    result.onFailure { error ->
+                        prayersError = describe(error)
+                        failures++
+                        value = value?.copy(fromCache = true)
+                    }
+                    delay(if (result.isSuccess) prayerSource.untilNextDay().toMillis() else RetryDelaysMs[(failures - 1).coerceAtMost(RetryDelaysMs.lastIndex)])
                 }
             }
 
@@ -281,6 +317,10 @@ class MainActivity : ComponentActivity() {
                 apps = apps,
                 weather = weather.takeIf { weatherOn },
                 weatherError = weatherError.takeIf { weatherOn },
+                prayers = prayers.takeIf { prayersOn },
+                prayersError = prayersError.takeIf { prayersOn },
+                prayersRefreshing = prayersRefreshing && prayersOn,
+                onRefreshPrayers = { prayerRefresh++ },
                 football = football,
                 news = news.takeIf { newsOn },
                 searchTeams = { query -> withContext(Dispatchers.IO) { findTeams(query) } },

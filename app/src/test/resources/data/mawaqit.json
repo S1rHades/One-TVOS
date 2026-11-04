@@ -1,0 +1,18 @@
+{
+  "mosque": "Moscow Cathedral Mosque",
+  "times": {
+    "fajr": "05:15",
+    "shuruq": "06:42",
+    "dhuhr": "13:30",
+    "asr": "16:45",
+    "maghrib": "19:15",
+    "isha": "20:30"
+  },
+  "iqama": {
+    "fajr": "+20",
+    "dhuhr": "+10",
+    "asr": "+10",
+    "maghrib": "+5",
+    "isha": "20:45"
+  }
+}

@@ -103,6 +103,7 @@ import app.pill.launcher.AppCategory
 import app.pill.launcher.AppEntry
 import androidx.compose.animation.core.LinearEasing
 import app.pill.launcher.Fixtures
+import app.pill.launcher.PrayerTimes
 import app.pill.launcher.MatchDayMode
 import app.pill.launcher.News
 import app.pill.launcher.Team
@@ -160,6 +161,12 @@ fun LauncherScreen(
     weather: Weather?,
     /** Why the last weather fetch failed, shown in settings; null when it works. */
     weatherError: String? = null,
+    /** Today's prayer times from MAWAQIT (the saved copy, marked, while offline), why the last fetch failed, and whether one is running. */
+    prayers: PrayerTimes? = null,
+    prayersError: String? = null,
+    prayersRefreshing: Boolean = false,
+    /** Refresh from the prayer page or Settings: asks MAWAQIT again now. */
+    onRefreshPrayers: () -> Unit = {},
     /** The followed teams' fixtures, in order (Algeria first); empty until loaded. */
     football: List<Fixtures> = emptyList(),
     /** Headlines from both sources, and why a source failed; null until the first fetch. */
@@ -270,11 +277,12 @@ fun LauncherScreen(
     // Pages opened from the widgets: the forecast, a team on the football page, a headline
     var forecastOpen by remember { mutableStateOf(false) }
     var clockOpen by remember { mutableStateOf(false) }
+    var prayersOpen by remember { mutableStateOf(false) }
     var hubTeam by remember { mutableStateOf<Team?>(null) }
     var headlineAt by remember { mutableStateOf<Int?>(null) }
     // The Internet page, from the rail
     var internetOpen by remember { mutableStateOf(false) }
-    val pageOpen = forecastOpen || clockOpen || hubTeam != null || headlineAt != null || internetOpen || filesOpen
+    val pageOpen = forecastOpen || clockOpen || prayersOpen || hubTeam != null || headlineAt != null || internetOpen || filesOpen
     // The All apps chip picked (null: all), and the first chip, where the rail's Apps lands
     var appFilter by remember { mutableStateOf<AppCategory?>(null) }
     val chipFocus = remember { FocusRequester() }
@@ -362,6 +370,7 @@ fun LauncherScreen(
         searchOpen = false
         forecastOpen = false
         clockOpen = false
+        prayersOpen = false
         hubTeam = null
         headlineAt = null
         internetOpen = false
@@ -572,6 +581,7 @@ fun LauncherScreen(
         if (already) return
         forecastOpen = false
         clockOpen = false
+        prayersOpen = false
         hubTeam = null
         headlineAt = null
         internetOpen = false
@@ -738,6 +748,10 @@ fun LauncherScreen(
                                     onOpenWeather = { forecastOpen = true },
                                     onOpenFootball = { hubTeam = it },
                                     onOpenHeadline = { headlineAt = it },
+                                    prayers = prayers,
+                                    prayersError = prayersError,
+                                    hasMosque = settings.mosque.isNotBlank(),
+                                    onOpenPrayers = { prayersOpen = true },
                                     stack = settings.stackShown(),
                                     stackPreview = stackPreview,
                                     moment = moment.takeIf { !idle },
@@ -932,6 +946,10 @@ fun LauncherScreen(
                     },
                     photoError = photoError,
                     weatherError = weatherError,
+                    prayers = prayers,
+                    prayersError = prayersError,
+                    prayersRefreshing = prayersRefreshing,
+                    onRefreshPrayers = onRefreshPrayers,
                     football = football,
                     news = news,
                     searchTeams = searchTeams,
@@ -1005,6 +1023,9 @@ fun LauncherScreen(
             }
             if (forecastOpen && weather != null) {
                 ForecastPage(weather, settings.weather, onDismiss = { forecastOpen = false })
+            }
+            if (prayersOpen) {
+                PrayerPage(prayers, prayersError, prayersRefreshing, onRefresh = onRefreshPrayers, onDismiss = { prayersOpen = false })
             }
             hubTeam?.let { team ->
                 FootballHub(football, team, onDismiss = { hubTeam = null })
