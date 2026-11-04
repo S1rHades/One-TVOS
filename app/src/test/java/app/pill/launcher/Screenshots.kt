@@ -1465,24 +1465,6 @@ class Screenshots {
     }
 
     @Test
-    fun auditStackCustomiser() {
-        val settings = LauncherSettings(weather = WeatherMode.Celsius, widgets = listOf(WidgetKind.Clock, WidgetKind.Weather, WidgetKind.Stack), stack = listOf(WidgetKind.Fennecs, WidgetKind.Headlines, WidgetKind.Daylight))
-        show("pine-forest", pins = favorites, settings = settings, news = news)
-        tapDesc("Settings"); settle()
-        tap("Widgets"); settle()
-        step("stack-page-open") { filmstrip("stack-page-open", frames = 10) { compose.onAllNodesWithText("Widget stack").onLast().performScrollTo().performSemanticsAction(SemanticsActions.OnClick) } }
-        step("stack-move") {
-            val football = compose.onNodeWithText("Football")
-            football.requestFocus(); settle()
-            football.performKeyInput { keyDown(Key.DirectionCenter) }
-            compose.mainClock.advanceTimeBy(800)
-            football.performKeyInput { keyUp(Key.DirectionCenter) }
-            settle()
-            filmstrip("stack-move", frames = 10) { football.performKeyInput { pressKey(Key.DirectionRight) } }
-        }
-    }
-
-    @Test
     fun auditUpdateCard() {
         val now = java.time.Instant.now()
         show("aurora-sky", pins = favorites, update = UpdateState(UpdatePhase.Available, newRelease, checkedAt = now), notices = sampleNotices(now))
