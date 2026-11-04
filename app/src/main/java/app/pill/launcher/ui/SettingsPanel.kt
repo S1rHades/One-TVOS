@@ -1238,7 +1238,7 @@ private fun PrayersPage(
         Box(Modifier.padding(horizontal = 18.dp, vertical = 6.dp)) {
             TextRow(
                 value = mosque,
-                hint = "Mosque ID, e.g. 1234, or its address, e.g. obada-benisaf",
+                hint = "Mosque ID or address, e.g. 1234",
                 onChange = { mosque = it },
                 onDone = { onChange(settings.copy(mosque = cleanMosqueSlug(mosque))) },
                 // With no mosque yet the page opens on the field; once there is one, on Refresh now (focusing

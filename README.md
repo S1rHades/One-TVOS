@@ -374,7 +374,7 @@ The times are saved on the TV, so the card has them at once after a restart or w
 
 Choose the mosque under **Settings → Widgets → Prayer times** by its MAWAQIT ID, the number at the bottom left of the mosque's MAWAQIT screen, or by the end of its mawaqit.net address (for `mawaqit.net/en/obada-benisaf` that is `obada-benisaf`; pasting the whole address works too), then Done. The times are read from the mosque's own MAWAQIT page, where its screen gets them, with the community API as a fallback. There is no mosque search: MAWAQIT doesn't allow other apps to use its search. An ID or address MAWAQIT doesn't know says so, a failure names what each source answered, and every failed check shows the time it was made, so **Refresh** visibly tries again.
 
-<p align="center"><img src="docs/screenshots/settings-prayers.png" width="100%" alt="Settings, Widgets, Prayer times: a field reading Mosque ID, e.g. 1234, or its address, e.g. obada-benisaf, a note on where to find the ID and that MAWAQIT doesn't let other apps search, Refresh now, and under API the community address; beside the panel, the home screen's prayer card says Choose a mosque in Settings"></p>
+<p align="center"><img src="docs/screenshots/settings-prayers.png" width="100%" alt="Settings, Widgets, Prayer times: a field reading Mosque ID or address, e.g. 1234, a note on where to find the ID and that MAWAQIT doesn't let other apps search, Refresh now, and under API the community address; beside the panel, the home screen's prayer card says Choose a mosque in Settings"></p>
 
 ### Internet speed test
 
