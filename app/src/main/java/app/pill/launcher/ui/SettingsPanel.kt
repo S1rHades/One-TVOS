@@ -322,7 +322,7 @@ fun SettingsPanel(
                         val edge = with(LocalDensity.current) { ListEdge.toPx() }
                         // Rows go soft at an edge with more beyond it, and the focused row stops clear of that
                         CompositionLocalProvider(LocalBringIntoViewSpec provides remember(edge) { RowScrollSpec(edge, animate = true) }) {
-                        Column(Modifier.fillMaxSize().fadingEdges(scroll, ListEdge).verticalScroll(scroll)) {
+                        Column(Modifier.fillMaxSize().glassEdges(scroll, ListEdge).verticalScroll(scroll)) {
                             when (shown) {
                                 null -> Group(null) {
                                     for (category in SettingsPage.entries.filter { it.parent == null }) {

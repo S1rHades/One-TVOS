@@ -13,17 +13,10 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.ScrollState
 
 /**
  * Glass motion: the one way things move in the launcher.
@@ -149,19 +142,3 @@ fun rememberDim(shown: Boolean, durationMs: Int): State<Float> {
     return dim.asState()
 }
 
-/**
- * Fades this scrolling list out over [edge] at the top and bottom where there is more to
- * scroll to, so rows go soft at the edge instead of being cut through.
- */
-fun Modifier.fadingEdges(scroll: ScrollState, edge: Dp = 28.dp): Modifier = this
-    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-    .drawWithContent {
-        drawContent()
-        val e = edge.toPx()
-        if (scroll.value > 0) {
-            drawRect(Brush.verticalGradient(0f to Color.Transparent, 1f to Color.Black, startY = 0f, endY = e), blendMode = BlendMode.DstIn)
-        }
-        if (scroll.value < scroll.maxValue) {
-            drawRect(Brush.verticalGradient(0f to Color.Black, 1f to Color.Transparent, startY = size.height - e, endY = size.height), blendMode = BlendMode.DstIn)
-        }
-    }
