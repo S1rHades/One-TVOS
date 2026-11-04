@@ -60,40 +60,10 @@ fun HomePrompt(onSetUp: () -> Unit, onDismiss: () -> Unit, modifier: Modifier = 
     }
 }
 
-/** A rounded button for prompts and dialogs: white with dark text while focused. */
+/**
+ * A button for prompts and dialogs. It is the pages' [PageButton], so every action in the
+ * launcher has one shape: alike things look alike.
+ */
 @Composable
-fun PillButton(label: String, primary: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
-    val interaction = remember { MutableInteractionSource() }
-    val hovered by interaction.collectIsHoveredAsState()
-    var focused by remember { mutableStateOf(false) }
-    val active = focused || hovered
-    val bg by animateColorAsState(
-        when {
-            active -> Palette.Focus
-            primary -> Color(0x33FFFFFF)
-            else -> Color.Transparent
-        },
-        tween(140),
-        label = "promptBg",
-    )
-    val fg by animateColorAsState(if (active) Palette.Ink else Palette.TextPrimary, tween(140), label = "promptFg")
-    val scale by animateFloatAsState(if (active) 1.06f else 1f, label = "promptScale")
-    Text(
-        label,
-        color = fg,
-        fontSize = 16.sp,
-        fontWeight = FontWeight.SemiBold,
-        maxLines = 1,
-        modifier = modifier
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-                alpha = if (enabled) 1f else 0.4f
-            }
-            .clip(RoundedCornerShape(50))
-            .background(bg)
-            .onFocusChanged { focused = it.isFocused }
-            .clickable(enabled = enabled, interactionSource = interaction, indication = null, onClick = onClick)
-            .padding(horizontal = 18.dp, vertical = 10.dp),
-    )
-}
+fun PillButton(label: String, primary: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) =
+    PageButton(label, onClick, modifier, primary = primary, enabled = enabled)

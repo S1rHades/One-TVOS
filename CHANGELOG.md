@@ -3,6 +3,16 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 3.6 (November 2026)
+
+Clear at a glance, the second part of the UX-laws plan (proximity, similarity, common region, visual hierarchy, the Von Restorff effect, Jakob's law, and the aesthetic-usability effect):
+
+- **A widget's own menu**: hold **OK** (or press **Menu**) on a widget for **Widget settings** (straight to its page: location for the weather, teams for football, the mosque for prayer times), **Move left** / **Move right**, and **Remove widget**, the way apps already work.
+- **Notifications grouped by where they came from**: Pill Launcher, Files, football, the connection and each app, each on its own card under its name.
+- **One button shape**: the home-screen prompt and the update card now use the same button as the pages (Refresh, Start test), so alike actions look alike.
+- **Spacing and type tokens**: the pages share one type scale, and groups in Settings stand a little further apart than the rows inside them.
+- A new test checks that only the focused item is drawn solid white, in Settings and in the app menu, so focus stays the one thing that stands out.
+
 ## 3.5 (November 2026)
 
 Fewer presses and fewer choices, the first part of a plan built on well-known UX laws (Hick's, Fitts's and Miller's laws, the serial position effect, progressive disclosure, and Occam's razor):

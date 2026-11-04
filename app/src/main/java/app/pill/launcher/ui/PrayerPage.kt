@@ -105,11 +105,11 @@ fun PrayerPage(
                     Spacer(Modifier.height(10.dp))
                     Text(
                         next.prayer.title,
-                        style = TextStyle(fontFamily = FlexDisplay, color = Palette.TextPrimary, fontSize = 60.sp, fontWeight = FontWeight(260)),
+                        style = TextStyle(fontFamily = FlexDisplay, color = Palette.TextPrimary, fontSize = TypeScale.Hero, fontWeight = FontWeight(260)),
                         maxLines = 1,
                     )
                     Row(verticalAlignment = Alignment.Bottom) {
-                        Text(next.at.format(clock), color = Palette.TextPrimary, fontSize = 30.sp, fontWeight = FontWeight(400), maxLines = 1)
+                        Text(next.at.format(clock), color = Palette.TextPrimary, fontSize = TypeScale.Title, fontWeight = FontWeight(400), maxLines = 1)
                         Spacer(Modifier.width(12.dp))
                         Text(untilText(next.at, now), color = PrayerGreen, fontSize = 18.sp, fontWeight = FontWeight(600), maxLines = 1, modifier = Modifier.padding(bottom = 5.dp))
                     }
@@ -122,11 +122,11 @@ fun PrayerPage(
                     DayLine(times, next.prayer.takeIf { !next.tomorrow }, now, Modifier.fillMaxWidth().height(44.dp))
                     Spacer(Modifier.height(8.dp))
                     if (error != null && times.fromCache) {
-                        Text("Showing the saved times · " + error.substringAfter(" · ", "couldn't refresh"), color = Color(0xFFFFC078), fontSize = 13.sp, maxLines = 1)
+                        Text("Showing the saved times · " + error.substringAfter(" · ", "couldn't refresh"), color = Color(0xFFFFC078), fontSize = TypeScale.Caption, maxLines = 1)
                     } else {
                         Text(
                             times.shuruq?.let { "Shuruq (sunrise) " + it.format(clock) } ?: "Times from the mosque's own MAWAQIT page",
-                            color = Palette.TextTertiary, fontSize = 13.sp, maxLines = 1,
+                            color = Palette.TextTertiary, fontSize = TypeScale.Caption, maxLines = 1,
                         )
                     }
                 }
@@ -168,9 +168,9 @@ private fun TimeRow(name: String, time: String, iqama: String?, current: Boolean
         Box(Modifier.width(14.dp), contentAlignment = Alignment.Center) {
             if (current) Box(Modifier.size(7.dp).background(PrayerGreen, CircleShape))
         }
-        Text(name, color = color, fontSize = 17.sp, fontWeight = if (current) FontWeight(600) else FontWeight(400), modifier = Modifier.weight(1f))
+        Text(name, color = color, fontSize = TypeScale.Body, fontWeight = if (current) FontWeight(600) else FontWeight(400), modifier = Modifier.weight(1f))
         Text(time, color = color, fontSize = 20.sp, fontWeight = FontWeight(if (current) 600 else 400), maxLines = 1, softWrap = false, modifier = Modifier.width(AdhanWidth))
-        if (iqama != null) Text(iqama, color = Palette.TextTertiary, fontSize = 17.sp, maxLines = 1, softWrap = false, modifier = Modifier.width(IqamaWidth))
+        if (iqama != null) Text(iqama, color = Palette.TextTertiary, fontSize = TypeScale.Body, maxLines = 1, softWrap = false, modifier = Modifier.width(IqamaWidth))
     }
     Box(Modifier.fillMaxWidth().padding(top = 8.dp).height(1.dp).background(Color(0x1FFFFFFF)))
 }

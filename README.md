@@ -85,7 +85,9 @@ Press **Down** from Favorites for every app as a card in its own colour. Chips a
 
 ### Widgets
 
-Up to four cards across the top: clock, weather, sunrise & sunset, system info, headlines, football and prayer times. Switch them on and off and reorder them under **Settings → Widgets**, where the ones that are on sit numbered in their own group, apart from the ones available. With two on, the cards are roomy; with four, they switch to compact layouts.
+Up to four cards across the top: clock, weather, sunrise & sunset, system info, headlines, football and prayer times. Switch them on and off and reorder them under **Settings → Widgets**, where the ones that are on sit numbered in their own group, apart from the ones available. **Hold OK** (or press **Menu**) on a card for its own menu: its settings, **Move left** / **Move right**, and **Remove widget**.
+
+<p align="center"><img src="docs/screenshots/widget-menu.png" width="50%" alt="The weather card's menu over the dimmed home screen: Widget settings (location and unit), Move left, Move right and Remove widget"><br><sub><b>A widget's menu</b>: hold OK on the card.</sub></p> With two on, the cards are roomy; with four, they switch to compact layouts.
 
 <table>
   <tr>
@@ -129,7 +131,7 @@ The bar under the widgets is as wide as they are. On the left is the newest noti
 
 <p align="center"><img src="docs/screenshots/notification-bar.png" width="100%" alt="The home screen with the notification bar under the clock, weather and football cards: Pill Launcher 3.4 is ready and the first line of what's new on the left, +4, then the bell with a red dot and the Files button on the right"></p>
 
-**OK** on the bell opens the bar downwards into every notification, over Favorites, with the widgets still in view. An update has **Update** and **Later** beside it, and its progress while it downloads. **Clear all** is at the top right; **Back** folds the list up again. A new notification slides into the bar and the bell gives a small swing; nothing ever pops up over what you're doing, and the bar fades away on the idle screen.
+**OK** on the bell opens the bar downwards into every notification, over Favorites, with the widgets still in view. They're grouped by where they came from (Pill Launcher, Files, football, the connection, each app), each group on its own card under its name. An update has **Update** and **Later** beside it, and its progress while it downloads. **Clear all** is at the top right; **Back** folds the list up again. A new notification slides into the bar and the bell gives a small swing; nothing ever pops up over what you're doing, and the bar fades away on the idle screen.
 
 Pill Launcher's own notifications:
 
@@ -142,7 +144,7 @@ Pill Launcher's own notifications:
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/notifications.png" alt="The notification bar opened downwards over Favorites: Pill Launcher 3.4 is ready with Update and Later, a film app's new episode, holiday.jpg arrived from an iPhone, Updated to 3.3, and a goal for Algeria; Clear all and the bell at the top right"><br><sub><b>The list</b>: OK on the bell opens the bar into every notification.</sub></td>
+    <td width="50%"><img src="docs/screenshots/notifications.png" alt="The notification bar opened downwards over Favorites, grouped by source on cards: Pill Launcher with 3.4 is ready (Update and Later) and Updated to 3.3, a film app's new episode, Files with holiday.jpg arrived from an iPhone, and Football with a goal for Algeria; Clear all and the bell at the top right"><br><sub><b>The list</b>: OK on the bell opens every notification, grouped by source.</sub></td>
     <td width="50%"><img src="docs/screenshots/settings-notifications.png" alt="Settings, Notifications: Other apps' notifications needing Notification access, then Football and Connection switched on"><br><sub><b>Settings → Notifications</b>: other apps, football and the connection.</sub></td>
   </tr>
 </table>
@@ -232,7 +234,7 @@ On TVs that ignore that command, turning off the stock launcher works too (turn 
 
 The `latest` release is rebuilt automatically every time `main` changes, so installing it again always gets you the newest version.
 
-Every version also keeps its own release, named after it (**Pill Launcher 3.5**, tag `v3.5`, file `pill-launcher-3.5.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v3.5/pill-launcher-3.5.apk`. The newest is titled **Pill Launcher 3.5 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
+Every version also keeps its own release, named after it (**Pill Launcher 3.6**, tag `v3.6`, file `pill-launcher-3.6.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v3.6/pill-launcher-3.6.apk`. The newest is titled **Pill Launcher 3.6 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
 
 ### Uninstalling
 
@@ -268,6 +270,7 @@ If the launcher won't open, use the TV's own **Settings → Apps → Pill Launch
 | Order favourites by how often you open them | **Settings → Home screen → Favorites row → Order**: By use |
 | Wake the idle screen | Any key |
 | App menu: pin / unpin, move, app info, uninstall | Hold **OK** for half a second, or press **Menu** (☰) |
+| A widget's menu: its settings, move it, remove it | Hold **OK** on the card, or press **Menu** (☰) |
 | Reorder favourites | App menu → **Move**, then **Left** / **Right**, and **OK** when done (not while they're ordered by use) |
 | Open settings | **Settings** (the gear) in the bar, then **OK** |
 | Rename an app | App menu → **Rename…**, then **Save** |
@@ -406,7 +409,7 @@ gradle assembleDebug                                   # app/build/outputs/apk/d
 gradle :app:testDebugUnitTest --tests '*Screenshots*'  # re-render docs/screenshots
 ```
 
-**Builds are automated.** `.github/workflows/build.yml` builds the APK for every pull request and push; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v3.5`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
+**Builds are automated.** `.github/workflows/build.yml` builds the APK for every pull request and push; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v3.6`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
 
 <details>
 <summary><b>Architecture</b></summary>

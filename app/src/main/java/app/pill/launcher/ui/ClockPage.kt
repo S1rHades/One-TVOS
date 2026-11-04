@@ -92,7 +92,7 @@ fun ClockPage(place: String?, onDismiss: () -> Unit) {
                 Text(now.format(longDate), color = Palette.TextPrimary, fontSize = 20.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (hijri != null) {
                     Spacer(Modifier.height(4.dp))
-                    Text(hijri, color = Palette.TextSecondary, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(hijri, color = Palette.TextSecondary, fontSize = TypeScale.Body, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 Spacer(Modifier.height(4.dp))
                 Text(
@@ -111,7 +111,7 @@ fun ClockPage(place: String?, onDismiss: () -> Unit) {
                 Column(Modifier.weight(1f)) {
                     Text(city, color = Palette.TextSecondary, fontSize = 15.sp, maxLines = 1)
                     Text(there.format(short), color = Palette.TextPrimary, fontSize = 24.sp, fontWeight = FontWeight.Medium, maxLines = 1)
-                    Text(offsetText(now, there), color = Palette.TextTertiary, fontSize = 13.sp, maxLines = 1)
+                    Text(offsetText(now, there), color = Palette.TextTertiary, fontSize = TypeScale.Caption, maxLines = 1)
                 }
             }
         }
@@ -141,7 +141,7 @@ private fun MonthGrid(today: LocalDate, locale: Locale) {
             for (i in 0 until 7) {
                 Text(
                     firstDay.plus(i.toLong()).getDisplayName(DayNameStyle.NARROW, locale),
-                    color = Palette.TextTertiary, fontSize = 13.sp, textAlign = TextAlign.Center, modifier = Modifier.width(cell),
+                    color = Palette.TextTertiary, fontSize = TypeScale.Caption, textAlign = TextAlign.Center, modifier = Modifier.width(cell),
                 )
             }
         }

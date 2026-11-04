@@ -111,6 +111,7 @@ import app.pill.launcher.News
 import app.pill.launcher.Team
 import app.pill.launcher.TeamHit
 import app.pill.launcher.WidgetKind
+import app.pill.launcher.moved
 import app.pill.launcher.activeWidgets
 import app.pill.launcher.cleanName
 import app.pill.launcher.FootballMoment
@@ -261,6 +262,8 @@ fun LauncherScreen(
     var idle by remember { mutableStateOf(false) }
     // The app whose menu is open (and whether OK is still held), and the favourite being moved
     var menu by remember { mutableStateOf<MenuRequest?>(null) }
+    // A widget's own menu (hold OK or Menu on its card)
+    var widgetMenu by remember { mutableStateOf<WidgetMenuRequest?>(null) }
     var moving by remember { mutableStateOf<String?>(null) }
     var renaming by remember { mutableStateOf<AppEntry?>(null) }
     // Settings → Widgets is open: the home screen steps aside to the left as a live preview
@@ -768,6 +771,7 @@ fun LauncherScreen(
                                     prayersError = prayersError,
                                     hasMosque = settings.mosque.isNotBlank(),
                                     onOpenPrayers = { prayersOpen = true },
+                                    onWidgetMenu = { kind, held -> widgetMenu = WidgetMenuRequest(kind, held) },
                                     stack = settings.stackShown(),
                                     stackPreview = stackPreview,
                                     moment = moment.takeIf { !idle },
@@ -998,6 +1002,26 @@ fun LauncherScreen(
                 )
             }
 
+            widgetMenu?.let { request ->
+                val kind = request.kind
+                val at = settings.widgets.indexOf(kind)
+                MenuCard(
+                    okHeld = request.okHeld,
+                    header = { Text(kind.title, color = Palette.TextPrimary, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, maxLines = 1) },
+                    choices = buildList {
+                        add(MenuChoice("Widget settings", widgetSettingsHint(kind)) {
+                            settingsStart = widgetSettingsPage(kind)
+                            panelOpen = true
+                        })
+                        if (at > 0) add(MenuChoice("Move left") { onSettingsChange(settings.copy(widgets = settings.widgets.moved(kind, -1))) })
+                        if (at in 0 until settings.widgets.lastIndex) add(MenuChoice("Move right") { onSettingsChange(settings.copy(widgets = settings.widgets.moved(kind, 1))) })
+                        add(MenuChoice("Remove widget", "Settings → Widgets turns it back on", warning = true) {
+                            onSettingsChange(settings.copy(widgets = settings.widgets - kind))
+                        })
+                    },
+                    onDismiss = { widgetMenu = null },
+                )
+            }
             menu?.let { request ->
                 val app = request.app
                 AppMenu(
@@ -1320,6 +1344,27 @@ internal fun ToastChip(message: String) {
 
 /** An open app menu: for [app], whether OK is still held, and whether it came from the favourites row. */
 private class MenuRequest(val app: AppEntry, val okHeld: Boolean, val fromFavorites: Boolean)
+
+private class WidgetMenuRequest(val kind: WidgetKind, val okHeld: Boolean)
+
+/** Where "Widget settings" in a widget's menu goes: its own page where it has one. */
+private fun widgetSettingsPage(kind: WidgetKind): SettingsPage = when (kind) {
+    WidgetKind.Weather -> SettingsPage.WeatherPlace
+    WidgetKind.Fennecs -> SettingsPage.Football
+    WidgetKind.Headlines -> SettingsPage.News
+    WidgetKind.Prayers -> SettingsPage.Prayers
+    WidgetKind.Stack -> SettingsPage.Stack
+    else -> SettingsPage.Widgets
+}
+
+private fun widgetSettingsHint(kind: WidgetKind): String = when (kind) {
+    WidgetKind.Weather -> "Location and unit"
+    WidgetKind.Fennecs -> "Teams and match day"
+    WidgetKind.Headlines -> "Topics"
+    WidgetKind.Prayers -> "Mosque, refresh"
+    WidgetKind.Stack -> "Its widgets and their order"
+    else -> "Turn widgets on, off and reorder them"
+}
 
 /** Room the settings panel takes at the right of the screen, and the margin around the preview. */
 private val PanelRoom = 488.dp
