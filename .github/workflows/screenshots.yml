@@ -58,5 +58,12 @@ jobs:
             echo "Screenshots unchanged"
           else
             git commit -m "Update README screenshots [skip ci]"
-            git push
+            # GitHub sometimes answers a push with a server error that passes; try a few times
+            for wait in 5 15 30 60 0; do
+              git push && exit 0
+              [ "$wait" = 0 ] && break
+              echo "::warning::Push failed; trying again in ${wait}s"
+              sleep "$wait"
+            done
+            exit 1
           fi
