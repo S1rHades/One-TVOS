@@ -69,8 +69,10 @@ fun OverlayPage(
         }
     }
     val revealed = remember { derivedStateOf { clock.value } }
-    // The softened photo and the dim behind the page, in step with the wave
-    val focusOut = { (clock.value / Motion.Enter).coerceIn(0f, 1f) }
+    // The softened photo and the dim behind the page, ahead of the wave: the home screen is
+    // mostly hidden before the page's first items show, so their text never lies over it.
+    // Going out, it clears last, after the page's items
+    val focusOut = { Motion.EnterEasing.transform((clock.value / (Motion.Enter * 0.6f)).coerceIn(0f, 1f)) }
     val backdrop = LocalBackdrop.current
     Dialog(onDismissRequest = close, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         CompositionLocalProvider(LocalReveal provides revealed) {

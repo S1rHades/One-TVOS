@@ -1,6 +1,8 @@
 package app.pill.launcher.ui
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -33,7 +35,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -49,6 +50,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
@@ -110,9 +112,19 @@ fun NavBar(
     val here = current?.ordinal ?: -1
     val hereX by animateDpAsState(BarPad + itemX(here.coerceAtLeast(0)), Motion.glide(), label = "navHere")
     val hereAlpha by animateFloatAsState(if (here >= 0) 1f else 0f, tween(Motion.Quick), label = "navHereAlpha")
-    var lastFocus by remember { mutableIntStateOf(here.coerceAtLeast(0)) }
-    if (active) lastFocus = focused else if (here >= 0) lastFocus = here
-    val focusX by animateDpAsState(BarPad + itemX(lastFocus), Motion.glide(), label = "navFocus")
+    // Coming into the bar it sets off from the page you're on; leaving, it fades where it is
+    // (gliding back while fading swept a ghost disc across the bar and left the item dark)
+    val focusX = remember { Animatable(BarPad + itemX(here.coerceAtLeast(0)), Dp.VectorConverter) }
+    var wasActive by remember { mutableStateOf(false) }
+    LaunchedEffect(focused) {
+        if (focused < 0) {
+            wasActive = false
+            return@LaunchedEffect
+        }
+        if (!wasActive) focusX.snapTo(BarPad + itemX(here.coerceAtLeast(0)))
+        wasActive = true
+        focusX.animateTo(BarPad + itemX(focused), Motion.glide())
+    }
     val focusAlpha by animateFloatAsState(if (active) 1f else 0f, tween(Motion.Quick), label = "navFocusAlpha")
     Box(
         modifier.onPreviewKeyEvent { event ->
@@ -131,10 +143,10 @@ fun NavBar(
             )
             Box(
                 Modifier
-                    .offset(x = focusX - BarPad)
+                    .offset { IntOffset((focusX.value - BarPad).roundToPx(), 0) }
                     .size(ItemSize)
+                    // No glow: the bar's glass clips it, which cut it flat at the bar's edges
                     .graphicsLayer { alpha = focusAlpha }
-                    .shadow(if (active) 12.dp else 0.dp, CircleShape, ambientColor = Color.White, spotColor = Color.White)
                     .background(Palette.Focus, CircleShape),
             )
             Row(verticalAlignment = Alignment.CenterVertically) {

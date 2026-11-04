@@ -102,6 +102,10 @@ private val ListMax = 236.dp
  * OK on the bell opens the bar downwards into every notification, over Favorites; Back,
  * or the bell again, folds it up.
  */
+
+/** How long the bar's old line takes to fade before the new one starts. */
+private const val LineSwapMs = 140
+
 @Composable
 fun NotificationBar(
     notices: List<Notice>,
@@ -217,8 +221,9 @@ fun NotificationBar(
                         targetState = open to top,
                         contentKey = { (isOpen, n) -> if (isOpen) "open" else n?.id ?: "none" },
                         transitionSpec = {
-                            (slideInVertically(tween(Motion.Enter, easing = Motion.EnterEasing)) { it / 2 } + fadeIn(tween(Motion.Enter))) togetherWith
-                                (slideOutVertically(tween(Motion.Exit, easing = Motion.ExitEasing)) { -it / 2 } + fadeOut(tween(Motion.Exit)))
+                            // The old line is gone before the new one shows, so the two never read on top of each other
+                            (slideInVertically(tween(Motion.Enter, easing = Motion.EnterEasing)) { it / 2 } + fadeIn(tween(Motion.Enter - LineSwapMs, delayMillis = LineSwapMs))) togetherWith
+                                (slideOutVertically(tween(Motion.Exit, easing = Motion.ExitEasing)) { -it / 2 } + fadeOut(tween(LineSwapMs)))
                         },
                         label = "noticeTop",
                         modifier = Modifier.fillMaxWidth(),
