@@ -847,9 +847,12 @@ class Screenshots {
         compose.onNodeWithText("Clear all").assertExists()
         compose.onNode(isFocused() and hasText("Pill Launcher 3.4 is ready", substring = true)).assertExists()
         compose.onRoot().captureRoboImage(File(out, "notifications.png").path)
-        // The next one down is the film app's; holding OK on it dismisses it
+        // Grouped by source: the launcher's own "Updated to 3.3" comes next, then the film app's
         press(Key.DirectionDown)
-        check(focusedName().contains("New episode")) { "Down moves along the list: ${focusedName()}" }
+        check(focusedName().contains("Updated to 3.3")) { "Down stays in the Pill Launcher group: ${focusedName()}" }
+        press(Key.DirectionDown)
+        check(focusedName().contains("New episode")) { "Down moves on to the next group: ${focusedName()}" }
+        // Holding OK on it dismisses it
         compose.onAllNodes(isFocused()).onFirst().performKeyInput { keyDown(Key.DirectionCenter) }
         compose.mainClock.advanceTimeBy(800)
         compose.onAllNodes(isRoot()).onFirst().performKeyInput { keyUp(Key.DirectionCenter) }
