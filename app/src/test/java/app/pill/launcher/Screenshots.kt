@@ -1067,6 +1067,30 @@ class Screenshots {
         captureScreenRoboImage(File(out, "prayer-page.png").path)
     }
 
+    private val beniSaf = Place("Beni Saf", "Aïn Témouchent", "Algeria", 35.30099, -1.38226)
+
+    /** Settings → Widgets → Weather location: Automatic, or a town found by name. */
+    @Test
+    fun settingsWeatherPlace() {
+        show("mountain-lake", pins = favorites)
+        compose.onNodeWithContentDescription("Settings").performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNodeWithText("Widgets").performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNode(hasText("Weather location") and hasText("Automatic", substring = true)).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNodeWithText("Automatic").assertIsDisplayed()
+        compose.onNode(hasSetTextAction()).performTextInput("beni saf")
+        compose.mainClock.advanceTimeBy(1000)
+        settle()
+        compose.onNodeWithText("Beni Saf").assertIsDisplayed()
+        captureScreenRoboImage(File(out, "settings-weather-place.png").path)
+        // OK on it: the weather is for Beni Saf from now on
+        compose.onNodeWithText("Beni Saf").performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        check(currentSettings.weatherPlace == beniSaf) { "Beni Saf chosen: ${currentSettings.weatherPlace}" }
+    }
+
     /** No mosque chosen: the card says where to choose one; the setting page takes the mosque's name. */
     @Test
     fun settingsPrayers() {
@@ -1169,6 +1193,7 @@ class Screenshots {
                 weather = weather,
                 football = footballNow,
                 news = news,
+                searchPlaces = { q -> Result.success(if (q.trim().lowercase().startsWith("beni")) listOf(beniSaf, Place("Beni Saf Port", "Aïn Témouchent", "Algeria", 35.306, -1.387)) else emptyList()) },
                 searchTeams = { q -> searchTeams(listOf(Algeria, arsenal, Team("139283", "MC Alger", league = "Algerian Ligue 1", country = "Algeria"), Team("1", "Algeria U23", country = "Algeria")), q).map { TeamHit(it, it.id != "1") } },
                 pins = pinned,
                 settings = current,

@@ -3,7 +3,7 @@ package app.pill.launcher
 /** The cards that can sit in the header, in their default order. */
 enum class WidgetKind(val title: String, val description: String) {
     Clock("Clock", "Time and date"),
-    Weather("Weather", "Conditions for your approximate area"),
+    Weather("Weather", "Conditions for your town, or your approximate area"),
     // Stored by name: this one keeps its pre-2.5 name, so saved layouts carry over
     Fennecs("Football", "Algeria and the teams you follow: next match, latest result, match day"),
     Daylight("Sunrise & sunset", "Today's daylight, with the sun's place in it"),

@@ -104,6 +104,7 @@ import app.pill.launcher.AppEntry
 import androidx.compose.animation.core.LinearEasing
 import app.pill.launcher.Fixtures
 import app.pill.launcher.PrayerTimes
+import app.pill.launcher.Place
 import app.pill.launcher.MatchDayMode
 import app.pill.launcher.News
 import app.pill.launcher.Team
@@ -173,6 +174,8 @@ fun LauncherScreen(
     news: News? = null,
     /** Teams matching a search, for Settings → Football. */
     searchTeams: suspend (String) -> List<TeamHit> = { emptyList() },
+    /** Towns matching a name, for Settings → Widgets → Weather location; a failure when the search can't be reached. */
+    searchPlaces: suspend (String) -> Result<List<Place>> = { Result.success(emptyList()) },
     /** Today's online nature photos; empty until loaded, or when unavailable. */
     onlinePhotos: List<Photo> = emptyList(),
     pins: List<String>,
@@ -946,6 +949,7 @@ fun LauncherScreen(
                     },
                     photoError = photoError,
                     weatherError = weatherError,
+                    weather = weather,
                     prayers = prayers,
                     prayersError = prayersError,
                     prayersRefreshing = prayersRefreshing,
@@ -953,6 +957,7 @@ fun LauncherScreen(
                     football = football,
                     news = news,
                     searchTeams = searchTeams,
+                    searchPlaces = searchPlaces,
                     photoCredit = photoCredit,
                     home = home,
                     onMakeDefault = onMakeDefault,

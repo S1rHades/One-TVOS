@@ -77,6 +77,8 @@ import app.pill.launcher.MatchDayMode
 import app.pill.launcher.MaxTeams
 import app.pill.launcher.News
 import app.pill.launcher.PrayerTimes
+import app.pill.launcher.Place
+import app.pill.launcher.Weather
 import app.pill.launcher.DefaultPrayerApi
 import app.pill.launcher.cleanMosqueSlug
 import app.pill.launcher.cleanPrayerApi
@@ -138,6 +140,8 @@ fun SettingsPanel(
     /** Why photos or weather last failed to load, shown under their rows; null when fine. */
     photoError: String? = null,
     weatherError: String? = null,
+    /** The reading on screen, to name the place Automatic found. */
+    weather: Weather? = null,
     /** The prayer times as fetched, why not, and whether a fetch is running; Refresh now asks again. */
     prayers: PrayerTimes? = null,
     prayersError: String? = null,
@@ -149,6 +153,8 @@ fun SettingsPanel(
     news: News? = null,
     /** Teams matching a search (off the main thread), for adding one. */
     searchTeams: suspend (String) -> List<TeamHit> = { emptyList() },
+    /** Towns matching a name (off the main thread), for the weather's place. */
+    searchPlaces: suspend (String) -> Result<List<Place>> = { Result.success(emptyList()) },
     /** Credit for the online photo on screen. */
     photoCredit: String? = null,
     home: HomeStatus = HomeStatus(isDefault = true, redirectOn = false),
@@ -404,6 +410,12 @@ fun SettingsPanel(
                                         ) { focused -> Chevron(focused) }
                                     }
                                     Group(null) {
+                            SettingRow(
+                                title = SettingsPage.WeatherPlace.title,
+                                subtitle = settings.weatherPlace?.label ?: ("Automatic" + (weather?.place?.takeIf { it.isNotBlank() }?.let { " · now $it" } ?: "")),
+                                onClick = { page = SettingsPage.WeatherPlace },
+                                modifier = Modifier.focusRequester(categoryFocus.getValue(SettingsPage.WeatherPlace)),
+                            ) { focused -> Chevron(focused) }
                             // Shown or hidden under Widgets; only the unit lives here
                             val units = listOf(WeatherMode.Celsius, WeatherMode.Fahrenheit)
                             val unit = units.indexOf(settings.weather).coerceAtLeast(0)
@@ -536,6 +548,7 @@ fun SettingsPanel(
                                 )
                                 SettingsPage.Football -> FootballPage(settings, onChange, football, searchTeams, Modifier.focusRequester(pageFirst))
                                 SettingsPage.News -> NewsPage(settings, onChange, news, Modifier.focusRequester(pageFirst))
+                                SettingsPage.WeatherPlace -> WeatherPlacePage(settings, onChange, weather, searchPlaces, Modifier.focusRequester(pageFirst))
                                 SettingsPage.Prayers -> PrayersPage(settings, onChange, prayers, prayersError, prayersRefreshing, onRefreshPrayers, Modifier.focusRequester(pageFirst))
                                 SettingsPage.Stack -> StackPage(
                                     settings = settings,
@@ -752,6 +765,7 @@ enum class SettingsPage(val title: String, val parent: SettingsPage? = null) {
     Football("Football teams", Widgets),
     News("Headlines", Widgets),
     Prayers("Prayer times", Widgets),
+    WeatherPlace("Weather location", Widgets),
     ;
 
     /** The category this page is under, in the list. */
@@ -788,6 +802,7 @@ private fun summaryOf(page: SettingsPage, settings: LauncherSettings, home: Home
     SettingsPage.News -> settings.newsTopics.joinToString(", ") { it.title }
     SettingsPage.Stack -> settings.stack.joinToString(", ") { it.title }
     SettingsPage.Prayers -> settings.mosque.ifBlank { "No mosque chosen" }
+    SettingsPage.WeatherPlace -> settings.weatherPlace?.name ?: "Automatic"
 }
 
 /** Shortcuts on the TV & system page: one action here, the rest open the TV's own screens. */
@@ -890,7 +905,7 @@ private fun FootballPage(
         hits = searchTeams(query)
     }
     Group("Add a team") {
-        TeamSearchField(query, { query = it })
+        TeamSearchField(query, { query = it }, hint = "Search teams")
         val found = hits
         when {
             query.isBlank() -> Note("A club or a country, e.g. MC Alger, Arsenal, Morocco")
@@ -1097,9 +1112,9 @@ private fun Note(text: String) {
     Text(text, color = Palette.TextTertiary, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp))
 }
 
-/** Typing a team's name: OK opens the TV keyboard. */
+/** Typing a name to search for (a team, a town): OK opens the TV keyboard. */
 @Composable
-private fun TeamSearchField(value: String, onChange: (String) -> Unit) {
+private fun TeamSearchField(value: String, onChange: (String) -> Unit, hint: String, modifier: Modifier = Modifier) {
     var focused by remember { mutableStateOf(false) }
     val border by animateColorAsState(if (focused) Palette.Focus else Palette.Hairline, label = "teamFieldBorder")
     BasicTextField(
@@ -1124,12 +1139,83 @@ private fun TeamSearchField(value: String, onChange: (String) -> Unit) {
                 SearchIcon(tint = Palette.TextSecondary, iconSize = 20.dp)
                 Spacer(Modifier.width(12.dp))
                 Box(Modifier.weight(1f)) {
-                    if (value.isEmpty()) Text("Search teams", color = Palette.TextTertiary, fontSize = 19.sp)
+                    if (value.isEmpty()) Text(hint, color = Palette.TextTertiary, fontSize = 19.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     inner()
                 }
             }
         },
     )
+}
+
+/**
+ * Settings → Widgets → Weather location: Automatic (the TV's approximate location, from
+ * its internet address, which can be a city some way off), or a town found by name, or
+ * coordinates typed in. The forecast is for that exact point.
+ */
+@Composable
+private fun WeatherPlacePage(
+    settings: LauncherSettings,
+    onChange: (LauncherSettings) -> Unit,
+    weather: Weather?,
+    searchPlaces: suspend (String) -> Result<List<Place>>,
+    firstModifier: Modifier,
+) {
+    val chosen = settings.weatherPlace
+    Group("Weather for") {
+        SettingRow(
+            title = "Automatic",
+            subtitle = "From the TV's internet address, which may be the nearest city" +
+                (if (chosen == null) weather?.place?.takeIf { it.isNotBlank() }?.let { " · now $it" } ?: "" else ""),
+            onClick = { onChange(settings.copy(weatherPlace = null)) },
+            modifier = firstModifier,
+        ) { focused -> if (chosen == null) Check(focused) else Box(Modifier) }
+        if (chosen != null) {
+            SettingRow(
+                title = chosen.name,
+                subtitle = listOf(chosen.region, chosen.country).filter { it.isNotBlank() }.distinct().joinToString(", ")
+                    .ifEmpty { "Coordinates" } + " · the forecast for this exact place",
+                onClick = {},
+            ) { focused -> Check(focused) }
+        }
+    }
+
+    var query by remember { mutableStateOf("") }
+    // null while a search is running; a failure when it couldn't be reached
+    var found by remember { mutableStateOf<Result<List<Place>>?>(Result.success(emptyList())) }
+    LaunchedEffect(query) {
+        if (query.isBlank()) {
+            found = Result.success(emptyList())
+            return@LaunchedEffect
+        }
+        found = null
+        delay(450) // wait for typing to pause
+        found = searchPlaces(query)
+    }
+    Group("Choose a town") {
+        TeamSearchField(query, { query = it }, hint = "Town or village, e.g. Beni Saf")
+        val result = found
+        val places = result?.getOrNull()
+        when {
+            query.isBlank() -> Note("Any town or village, or a latitude and longitude such as 35.30, -1.38")
+            result == null -> Note("Searching…")
+            result.isFailure -> Note("Can't reach the place search: ${result.exceptionOrNull()?.let { describe(it) }}")
+            places.isNullOrEmpty() -> Note("No places found for “${query.trim()}”. Try its name without accents, or its coordinates")
+            else -> for (p in places) {
+                key(p.key) {
+                    val current = chosen?.key == p.key
+                    SettingRow(
+                        title = p.name,
+                        subtitle = listOf(p.region, p.country).filter { it.isNotBlank() }.distinct().joinToString(", ").ifEmpty { "Coordinates" } +
+                            String.format(java.util.Locale.ROOT, " · %.2f, %.2f", p.lat, p.lon),
+                        onClick = {
+                            onChange(settings.copy(weatherPlace = p))
+                            query = ""
+                        },
+                    ) { focused -> if (current) Check(focused) else Mark("+", focused) }
+                }
+            }
+        }
+    }
 }
 
 /**

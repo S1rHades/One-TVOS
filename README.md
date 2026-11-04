@@ -232,7 +232,7 @@ On TVs that ignore that command, turning off the stock launcher works too (turn 
 
 The `latest` release is rebuilt automatically every time `main` changes, so installing it again always gets you the newest version.
 
-Every version also keeps its own release, named after it (**Pill Launcher 3.4**, tag `v3.4`, file `pill-launcher-3.4.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v3.4/pill-launcher-3.4.apk`. The newest is titled **Pill Launcher 3.4 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
+Every version also keeps its own release, named after it (**Pill Launcher 3.4.1**, tag `v3.4.1`, file `pill-launcher-3.4.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v3.4.1/pill-launcher-3.4.apk`. The newest is titled **Pill Launcher 3.4.1 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
 
 ### Uninstalling
 
@@ -273,6 +273,7 @@ If the launcher won't open, use the TV's own **Settings → Apps → Pill Launch
 | Flip through a widget stack | With it focused, **Up** / **Down** |
 | Choose and order a widget stack's widgets | **Settings → Widgets → Widget stack**: OK adds or removes one; hold OK, then **Left** / **Right**, moves it |
 | Install a newer version | **OK** on its notice in the notification bar, or **Settings → Updates** |
+| Choose the town the weather is for | **Settings → Widgets → Weather location**, type its name, then **OK** on it |
 | Change how often the photo changes, or the weather unit | In settings, **Left** / **Right** on that row |
 | Turn widgets on or off | **Settings → Widgets**, **OK** on a widget (up to four at once) |
 | Reorder widgets | **Settings → Widgets**, **Left** / **Right** on a widget that's on |
@@ -292,7 +293,14 @@ Settings and favourites are saved on the TV and survive restarts and updates.
 
 ### Weather and forecast
 
-The widget finds the TV's approximate location from its internet address with [GeoJS](https://www.geojs.io/) and gets the forecast from [Open-Meteo](https://open-meteo.com/), or from [MET Norway](https://api.met.no/) if Open-Meteo can't be reached. None of them needs an account or key. It refreshes every 30 minutes. Choose °C or °F in settings. Turn off both the Weather and the Sunrise & sunset widgets, and the launcher contacts none of these services. If the weather can't load, Settings shows why under the Weather widget's row. Sunrise and sunset are worked out on the TV from the same location.
+The forecast comes from [Open-Meteo](https://open-meteo.com/), or from [MET Norway](https://api.met.no/) if Open-Meteo can't be reached, for an exact point, so a small town gets its own weather. Where that point is depends on **Settings → Widgets → Weather location**:
+
+- **Automatic** (the default) finds the TV's approximate location from its internet address with [GeoJS](https://www.geojs.io/). That is often the provider's nearest city rather than your town.
+- **A town you choose**: type its name, and OK on it in the list. Open-Meteo's place search covers small towns and villages, such as Beni Saf. Typing a latitude and longitude, such as `35.30, -1.38`, works too.
+
+<p align="center"><img src="docs/screenshots/settings-weather-place.png" width="100%" alt="Settings, Widgets, Weather location: Automatic, then Choose a town with beni saf typed in, and Beni Saf, Aïn Témouchent, Algeria and Beni Saf Port listed with their coordinates"></p>
+
+None of these services needs an account or key. It refreshes every 30 minutes. Choose °C or °F in settings. Turn off both the Weather and the Sunrise & sunset widgets, and the launcher contacts none of these services. If the weather can't load, Settings shows why under the Weather widget's row. Sunrise and sunset are worked out on the TV from the same location.
 
 OK on the weather card opens the weather dashboard:
 
@@ -397,7 +405,7 @@ gradle assembleDebug                                   # app/build/outputs/apk/d
 gradle :app:testDebugUnitTest --tests '*Screenshots*'  # re-render docs/screenshots
 ```
 
-**Builds are automated.** `.github/workflows/build.yml` builds the APK for every pull request and push; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v3.4`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
+**Builds are automated.** `.github/workflows/build.yml` builds the APK for every pull request and push; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v3.4.1`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
 
 <details>
 <summary><b>Architecture</b></summary>
