@@ -202,14 +202,21 @@ class MainActivity : ComponentActivity() {
             val prayerApi = settings.prayerApi
             var prayersError by remember { mutableStateOf<String?>(null) }
             var prayersRefreshing by remember { mutableStateOf(false) }
+            // Which mosque the times on show are for, so Refresh keeps them up while it asks again
+            var prayersFor by remember { mutableStateOf<String?>(null) }
             val prayers by produceState<PrayerTimes?>(null, prayersOn, mosque, prayerApi, prayerRefresh) {
-                value = prayerSource.cached(mosque)
+                if (prayersFor != mosque || value == null) {
+                    value = prayerSource.cached(mosque)
+                    prayersFor = mosque
+                }
                 if (mosque.isBlank()) {
                     prayersError = null
                     return@produceState
                 }
                 var failures = 0
-                while (prayersOn) {
+                // Once even with the widget off (Settings shows which mosque was found, and Refresh answers),
+                // then daily and on failures while it is on
+                while (true) {
                     prayersRefreshing = true
                     // Cleared even when a new mosque or Refresh cancels this fetch part way
                     val result = try {
@@ -234,6 +241,7 @@ class MainActivity : ComponentActivity() {
                         failures++
                         value = value?.copy(fromCache = true)
                     }
+                    if (!prayersOn) break
                     delay(if (result.isSuccess) prayerSource.untilNextDay().toMillis() else RetryDelaysMs[(failures - 1).coerceAtMost(RetryDelaysMs.lastIndex)])
                 }
             }
@@ -358,7 +366,7 @@ class MainActivity : ComponentActivity() {
                 weatherError = weatherError.takeIf { weatherOn },
                 prayers = prayers.takeIf { prayersOn },
                 prayersError = prayersError.takeIf { prayersOn },
-                prayersRefreshing = prayersRefreshing && prayersOn,
+                prayersRefreshing = prayersRefreshing,
                 onRefreshPrayers = { prayerRefresh++ },
                 football = football,
                 news = news.takeIf { newsOn },

@@ -1,5 +1,6 @@
 package app.pill.launcher.ui
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeOut
@@ -317,6 +318,8 @@ fun PageButton(
                 scaleY = scale
                 alpha = if (enabled) 1f else 0.4f
             }
+            // "Refresh" → "Refreshing…" → "Updated ✓": the pill eases to each label's width
+            .animateContentSize(tween(Motion.Quick, easing = Motion.EnterEasing))
             .height(42.dp)
             .shadow(if (focused) 10.dp else 0.dp, RoundedCornerShape(50))
             .clip(RoundedCornerShape(50))

@@ -1390,7 +1390,8 @@ private fun PrayersPage(
         SettingRow(
             title = "Refresh now",
             subtitle = (prayers?.mosque?.ifBlank { null }?.let { "$it · " } ?: "") + status,
-            onClick = { if (!refreshing) onRefresh() },
+            // Even while it's asking: a slow answer shouldn't make the row feel dead, and a press starts afresh
+            onClick = onRefresh,
             enabled = settings.mosque.isNotBlank(),
             modifier = if (settings.mosque.isBlank()) Modifier else firstModifier,
         ) { focused -> RefreshIcon(if (focused) Palette.Ink else Palette.TextTertiary, 22.dp, spinning = refreshing) }
