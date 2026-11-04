@@ -251,6 +251,7 @@ class FileShareTest {
     fun aRealChromeOpensTheScanLink() {
         val chrome = listOf("google-chrome", "google-chrome-stable", "chromium", "chromium-browser")
             .firstOrNull { name -> runCatching { ProcessBuilder("which", name).start().waitFor() == 0 }.getOrDefault(false) }
+        if (chrome == null) System.err.println("REAL CHROME: none on this machine, skipped")
         org.junit.Assume.assumeTrue("no Chrome here", chrome != null)
         val real = FileShare(File(dir, "Chrome"), page = { "<html><body><h1 id=t>Your TV</h1><script>fetch('/api/files',{headers:{'X-Pill':'1'}}).then(r=>r.json()).then(d=>{document.getElementById('t').textContent='Paired: '+d.files.length})</script></body></html>" }, address = { "127.0.0.1" }, code = "222222", key = "c".repeat(32))
         real.start()
@@ -266,6 +267,7 @@ class FileShareTest {
             process.waitFor(60, java.util.concurrent.TimeUnit.SECONDS)
             assertTrue("Chrome didn't get the page. DOM: $dom\nChrome said: ${log.takeLast(2000)}\nTV saw: ${real.state.value.lastVisit}", dom.contains("Paired: 0"))
             assertEquals(1, real.state.value.devices.size)
+            System.err.println("REAL CHROME ($chrome) opened the scan link: ${real.state.value.lastVisit}")
         } finally {
             real.stop()
             profile.deleteRecursively()
