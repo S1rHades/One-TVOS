@@ -79,6 +79,8 @@ fun AppMenu(
     pinned: Boolean,
     okHeld: Boolean,
     onAction: (MenuAction) -> Unit,
+    /** False while the favourites are ordered by use: their places aren't chosen by hand then. */
+    movable: Boolean = true,
     onDismiss: () -> Unit,
 ) {
     MenuCard(
@@ -90,7 +92,7 @@ fun AppMenu(
         },
         choices = buildList {
             add(MenuChoice(if (pinned) "Remove from Favorites" else "Add to Favorites") { onAction(MenuAction.TogglePin) })
-            if (pinned) add(MenuChoice("Move", "Left / Right along Favorites") { onAction(MenuAction.Move) })
+            if (pinned && movable) add(MenuChoice("Move", "Left / Right along Favorites") { onAction(MenuAction.Move) })
             add(MenuChoice("Rename…", app.originalLabel?.let { "Its own name: $it" }) { onAction(MenuAction.Rename) })
             add(MenuChoice("App info", "In the TV's settings") { onAction(MenuAction.AppInfo) })
             if (app.removable) add(MenuChoice("Uninstall", warning = true) { onAction(MenuAction.Uninstall) })

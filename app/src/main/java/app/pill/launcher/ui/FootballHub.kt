@@ -92,7 +92,7 @@ fun FootballHub(
                 "TheSportsDB" + if (f.viaMirror) " via the GitHub copy" else "",
                 f.fetchedAt.takeIf { it != Instant.EPOCH }?.let { "updated " + ageText(it).lowercase() },
                 if (football.size > 1) "Up / Down for other teams" else null,
-                "Back to close",
+                backHint(),
             ).joinToString(" · "),
             Modifier.reveal(0),
         )
