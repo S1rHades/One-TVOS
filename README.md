@@ -157,7 +157,7 @@ Your phone opens a plain page in its browser, with nothing to install: **Send to
 
 <table>
   <tr>
-    <td width="66%"><img src="docs/screenshots/files.png" alt="The Files page: on the left, Receive, with a QR code, Scan with your phone, the address 192.168.1.24:8642 and code 482913, the space free and Keep receiving: Off; on the right, chips for All 4, Photos, Videos, Apps and Documents over cards for holiday.jpg with a preview, match-highlights.mp4, kinopub-2.4.apk and tv-manual.pdf"><br><sub><b>Files on the TV</b>: receiving on the left, everything on the TV on the right.</sub></td>
+    <td width="66%"><img src="docs/screenshots/files.png" alt="The Files page: on the left, Receive, with a QR code, Scan with your phone, the address 192.168.1.24:8642 and code 482913, No phone has reached the TV yet, the space free and Keep receiving: Off; on the right, chips for All 4, Photos, Videos, Apps and Documents over cards for holiday.jpg with a preview, match-highlights.mp4, kinopub-2.4.apk and tv-manual.pdf"><br><sub><b>Files on the TV</b>: receiving on the left, everything on the TV on the right.</sub></td>
     <td width="34%"><img src="docs/files-phone.png" alt="The phone's page: Your TV, Send to TV, kinopub-2.5.apk on its way at 34.6 of 48 MB, and the TV's files with Save beside each"><br><sub><b>On the phone</b>: send, or save what's on the TV.</sub></td>
   </tr>
 </table>
