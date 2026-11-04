@@ -705,7 +705,7 @@ class Screenshots {
             // Left: Asr (13:49), which has passed
             card.performKeyInput { pressKey(Key.DirectionLeft) }
             settle()
-            compose.onNodeWithText("ago", substring = true).assertExists()
+            compose.onNodeWithText("min ago", substring = true).assertExists()
             compose.onNodeWithText("in 4", substring = true).assertDoesNotExist()
             // Ten seconds later it's back on Maghrib, counting down
             compose.mainClock.advanceTimeBy(11_000)
