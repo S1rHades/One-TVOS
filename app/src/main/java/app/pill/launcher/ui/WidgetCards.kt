@@ -1,5 +1,7 @@
 package app.pill.launcher.ui
 
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.unit.isSpecified
 import androidx.compose.material3.LocalTextStyle
@@ -383,7 +385,7 @@ private fun StackCard(stack: List<WidgetKind>, preview: WidgetKind?, content: Wi
                     "Choose its widgets in Settings → Widgets → Widget stack",
                     style = lineStyle(15.sp, Palette.TextPrimary),
                     maxLines = 3,
-                    overflow = TextOverflow.Ellipsis,
+                    shorter = listOf("Choose its widgets in Settings", "No widgets yet"),
                     modifier = Modifier.align(Alignment.CenterStart),
                 )
             }
@@ -504,12 +506,12 @@ private fun WidgetCard(
 }
 
 @Composable
-private fun CardLabel(text: String, modifier: Modifier = Modifier, color: Color = Palette.TextTertiary) {
+private fun CardLabel(text: String, modifier: Modifier = Modifier, color: Color = Palette.TextTertiary, shorter: List<String> = emptyList()) {
     FitText(
         text.uppercase(),
+        shorter = shorter.map { it.uppercase() },
         style = TextStyle(fontFamily = Flex, color = color, fontSize = 12.sp, fontWeight = FontWeight(650), letterSpacing = 1.3.sp),
         maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
         modifier = modifier,
     )
 }
@@ -550,7 +552,11 @@ private fun ClockCard(compact: Boolean, modifier: Modifier, onClick: (() -> Unit
                 style = TextStyle(fontFamily = FlexDisplay, color = Color.White, fontSize = if (compact) 46.sp else 54.sp, fontWeight = FontWeight(260), letterSpacing = (-1.2).sp),
                 maxLines = 1,
             )
-            FitText(now.format(date), style = lineStyle(if (compact) 15.sp else 17.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            FitText(
+                now.format(date),
+                style = lineStyle(if (compact) 15.sp else 17.sp),
+                shorter = listOf("EEE, MMM d", "MMM d").map { now.format(DateTimeFormatter.ofPattern(it, Locale.getDefault())) },
+            )
         }
     }
 }
@@ -564,7 +570,12 @@ private fun WeatherCard(weather: Weather?, error: String?, mode: WeatherMode, co
             Column(Modifier.align(Alignment.Center)) {
                 CardLabel("Weather")
                 Spacer(Modifier.height(6.dp))
-                FitText(if (error != null) "Can't reach the weather service" else "Finding your area…", style = lineStyle(16.sp), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                FitText(
+                    if (error != null) "Can't reach the weather service" else "Finding your area…",
+                    style = lineStyle(16.sp),
+                    maxLines = 2,
+                    shorter = if (error != null) listOf("No weather right now", "Offline") else listOf("Finding…"),
+                )
             }
         } else {
             WeatherWidget(weather, mode, compact, Modifier.align(Alignment.Center), animate = animate)
@@ -753,7 +764,7 @@ private fun MomentFixtures(m: FootballMoment, f: Fixtures, now: Instant, compact
             momentText(m, compact),
             style = lineStyle(14.sp, GoalText, 640),
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+            shorter = listOf(momentText(m, true)),
         )
     }
 }
@@ -803,21 +814,25 @@ private fun TeamFixtures(f: Fixtures, phase: MatchPhase, now: Instant, compact: 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     LiveDot()
                     Spacer(Modifier.width(6.dp))
-                    CardLabel(if (compact) "Live" else "Live · " + shortCompetition(live.competition), color = Color(0xFFFF8A9B))
+                    CardLabel("Live · " + shortCompetition(live.competition), color = Color(0xFFFF8A9B), shorter = listOf("Live"))
                 }
                 Teams(live, compact, showScore = true)
                 FitText(
                     (if (f.team.isAlgeria) "Les Fennecs" else f.team.name) + " are playing now",
                     style = lineStyle(14.sp, Palette.TextTertiary),
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                    shorter = listOf("Playing now", ""),
                 )
             }
             upcoming != null && (phase == MatchPhase.Today || phase == MatchPhase.Soon) -> MatchDayCountdown(upcoming, now, compact)
             upcoming != null -> {
-                CardLabel(if (compact) "Next" else "Next · ${shortCompetition(upcoming.competition)}")
+                CardLabel("Next · ${shortCompetition(upcoming.competition)}", shorter = listOf("Next"))
                 Teams(upcoming, compact, showScore = false)
-                FitText(kickoffText(upcoming.kickoff, compact), style = lineStyle(15.sp, Palette.TextPrimary, 560), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                FitText(
+                    kickoffText(upcoming.kickoff, compact),
+                    style = lineStyle(15.sp, Palette.TextPrimary, 560),
+                    shorter = listOf(kickoffText(upcoming.kickoff, true), kickoffText(upcoming.kickoff, true).substringAfter(" · ")),
+                )
             }
             else -> {
                 CardLabel(if (f.team.isAlgeria) "Les Fennecs" else f.team.name)
@@ -832,7 +847,13 @@ private fun TeamFixtures(f: Fixtures, phase: MatchPhase, now: Instant, compact: 
                         },
                         style = lineStyle(15.sp, Palette.TextPrimary),
                         maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
+                        shorter = listOf(
+                            when {
+                                f.fetchedAt != Instant.EPOCH -> "No match yet"
+                                f.error != null -> "No match data"
+                                else -> "Loading…"
+                            },
+                        ),
                     )
                 }
             }
@@ -868,7 +889,7 @@ private fun MatchDayCountdown(match: Match, now: Instant, compact: Boolean) {
         "${shortCode(match.home.name)} v ${shortCode(match.away.name)} · " + kickoffText(match.kickoff, compact).substringAfter(" · "),
         style = lineStyle(14.sp, Palette.TextPrimary, 600),
         maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
+        shorter = listOf("${shortCode(match.home.name)} v ${shortCode(match.away.name)}"),
     )
 }
 
@@ -891,8 +912,8 @@ private fun Teams(match: Match, compact: Boolean, showScore: Boolean) {
         val away = if (compact) shortCode(match.away.name) else match.away.name
         val style = lineStyle(if (compact) 17.sp else 19.sp, Palette.TextPrimary, 640)
         val gap = if (compact) 4.dp else 7.dp
-        // Each name gives way (with an ellipsis) before the score does, so long names never push it out
-        FitText(home, style = style, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+        // Each name gives way (to its short code) before the score does, so long names never push it out
+        FitText(home, style = style, shorter = listOf(shortCode(match.home.name)), modifier = Modifier.weight(1f, fill = false))
         Spacer(Modifier.width(gap))
         if (showScore && match.homeScore != null && match.awayScore != null) {
             FlipNumber(match.homeScore, style.copy(color = Palette.TextTertiary, fontWeight = FontWeight(700)))
@@ -902,7 +923,7 @@ private fun Teams(match: Match, compact: Boolean, showScore: Boolean) {
             Text("v", style = style.copy(color = Palette.TextTertiary, fontWeight = FontWeight(500)))
         }
         Spacer(Modifier.width(gap))
-        FitText(away, style = style, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+        FitText(away, style = style, shorter = listOf(shortCode(match.away.name)), modifier = Modifier.weight(1f, fill = false))
         Spacer(Modifier.width(if (compact) 6.dp else 8.dp))
         Crest(match.away, 24.dp)
     }
@@ -943,7 +964,7 @@ private fun LastResult(match: Match, compact: Boolean) {
             "${if (compact) "" else "Last  "}${match.ourScore}–${match.opponentScore} v $opponent",
             style = lineStyle(14.sp, Palette.TextTertiary),
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+            shorter = listOf("${match.ourScore}–${match.opponentScore} v ${shortCode(match.opponent.name)}", "${match.ourScore}–${match.opponentScore}"),
         )
     }
 }
@@ -1056,27 +1077,26 @@ private fun HeadlinesCard(picked: List<PickedHeadline>, status: String?, compact
             Column(Modifier.align(Alignment.CenterStart)) {
                 CardLabel("Headlines")
                 Spacer(Modifier.height(6.dp))
-                FitText(status ?: "Loading headlines…", style = lineStyle(15.sp), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                FitText(status ?: "Loading headlines…", style = lineStyle(15.sp), maxLines = 2, shorter = listOf(if (status == null) "Loading…" else "No headlines"))
             }
         } else {
             Crossfade(item, animationSpec = tween(500), label = "headline", modifier = Modifier.align(Alignment.CenterStart)) { shown ->
                 Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     val topic = shown.topic?.let { if (compact && it == NewsTopic.World) "World" else it.title } ?: "Top stories"
-                    CardLabel(if (compact) topic else "$topic · ${shown.headline.source.title}", color = Color(0xFFFFC9C9))
+                    CardLabel("$topic · ${shown.headline.source.title}", color = Color(0xFFFFC9C9), shorter = listOf(topic))
                     FitText(
                         shown.headline.title,
                         style = lineStyle(if (compact) 15.sp else 16.sp, Palette.TextPrimary, 600).copy(lineHeight = if (compact) 18.sp else 20.sp),
                         maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
                     )
-                    Text(
+                    FitText(
                         listOfNotNull(
                             if (compact) shown.headline.source.title else null,
                             shown.headline.published?.let { ageText(it) },
                             if (!compact && picked.size > 1) "${picked.indexOf(shown) + 1} of ${picked.size}" else null,
                         ).joinToString(" · "),
                         style = lineStyle(12.sp, Palette.TextTertiary),
-                        maxLines = 1,
+                        shorter = listOfNotNull(shown.headline.published?.let { ageText(it) }, ""),
                     )
                 }
             }
@@ -1324,9 +1344,11 @@ private fun formatBytes(bytes: Long): String {
 val LocalWidgetMenu = staticCompositionLocalOf<((okHeld: Boolean) -> Unit)?> { null }
 
 /**
- * A widget's line of text that fits its card: it shrinks (to [minScale] of its size at the
- * most) until it fits in [maxLines], and only past that is it cut with an ellipsis. It shows
- * once it fits, so it never flashes cut off; a new text starts from the size the last one fitted.
+ * A widget's line of text laid out for the room the card has: [text], or when that won't fit,
+ * the first of [shorter] that does (most important first, so a narrow card keeps what
+ * matters most and drops the rest, never cutting with "…"). Each one is measured first, at
+ * its size and then a little smaller (down to [minScale]); an empty string means the line
+ * may go altogether. When nothing fits, the last one is cut at a whole word.
  */
 @Composable
 internal fun FitText(
@@ -1338,23 +1360,41 @@ internal fun FitText(
     fontWeight: FontWeight? = null,
     maxLines: Int = 1,
     softWrap: Boolean = maxLines > 1,
-    overflow: TextOverflow = TextOverflow.Ellipsis,
-    minScale: Float = 0.7f,
+    shorter: List<String> = emptyList(),
+    minScale: Float = 0.8f,
 ) {
     val base = style.merge(TextStyle(color = color, fontSize = fontSize, fontWeight = fontWeight))
     val size = if (base.fontSize.isSpecified) base.fontSize else 16.sp
-    var scale by remember(base) { mutableFloatStateOf(1f) }
-    var fitted by remember(base) { mutableStateOf<String?>(null) }
-    Text(
-        text,
-        style = base.copy(fontSize = size * scale),
-        maxLines = maxLines,
-        softWrap = softWrap,
-        overflow = overflow,
-        modifier = modifier.drawWithContent { if (fitted == text) drawContent() },
-        onTextLayout = { layout ->
-            if (layout.hasVisualOverflow && scale > minScale) scale = (scale - 0.06f).coerceAtLeast(minScale)
-            else fitted = text
-        },
-    )
+    val measurer = rememberTextMeasurer()
+    BoxWithConstraints(modifier) {
+        val width = if (constraints.hasBoundedWidth) constraints.maxWidth else Int.MAX_VALUE
+        val choice = remember(text, shorter, base, width, maxLines, softWrap) {
+            fun fits(t: String, scale: Float): Boolean = t.isEmpty() || !measurer.measure(
+                t,
+                base.copy(fontSize = size * scale),
+                overflow = TextOverflow.Clip,
+                softWrap = softWrap,
+                maxLines = maxLines,
+                constraints = Constraints(maxWidth = width),
+            ).hasVisualOverflow
+            val options = (listOf(text) + shorter).distinct()
+            val scales = listOf(1f, 0.92f, minScale)
+            options.firstNotNullOfOrNull { t -> scales.firstOrNull { fits(t, it) }?.let { t to it } }
+                ?: run {
+                    // Nothing fits even small: the last option, to its last whole word that does
+                    val words = options.last().split(' ')
+                    (words.size - 1 downTo 1).asSequence().map { words.take(it).joinToString(" ") }
+                        .firstOrNull { fits(it, minScale) }?.let { it to minScale } ?: ("" to 1f)
+                }
+        }
+        if (choice.first.isNotEmpty()) {
+            Text(
+                choice.first,
+                style = base.copy(fontSize = size * choice.second),
+                maxLines = maxLines,
+                softWrap = softWrap,
+                overflow = TextOverflow.Clip,
+            )
+        }
+    }
 }

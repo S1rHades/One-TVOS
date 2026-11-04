@@ -86,19 +86,19 @@ fun PrayerWidget(
     Column(modifier, verticalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 5.dp)) {
         // The mosque, and quietly how old the times are (grey once they are only the saved copy)
         Row(verticalAlignment = Alignment.CenterVertically) {
-            PageLabel(
-                if (compact) "Prayers" else times.mosque.ifBlank { "Prayer times" },
-                color = if (times.fromCache) Palette.TextTertiary else PrayerGreen.copy(alpha = 0.9f),
+            // The mosque's name comes first; the age gets what room is left, or goes
+            FitText(
+                times.mosque.ifBlank { "Prayer times" }.uppercase(),
+                style = TextStyle(fontFamily = Flex, color = if (times.fromCache) Palette.TextTertiary else PrayerGreen.copy(alpha = 0.9f), fontSize = 12.sp, fontWeight = FontWeight(650), letterSpacing = 1.3.sp),
+                shorter = listOf("PRAYERS"),
+            )
+            Spacer(Modifier.width(8.dp))
+            FitText(
+                (if (times.fromCache) "saved " else "") + ageText(times.fetchedAt, now.toInstant()).lowercase(),
+                style = prayerStyle(11.sp, Palette.TextTertiary),
+                shorter = listOf(ageText(times.fetchedAt, now.toInstant()).lowercase(), ""),
                 modifier = Modifier.weight(1f, fill = false),
             )
-            if (!compact) {
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    (if (times.fromCache) "saved " else "") + ageText(times.fetchedAt, now.toInstant()).lowercase(),
-                    style = prayerStyle(11.sp, Palette.TextTertiary),
-                    maxLines = 1,
-                )
-            }
         }
         if (next == null) {
             Text("No times for today", style = prayerStyle(15.sp), maxLines = 2)
@@ -116,7 +116,11 @@ fun PrayerWidget(
                 // Green counts down to the next prayer; another one picked by hand is quieter
                 style = prayerStyle(if (compact) 13.sp else 14.sp, if (big != null) Palette.TextSecondary else PrayerGreen, 600),
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+                // Short of room: the bare countdown, then nothing (the time beside it says when)
+                shorter = listOf(
+                    (if (big != null) whenText(big.second, now) else untilText(next.at, now)).removePrefix("in ").replace(" min", "m").replace(" h ", "h "),
+                    "",
+                ),
                 modifier = Modifier.padding(bottom = 2.dp),
             )
         }
@@ -129,7 +133,10 @@ fun PrayerWidget(
                 },
                 style = prayerStyle(12.sp, Palette.TextTertiary),
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+                shorter = listOfNotNull(
+                    if (big != null) "${next.prayer.title} ${next.at.format(clock)}" else after?.let { (p, t) -> "${p.title} ${t.format(clock)}" },
+                    "",
+                ),
             )
         } else {
             PrayerStrip(times, next, clock, Modifier.fillMaxWidth(), picked = big?.first)
@@ -187,7 +194,14 @@ fun PrayerEmpty(error: String?, hasMosque: Boolean, modifier: Modifier = Modifie
             },
             style = prayerStyle(15.sp),
             maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
+            shorter = listOf(
+                when {
+                    !hasMosque -> "Choose a mosque"
+                    error != null && error.startsWith("MAWAQIT has no mosque") -> "Mosque not found"
+                    error != null -> "Offline"
+                    else -> "Loading…"
+                },
+            ),
         )
     }
 }
