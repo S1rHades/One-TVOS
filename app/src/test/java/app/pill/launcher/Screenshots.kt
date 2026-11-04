@@ -675,15 +675,19 @@ class Screenshots {
         val now = java.time.LocalDateTime.now()
         val inMinutes = if (now.plusMinutes(135).toLocalDate() == now.toLocalDate()) 135L else 5L
         show("mountain-lake", pins = favorites, football = matchDay(inMinutes))
-        val card = compose.onNode(hasClickAction() and (hasText("Algeria", substring = true) or hasText("ALG", substring = true) or hasText("Arsenal", substring = true) or hasText("ARS", substring = true)))
+        // The card, not the notification bar's line about the same match: the one higher up
+        val matcher = hasClickAction() and (hasText("Algeria", substring = true) or hasText("ALG", substring = true) or hasText("Arsenal", substring = true) or hasText("ARS", substring = true))
+        fun card() = compose.onAllNodes(matcher).let { all ->
+            all[all.fetchSemanticsNodes().withIndex().minBy { it.value.boundsInRoot.top }.index]
+        }
         fun text(): String {
-            val t = card.fetchSemanticsNode().config.getOrElseNullable(androidx.compose.ui.semantics.SemanticsProperties.Text) { null }?.joinToString(" ").orEmpty()
+            val t = card().fetchSemanticsNode().config.getOrElseNullable(androidx.compose.ui.semantics.SemanticsProperties.Text) { null }?.joinToString(" ").orEmpty()
             return if (t.contains("Algeria") || t.contains("ALG") || t.contains("Fennecs")) "Algeria" else "Arsenal"
         }
         check(text() == "Algeria") { "match day shows the match: ${text()}" }
-        card.requestFocus()
+        card().requestFocus()
         settle()
-        card.performKeyInput { pressKey(Key.DirectionRight) }
+        card().performKeyInput { pressKey(Key.DirectionRight) }
         settle()
         check(text() == "Arsenal") { "Right reaches the other team on a match day: ${text()}" }
         // Focus elsewhere: after a turn the card is back on the match

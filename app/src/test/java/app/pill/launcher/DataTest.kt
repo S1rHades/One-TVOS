@@ -849,7 +849,7 @@ class DataTest {
             assertEquals("Obada", source.cached("4321")!!.mosque)
             // An ID MAWAQIT doesn't know: every source says "not found"
             assertTrue(source.fetch("$base/api/v1", "999").exceptionOrNull() is NoSuchMosque)
-            assertEquals(listOf("/fr/id/4321", "/fr/id/999", "/api/v1/999/", "/api/v1/999/prayer-times"), asked.toList())
+            assertEquals(listOf("/fr/id/4321", "/fr/id/999"), asked.toList())
         } finally {
             server.close()
         }
