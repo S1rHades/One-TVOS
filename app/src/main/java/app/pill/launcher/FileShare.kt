@@ -61,6 +61,9 @@ data class TrustedDevice(val id: String, val name: String, val pairedAt: Long, v
 /** A phone that typed the code and waits for an OK on the TV. */
 data class PairRequest(val id: String, val name: String, val at: Long)
 
+/** A request from a phone: when, from where, what it asked for, and what the TV answered (or what went wrong). */
+data class Visit(val at: Long, val from: String, val asked: String, val outcome: String)
+
 data class ShareState(
     /** Taking files now. */
     val running: Boolean = false,
@@ -83,6 +86,8 @@ data class ShareState(
     val pending: PairRequest? = null,
     /** Phones paired in the last 90 days. */
     val devices: List<TrustedDevice> = emptyList(),
+    /** The last request a phone made, and how it went: shows whether a phone reaches the TV at all. */
+    val lastVisit: Visit? = null,
 ) {
     /** What the QR code opens: the address with the pairing key. */
     val link: String? get() = address?.let { "http://$it:$port/?p=$key" }
@@ -405,6 +410,39 @@ class FileShare(
         // A connection the browser opened ahead of time and never used, or closed: just close it.
         // Answering it ("Bad request") would leave a stale reply for the browser's next use of it.
         val request = runCatching { readRequest(input) }.getOrNull() ?: return
+        val asked = if (request.path == "/" && request.params.containsKey("p")) "the scanned code" else "${request.method} ${request.path}"
+        // Whatever goes wrong, the phone gets an answer: a connection closed with none makes Chrome
+        // send the request again and again, then give up with ERR_TOO_MANY_RETRIES
+        val answer = StatusOut(out)
+        try {
+            serve(request, remote, answer)
+            visit(remote, asked, answer.status?.let { if (it < 400) "answered" else "turned away ($it)" } ?: "answered")
+        } catch (e: Throwable) {
+            // Throwable: an Error (a method this Android version lacks, say) mustn't close the connection silently either
+            visit(remote, asked, "failed: " + (e.message?.let { "${e::class.java.simpleName}: $it" } ?: e::class.java.simpleName))
+            if (answer.status == null) respond(out, 500, "text/plain", "The TV couldn't answer (${e::class.java.simpleName}). Try again, or open its Files page")
+        }
+    }
+
+    private fun visit(remote: java.net.InetAddress, asked: String, outcome: String) {
+        state.value = state.value.copy(lastVisit = Visit(System.currentTimeMillis(), remote.hostAddress.orEmpty(), asked, outcome))
+    }
+
+    /** Remembers the status of the answer written through it. */
+    private class StatusOut(val inner: OutputStream) : OutputStream() {
+        var status: Int? = null
+        override fun write(b: Int) = inner.write(b)
+        override fun write(b: ByteArray, off: Int, len: Int) {
+            if (status == null && len >= 12) {
+                val start = String(b, off, minOf(len, 12), Charsets.ISO_8859_1)
+                if (start.startsWith("HTTP/1.1 ")) status = start.substring(9, 12).toIntOrNull()
+            }
+            inner.write(b, off, len)
+        }
+        override fun flush() = inner.flush()
+    }
+
+    private fun serve(request: Request, remote: java.net.InetAddress, out: OutputStream) {
         // Only requests made to the TV's own address: another website can't borrow the phone's browser
         val s = state.value
         val host = request.headers["host"].orEmpty()

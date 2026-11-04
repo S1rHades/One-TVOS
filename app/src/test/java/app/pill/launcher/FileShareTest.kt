@@ -210,4 +210,65 @@ class FileShareTest {
         assertEquals(listOf("soon.pdf"), done.tomorrow.map { it.first })
         assertEquals(setOf("app.apk", "soon.pdf", "new.pdf"), share.state.value.files.map { it.name }.toSet())
     }
+
+    /** A visit is noted on the TV, so its Files page shows whether a phone gets there at all. */
+    @Test
+    fun theLastVisitIsNoted() {
+        assertNull(share.state.value.lastVisit)
+        scan()
+        val v = share.state.value.lastVisit!!
+        assertEquals("127.0.0.1", v.from)
+        assertEquals("the scanned code", v.asked)
+        assertEquals("answered", v.outcome)
+        call("GET", "/api/files")
+        assertEquals("turned away (401)", share.state.value.lastVisit!!.outcome)
+    }
+
+    /**
+     * Something going wrong on the TV still answers the phone. A connection closed with no
+     * answer makes Chrome send the request again and again, then show ERR_TOO_MANY_RETRIES.
+     */
+    @Test
+    fun aProblemOnTheTvStillAnswers() {
+        val broken = FileShare(File(dir, "Broken"), page = { throw NoSuchMethodError("missing on this Android") }, address = { "127.0.0.1" }, code = "111111", key = "b".repeat(32))
+        broken.start()
+        try {
+            val c = URL("http://127.0.0.1:${broken.state.value.port}/?p=" + "b".repeat(32)).openConnection() as HttpURLConnection
+            assertEquals(500, c.responseCode)
+            assertTrue(c.errorStream.bufferedReader().readText().contains("NoSuchMethodError"))
+            c.disconnect()
+            assertTrue(broken.state.value.lastVisit!!.outcome, broken.state.value.lastVisit!!.outcome.startsWith("failed: NoSuchMethodError"))
+        } finally {
+            broken.stop()
+        }
+    }
+
+    /**
+     * The scan link opened in a real Chrome, where there is one (GitHub's build machines have
+     * it): the page comes back paired, with no ERR_TOO_MANY_RETRIES.
+     */
+    @Test
+    fun aRealChromeOpensTheScanLink() {
+        val chrome = listOf("google-chrome", "google-chrome-stable", "chromium", "chromium-browser")
+            .firstOrNull { name -> runCatching { ProcessBuilder("which", name).start().waitFor() == 0 }.getOrDefault(false) }
+        org.junit.Assume.assumeTrue("no Chrome here", chrome != null)
+        val real = FileShare(File(dir, "Chrome"), page = { "<html><body><h1 id=t>Your TV</h1><script>fetch('/api/files',{headers:{'X-Pill':'1'}}).then(r=>r.json()).then(d=>{document.getElementById('t').textContent='Paired: '+d.files.length})</script></body></html>" }, address = { "127.0.0.1" }, code = "222222", key = "c".repeat(32))
+        real.start()
+        val profile = Files.createTempDirectory("chrome").toFile()
+        try {
+            val url = "http://127.0.0.1:${real.state.value.port}/?p=" + "c".repeat(32)
+            val process = ProcessBuilder(
+                chrome, "--headless=new", "--no-sandbox", "--disable-gpu", "--user-data-dir=${profile.path}",
+                "--virtual-time-budget=5000", "--dump-dom", url,
+            ).redirectErrorStream(false).start()
+            val dom = process.inputStream.bufferedReader().readText()
+            val log = process.errorStream.bufferedReader().readText()
+            process.waitFor(60, java.util.concurrent.TimeUnit.SECONDS)
+            assertTrue("Chrome didn't get the page. DOM: $dom\nChrome said: ${log.takeLast(2000)}\nTV saw: ${real.state.value.lastVisit}", dom.contains("Paired: 0"))
+            assertEquals(1, real.state.value.devices.size)
+        } finally {
+            real.stop()
+            profile.deleteRecursively()
+        }
+    }
 }

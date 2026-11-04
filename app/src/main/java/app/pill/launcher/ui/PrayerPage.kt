@@ -94,7 +94,7 @@ fun PrayerPage(
                     Text(
                         when {
                             refreshing -> "Asking MAWAQIT…"
-                            error != null -> "Can't reach MAWAQIT\n$error"
+                            error != null -> error
                             else -> "No times yet · choose a mosque in Settings → Widgets → Prayer times"
                         },
                         color = Palette.TextSecondary, fontSize = 16.sp, lineHeight = 22.sp,
@@ -122,7 +122,7 @@ fun PrayerPage(
                     DayLine(times, next.prayer.takeIf { !next.tomorrow }, now, Modifier.fillMaxWidth().height(44.dp))
                     Spacer(Modifier.height(8.dp))
                     if (error != null && times.fromCache) {
-                        Text("Can't reach MAWAQIT · showing the saved times", color = Color(0xFFFFC078), fontSize = 13.sp, maxLines = 1)
+                        Text("Showing the saved times · " + error.substringAfter(" · ", "couldn't refresh"), color = Color(0xFFFFC078), fontSize = 13.sp, maxLines = 1)
                     } else {
                         Text(
                             times.shuruq?.let { "Shuruq (sunrise) " + it.format(clock) } ?: "Times from the mosque's own MAWAQIT page",
