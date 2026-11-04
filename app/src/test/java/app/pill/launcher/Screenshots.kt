@@ -975,6 +975,10 @@ class Screenshots {
         show("aurora-sky", pins = favorites)
         compose.onNodeWithContentDescription("Settings").performSemanticsAction(SemanticsActions.OnClick)
         settle()
+        // All six categories show without scrolling: the last one ends above the footer
+        val last = compose.onNodeWithText("TV & system").fetchSemanticsNode().boundsInRoot
+        val footer = compose.onNodeWithText("Pill Launcher", substring = true).fetchSemanticsNode().boundsInRoot
+        check(last.bottom <= footer.top) { "TV & system is cut off: ends at ${last.bottom}, footer at ${footer.top}" }
         captureScreenRoboImage(File(out, "settings.png").path)
     }
 

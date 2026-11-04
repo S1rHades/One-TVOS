@@ -343,6 +343,8 @@ fun SettingsPanel(
                                         SettingRow(
                                             title = category.title,
                                             subtitle = summaryOf(category, settings, home, update, version),
+                                            dense = true,
+                                            subtitleLines = 1,
                                             onClick = { page = category },
                                             modifier = Modifier.focusRequester(categoryFocus.getValue(category)),
                                         ) { focused -> Chevron(focused) }
@@ -727,6 +729,8 @@ private fun SettingRow(
     /** A line of text to read rather than a setting: smaller, wrapping title. */
     small: Boolean = false,
     subtitleLines: Int = 2,
+    /** Less room above and below: the category list, so all six fit without scrolling. */
+    dense: Boolean = false,
     trailing: @Composable (focused: Boolean) -> Unit,
 ) {
     val interaction = remember { MutableInteractionSource() }
@@ -761,7 +765,7 @@ private fun SettingRow(
                 },
             )
             .clickable(enabled = enabled, interactionSource = interaction, indication = null, onClick = onClick)
-            .padding(horizontal = 18.dp, vertical = 10.dp),
+            .padding(horizontal = 18.dp, vertical = if (dense) 5.dp else 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp),
     ) {
