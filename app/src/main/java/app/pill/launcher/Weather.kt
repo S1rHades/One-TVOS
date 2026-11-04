@@ -135,13 +135,44 @@ fun coordinatesPlace(text: String): Place? {
     return Place(String.format(Locale.ROOT, "%.3f, %.3f", lat, lon), "", "", lat, lon)
 }
 
-/** Towns matching [query], best first. Call off the main thread; throws when the search can't be reached. */
+/**
+ * Towns matching [query], best first. Open-Meteo's place search first, as typed and then
+ * without accents or with its hyphens and spaces swapped ("Béni-Saf", "beni saf"); if that
+ * finds nothing, OpenStreetMap's (Nominatim), which knows small towns everywhere. Call off
+ * the main thread; throws only when neither search can be reached.
+ */
 fun searchPlaces(query: String): List<Place> {
     val q = query.trim()
     if (q.length < 2) return emptyList()
     coordinatesPlace(q)?.let { return listOf(it) }
-    val url = "https://geocoding-api.open-meteo.com/v1/search?count=8&language=en&format=json&name=" + URLEncoder.encode(q, "UTF-8")
-    return parsePlaces(httpGet(url))
+    val spellings = listOf(q, searchKey(q).trim(), q.replace(' ', '-'), q.replace('-', ' ')).filter { it.length >= 2 }.distinct()
+    var problem: Throwable? = null
+    for (name in spellings) {
+        val url = "https://geocoding-api.open-meteo.com/v1/search?count=8&language=en&format=json&name=" + URLEncoder.encode(name, "UTF-8")
+        val found = runCatching { parsePlaces(httpGet(url)) }.onFailure { problem = it }.getOrNull().orEmpty()
+        if (found.isNotEmpty()) return found
+    }
+    val osm = "https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=8&accept-language=en&q=" + URLEncoder.encode(q, "UTF-8")
+    return runCatching { parseOsmPlaces(httpGet(osm, OsmUserAgent)) }
+        .getOrElse { e -> problem?.let { throw it } ?: throw e }
+}
+
+/** Nominatim asks every app to name itself. */
+private const val OsmUserAgent = "PillLauncher (Android TV launcher; https://github.com/S1rHades/One-TVOS)"
+
+/** Nominatim's answer: towns, villages and cities, with their region and country. */
+fun parseOsmPlaces(body: String): List<Place> {
+    val results = org.json.JSONArray(body)
+    return (0 until results.length()).mapNotNull { i ->
+        val r = results.optJSONObject(i) ?: return@mapNotNull null
+        val lat = r.optString("lat").toDoubleOrNull() ?: return@mapNotNull null
+        val lon = r.optString("lon").toDoubleOrNull() ?: return@mapNotNull null
+        val address = r.optJSONObject("address")
+        val name = r.optString("name").ifBlank {
+            listOf("town", "city", "village", "municipality").firstNotNullOfOrNull { k -> address?.optString(k)?.takeIf { it.isNotBlank() } }.orEmpty()
+        }
+        Place(name, address?.optString("state").orEmpty(), address?.optString("country").orEmpty(), lat, lon).takeIf { it.name.isNotBlank() }
+    }.distinctBy { it.label }
 }
 
 /**

@@ -61,6 +61,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import app.pill.launcher.AppEntry
+import app.pill.launcher.matchesQuery
+import app.pill.launcher.nearlyMatches
+import app.pill.launcher.searchKey
 import kotlinx.coroutines.delay
 
 private const val PANEL_MS = 260
@@ -171,10 +174,11 @@ fun SearchPanel(
 
 /** Name matches first, then names containing the query anywhere, alphabetically within each. */
 private fun match(apps: List<AppEntry>, query: String): List<AppEntry> {
-    val q = query.trim()
+    val q = searchKey(query).trim()
     if (q.isEmpty()) return emptyList()
-    val hits = apps.filter { it.label.contains(q, ignoreCase = true) }
-    return hits.sortedWith(compareBy({ !it.label.startsWith(q, ignoreCase = true) }, { it.label.lowercase() }))
+    // Accents, case and hyphens aside; and with nothing found, one slip allowed
+    val hits = apps.filter { matchesQuery(it.label, q) }.ifEmpty { apps.filter { nearlyMatches(it.label, q) } }
+    return hits.sortedWith(compareBy({ !searchKey(it.label).startsWith(q) }, { it.label.lowercase() }))
 }
 
 @Composable

@@ -823,20 +823,67 @@ fun LauncherScreen(
 
                             Spacer(Modifier.weight(1f))
 
+                            // A new install: getting started, a step at a time, with the home screen among them
+                            val setUpHome = {
+                                val cannot = onMakeDefault()
+                                if (cannot != null) {
+                                    // The TV keeps its own home screen: the Home button helper is the way
+                                    toast = Toast(onHomeHelper() ?: "Turn on Pill Launcher here to bring Home back to it")
+                                }
+                            }
+                            val steps = listOf(
+                                SetupStep("Installed", done = true),
+                                SetupStep("Make it the home screen, so Home and closed apps come back here", done = home.isDefault || home.redirectOn),
+                                SetupStep("Pin your apps: go down to All apps and hold OK on one", done = pins.isNotEmpty()),
+                                SetupStep("Choose the widgets across the top", done = settings.widgetsVisited),
+                            )
+                            val allDone = steps.all { it.done }
+                            val latestSettings by rememberUpdatedState(settings)
+                            LaunchedEffect(allDone, settings.setupDone) {
+                                // "You're set" for a moment, then the card goes for good
+                                if (allDone && !settings.setupDone) {
+                                    delay(4000)
+                                    onSettingsChange(latestSettings.copy(setupDone = true))
+                                }
+                            }
+                            AnimatedVisibility(
+                                visible = !idle && !settings.setupDone,
+                                enter = fadeIn(),
+                                exit = fadeOut() + shrinkVertically(),
+                            ) {
+                                val next = steps.firstOrNull { !it.done }
+                                SetupCard(
+                                    steps = steps,
+                                    nextAction = when (next) {
+                                        steps[1] -> "Set up"
+                                        steps[3] -> "Choose"
+                                        else -> null
+                                    },
+                                    onNext = {
+                                        when (next) {
+                                            steps[1] -> setUpHome()
+                                            steps[3] -> {
+                                                settingsStart = SettingsPage.Widgets
+                                                panelOpen = true
+                                            }
+                                            else -> Unit
+                                        }
+                                    },
+                                    onDismiss = { onSettingsChange(settings.copy(setupDone = true)) },
+                                    modifier = Modifier
+                                        .padding(horizontal = Spacing.Tile, vertical = 8.dp)
+                                        .dissolveStep({ 1f - idleFade }, step = 2, steps = 3),
+                                )
+                            }
+
                             // Until the launcher is the home screen (or helped), closing apps leads elsewhere
                             AnimatedVisibility(
-                                visible = !idle && !home.isDefault && !home.redirectOn && !settings.homePromptDismissed,
+                                visible = !idle && settings.setupDone && !home.isDefault && !home.redirectOn && !settings.homePromptDismissed,
                                 enter = fadeIn(),
                                 exit = fadeOut() + shrinkVertically(),
                             ) {
                                 HomePrompt(
-                                    onSetUp = {
-                                        val cannot = onMakeDefault()
-                                        if (cannot != null) {
-                                            // The TV keeps its own home screen: the Home button helper is the way
-                                            toast = Toast(onHomeHelper() ?: "Turn on Pill Launcher here to bring Home back to it")
-                                        }
-                                    },
+                                    onSetUp = setUpHome,
                                     onDismiss = { onSettingsChange(settings.copy(homePromptDismissed = true)) },
                                     modifier = Modifier
                                         .padding(horizontal = Spacing.Tile, vertical = 8.dp)

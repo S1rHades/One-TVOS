@@ -1,6 +1,12 @@
 package app.pill.launcher.ui
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.Canvas
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -67,3 +73,66 @@ fun HomePrompt(onSetUp: () -> Unit, onDismiss: () -> Unit, modifier: Modifier = 
 @Composable
 fun PillButton(label: String, primary: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) =
     PageButton(label, onClick, modifier, primary = primary, enabled = enabled)
+
+/** One step of getting started, and whether it's done. */
+class SetupStep(val title: String, val done: Boolean)
+
+/**
+ * Getting started, for a new install: a ring that fills as the steps are done, the next
+ * step and its button, and **Not now**. It starts with one step already done (installing
+ * it), because a goal that's under way gets finished more often than one that isn't.
+ * [next] acts on the first step not done; null when it has no button (it's done by hand).
+ */
+@Composable
+fun SetupCard(
+    steps: List<SetupStep>,
+    nextAction: String?,
+    onNext: () -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val done = steps.count { it.done }
+    val next = steps.firstOrNull { !it.done }
+    val progress by animateFloatAsState(done / steps.size.toFloat(), tween(Motion.Enter, easing = Motion.EnterEasing), label = "setupProgress")
+    Row(
+        modifier
+            .glass(PromptShape)
+            .padding(start = 18.dp, end = 10.dp, top = 10.dp, bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(46.dp), contentAlignment = Alignment.Center) {
+            Canvas(Modifier.fillMaxSize()) {
+                val w = 4.dp.toPx()
+                val inset = w / 2
+                val arc = androidx.compose.ui.geometry.Size(size.width - w, size.height - w)
+                drawArc(Color.White.copy(alpha = 0.18f), 0f, 360f, false, androidx.compose.ui.geometry.Offset(inset, inset), arc, style = Stroke(w))
+                drawArc(PrayerGreen, -90f, 360f * progress, false, androidx.compose.ui.geometry.Offset(inset, inset), arc, style = Stroke(w, cap = StrokeCap.Round))
+            }
+            Text("$done/${steps.size}", color = Palette.TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        }
+        Spacer(Modifier.width(16.dp))
+        Column(Modifier.weight(1f, fill = false)) {
+            Text(
+                if (next == null) "You're set" else "Getting started · $done of ${steps.size} done",
+                color = Palette.TextPrimary,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+            )
+            Text(
+                next?.title ?: "Pill Launcher is ready. Settings has the rest whenever you want it.",
+                color = Palette.TextSecondary,
+                fontSize = 14.sp,
+                maxLines = 2,
+            )
+        }
+        if (next != null) {
+            Spacer(Modifier.width(18.dp))
+            if (nextAction != null) {
+                PillButton(nextAction, primary = true, onClick = onNext)
+                Spacer(Modifier.width(8.dp))
+            }
+            PillButton("Not now", primary = false, onClick = onDismiss)
+        }
+    }
+}

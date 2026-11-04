@@ -100,17 +100,17 @@ fun WeatherWidget(weather: Weather, mode: WeatherMode, compact: Boolean, modifie
                     softWrap = false,
                 )
                 // The city always; the condition too when there's room (the icon shows it anyway)
-                Text(
-                    if (compact) w.place.ifBlank { describe(w.code) } else listOf(w.place, describe(w.code)).filter { it.isNotBlank() }.joinToString(" · "),
+                FitText(
+                    listOf(w.place, describe(w.code)).filter { it.isNotBlank() }.joinToString(" · "),
                     style = TextStyle(fontFamily = Flex, color = Palette.TextSecondary, fontSize = if (compact) 14.sp else 16.sp, fontWeight = FontWeight.Medium),
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                    // The town matters most; the sky's condition goes first when room is short (the icon shows it)
+                    shorter = listOf(w.place.ifBlank { describe(w.code) }),
                 )
-                Text(
-                    if (compact) "${formatTemp(w.highC, mode)} / ${formatTemp(w.lowC, mode)}" else "H ${formatTemp(w.highC, mode)}   L ${formatTemp(w.lowC, mode)}",
+                FitText(
+                    "H ${formatTemp(w.highC, mode)}   L ${formatTemp(w.lowC, mode)}",
                     style = TextStyle(fontFamily = Flex, color = Palette.TextTertiary, fontSize = if (compact) 13.sp else 15.sp),
-                    maxLines = 1,
-                    softWrap = false,
+                    shorter = listOf("${formatTemp(w.highC, mode)} / ${formatTemp(w.lowC, mode)}", ""),
                 )
             }
         }

@@ -669,6 +669,52 @@ class Screenshots {
         check(text() == first) { "no turn while focused: ${text()}" }
     }
 
+    /** On a match day the card stays on the match, but Right still reaches the other team, and it comes back by itself. */
+    @Test
+    fun footballMatchDaySwitch() {
+        val now = java.time.LocalDateTime.now()
+        val inMinutes = if (now.plusMinutes(135).toLocalDate() == now.toLocalDate()) 135L else 5L
+        show("mountain-lake", pins = favorites, football = matchDay(inMinutes))
+        // The card, not the notification bar's line about the same match: the one higher up
+        val matcher = hasClickAction() and (hasText("Algeria", substring = true) or hasText("ALG", substring = true) or hasText("Arsenal", substring = true) or hasText("ARS", substring = true))
+        fun card() = compose.onAllNodes(matcher).let { all ->
+            all[all.fetchSemanticsNodes().withIndex().minBy { it.value.boundsInRoot.top }.index]
+        }
+        fun text(): String {
+            val t = card().fetchSemanticsNode().config.getOrElseNullable(androidx.compose.ui.semantics.SemanticsProperties.Text) { null }?.joinToString(" ").orEmpty()
+            return if (t.contains("Algeria") || t.contains("ALG") || t.contains("Fennecs")) "Algeria" else "Arsenal"
+        }
+        check(text() == "Algeria") { "match day shows the match: ${text()}" }
+        card().requestFocus()
+        settle()
+        card().performKeyInput { pressKey(Key.DirectionRight) }
+        settle()
+        check(text() == "Arsenal") { "Right reaches the other team on a match day: ${text()}" }
+        // Coming back to the match by itself rides the card's 20-second turn, an endless
+        // animation, which the test environment holds still; so that part isn't checked here
+    }
+
+    /** Left / Right on the prayer card show another prayer's time; it goes back to the next one by itself. */
+    @Test
+    fun prayerPicking() {
+        atTwentyToFour { times ->
+            show("canyon-river", pins = favorites, prayers = times, settings = LauncherSettings(weather = WeatherMode.Celsius, widgets = listOf(WidgetKind.Clock, WidgetKind.Prayers), mosque = "moscow-cathedral-mosque"))
+            val card = compose.onAllNodes(hasClickAction() and hasText("Maghrib", substring = true)).onFirst()
+            card.requestFocus()
+            settle()
+            compose.onNodeWithText("in 4", substring = true).assertExists()
+            // Left: Asr (13:49), which has passed
+            card.performKeyInput { pressKey(Key.DirectionLeft) }
+            settle()
+            compose.onNodeWithText("min ago", substring = true).assertExists()
+            compose.onNodeWithText("in 4", substring = true).assertDoesNotExist()
+            // Ten seconds later it's back on Maghrib, counting down
+            compose.mainClock.advanceTimeBy(11_000)
+            settle()
+            compose.onNodeWithText("in 4", substring = true).assertExists()
+        }
+    }
+
     /** Settings from the bar on a page opens over the page; closing Settings shows the page again. */
     @Test
     fun navigationSettingsOverAPage() {
@@ -1049,7 +1095,8 @@ class Screenshots {
     fun widgets() {
         val four = listOf(WidgetKind.Clock, WidgetKind.Weather, WidgetKind.Fennecs, WidgetKind.System)
         show("mountain-lake", pins = favorites, settings = LauncherSettings(weather = WeatherMode.Celsius, widgets = four))
-        for (label in listOf("25° / 16°", "NEXT")) compose.onNodeWithText(label).assertIsDisplayed()
+        // Each card says as much as fits: the high and low, and the football card's next match
+        for (label in listOf("16°", "NEXT")) compose.onNodeWithText(label, substring = true).assertIsDisplayed()
         compose.onNodeWithText("SYSTEM", substring = true).assertIsDisplayed()
         compose.onRoot().captureRoboImage(File(out, "widgets.png").path)
     }
@@ -1060,6 +1107,17 @@ class Screenshots {
         show("canyon-river", pins = favorites, home = HomeStatus(isDefault = false, redirectOn = false))
         compose.onNodeWithText("Set up").assertIsDisplayed()
         compose.onRoot().captureRoboImage(File(out, "home-prompt.png").path)
+    }
+
+    /** A new install: getting started, one step in (installed) plus the favourites, with the home screen next. */
+    @Test
+    fun gettingStarted() {
+        show("canyon-river", pins = favorites, home = HomeStatus(isDefault = false, redirectOn = false), settings = LauncherSettings(weather = WeatherMode.Celsius, setupDone = false))
+        compose.onNodeWithText("Getting started · 2 of 4 done").assertIsDisplayed()
+        compose.onNodeWithText("Set up").assertIsDisplayed()
+        // The old reminder waits until getting started is over
+        compose.onNodeWithText("Closing an app takes you to the TV's own home screen").assertDoesNotExist()
+        compose.onRoot().captureRoboImage(File(out, "getting-started.png").path)
     }
 
     /** With four on, turning on a fifth is refused with a toast. */

@@ -3,6 +3,23 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 3.7 (November 2026)
+
+Every press answers back, the last part of the UX-laws plan (the Doherty threshold, feedback loops, recognition over recall, Postel's and Tesler's laws, the goal-gradient effect, and the peak-end rule):
+
+- **Getting started**: a new install shows a card above the favourites with a ring that fills as the steps are done (installed, the home screen, your favourite apps, the widgets), the next step's button, and **Not now**. It starts one step in, says **You're set** at the end, and goes.
+- **Refresh answers**: on the prayer page and in its settings, the refresh arrows turn while MAWAQIT is asked, and the button says **Updated ✓** for a moment once the new times are in.
+- **The refresh icon**: redrawn as an open circle with a solid arrowhead. It used to be an arc with two loose strokes at one end, which looked broken.
+- **Refresh fixes**: Refresh keeps the times on screen while it asks, instead of first switching the card back to the saved copy. A mosque ID is asked of its MAWAQIT page only (the community API can't look up IDs), so a refresh no longer waits through three sources. **Refresh now** in Settings answers even while a refresh is under way, and works with the prayer widget turned off.
+- **The mosque by name**: after typing an ID, the prayer settings say **✓ Found:** and the mosque's name, so the right one is recognised rather than trusted. Mosques that worked before stay under **Recent**.
+- **Forgiving search**: accents, capitals and hyphens don't matter ("ain" finds "Aïn"), and with nothing found, one slip in a word of four letters or more is allowed ("recipies" finds Recipes).
+- **Time zone changes**: changing the TV's time zone, date or clock fetches the prayer times again by itself.
+- **The speed test's end**: its verdict springs in under the number when the test finishes.
+- **Widgets lay out for their room, without "…"**: every line on a card now has fuller and shorter versions, most important first, and the card shows the fullest that fits, whether one widget is on or four. The weather keeps the town and drops the sky's description (the icon shows it), football falls back to team codes and "Next" or "Live", the prayer card keeps the mosque's name and drops how old the times are, and lines that aren't needed go rather than being cut.
+- **Football on match day**: the card still turns only between the teams that play, but **Left** / **Right** now reach every team you follow, and the card comes back to the match after one turn.
+- **Finding your town for the weather**: the town search under **Settings → Widgets → Weather location** now also tries the name without accents or with hyphens and spaces swapped ("Béni-Saf", "beni saf"), and when Open-Meteo finds nothing it asks OpenStreetMap, which knows small towns everywhere. **Automatic** still follows your internet connection, which for many providers is the nearest big city, so choosing your town is what makes the weather local.
+- **Other prayer times on the card**: with the prayer card focused, **Left** / **Right** step through the day's prayers, each with its time and how long ago or until it; the card goes back to the next prayer after ten seconds or when focus moves on.
+
 ## 3.6 (November 2026)
 
 Clear at a glance, the second part of the UX-laws plan (proximity, similarity, common region, visual hierarchy, the Von Restorff effect, Jakob's law, and the aesthetic-usability effect):

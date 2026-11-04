@@ -83,6 +83,17 @@ class MainActivity : ComponentActivity() {
     private lateinit var footballSource: FootballSource
     private lateinit var weatherSource: WeatherSource
     private lateinit var prayerSource: PrayerSource
+
+    /**
+     * The TV's time zone, date or clock changed: the prayer times are for the wrong day or
+     * zone now, so they are fetched again without anyone pressing Refresh.
+     */
+    private val clockChanged = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == Intent.ACTION_TIMEZONE_CHANGED) prayerSource = PrayerSource(this@MainActivity)
+            prayerRefresh++
+        }
+    }
     /** Bumped by Refresh on the prayer page or in Settings: fetches again now. */
     private var prayerRefresh by mutableIntStateOf(0)
     private lateinit var newsFeed: NewsFeed
@@ -97,6 +108,16 @@ class MainActivity : ComponentActivity() {
         crashGuard = CrashGuard(this).also { it.install() }
         safeMode = crashGuard.safeModeReason()
         ContextCompat.registerReceiver(this, screenOn, IntentFilter(Intent.ACTION_SCREEN_ON), ContextCompat.RECEIVER_NOT_EXPORTED)
+        ContextCompat.registerReceiver(
+            this,
+            clockChanged,
+            IntentFilter().apply {
+                addAction(Intent.ACTION_TIMEZONE_CHANGED)
+                addAction(Intent.ACTION_TIME_CHANGED)
+                addAction(Intent.ACTION_DATE_CHANGED)
+            },
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
         runCatching { getSystemService(LauncherApps::class.java)?.registerCallback(appWatch, Handler(Looper.getMainLooper())) }
         footballSource = FootballSource(this)
         weatherSource = WeatherSource(this)
@@ -181,14 +202,21 @@ class MainActivity : ComponentActivity() {
             val prayerApi = settings.prayerApi
             var prayersError by remember { mutableStateOf<String?>(null) }
             var prayersRefreshing by remember { mutableStateOf(false) }
+            // Which mosque the times on show are for, so Refresh keeps them up while it asks again
+            var prayersFor by remember { mutableStateOf<String?>(null) }
             val prayers by produceState<PrayerTimes?>(null, prayersOn, mosque, prayerApi, prayerRefresh) {
-                value = prayerSource.cached(mosque)
+                if (prayersFor != mosque || value == null) {
+                    value = prayerSource.cached(mosque)
+                    prayersFor = mosque
+                }
                 if (mosque.isBlank()) {
                     prayersError = null
                     return@produceState
                 }
                 var failures = 0
-                while (prayersOn) {
+                // Once even with the widget off (Settings shows which mosque was found, and Refresh answers),
+                // then daily and on failures while it is on
+                while (true) {
                     prayersRefreshing = true
                     // Cleared even when a new mosque or Refresh cancels this fetch part way
                     val result = try {
@@ -196,13 +224,24 @@ class MainActivity : ComponentActivity() {
                     } finally {
                         prayersRefreshing = false
                     }
-                    result.onSuccess { value = it; prayersError = null; failures = 0 }
+                    result.onSuccess { times ->
+                        value = times
+                        prayersError = null
+                        failures = 0
+                        // Remembered with its name, so Settings can offer it again by name
+                        val recent = withRecentMosque(settings.recentMosques, mosque, times.mosque)
+                        if (recent != settings.recentMosques) {
+                            settings = settings.copy(recentMosques = recent)
+                            store.save(settings)
+                        }
+                    }
                     result.onFailure { error ->
                         val at = java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern(if (android.text.format.DateFormat.is24HourFormat(this@MainActivity)) "HH:mm" else "h:mm a"))
                         prayersError = prayerProblem(error, at)
                         failures++
                         value = value?.copy(fromCache = true)
                     }
+                    if (!prayersOn) break
                     delay(if (result.isSuccess) prayerSource.untilNextDay().toMillis() else RetryDelaysMs[(failures - 1).coerceAtMost(RetryDelaysMs.lastIndex)])
                 }
             }
@@ -327,7 +366,7 @@ class MainActivity : ComponentActivity() {
                 weatherError = weatherError.takeIf { weatherOn },
                 prayers = prayers.takeIf { prayersOn },
                 prayersError = prayersError.takeIf { prayersOn },
-                prayersRefreshing = prayersRefreshing && prayersOn,
+                prayersRefreshing = prayersRefreshing,
                 onRefreshPrayers = { prayerRefresh++ },
                 football = football,
                 news = news.takeIf { newsOn },
@@ -536,6 +575,7 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         runCatching { getSystemService(LauncherApps::class.java)?.unregisterCallback(appWatch) }
         runCatching { unregisterReceiver(screenOn) }
+        runCatching { unregisterReceiver(clockChanged) }
         super.onDestroy()
     }
 

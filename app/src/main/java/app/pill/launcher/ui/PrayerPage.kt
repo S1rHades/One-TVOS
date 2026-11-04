@@ -1,6 +1,13 @@
 package app.pill.launcher.ui
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -56,6 +63,19 @@ fun PrayerPage(
     val clock = rememberClockFormat()
     val next = remember(times, now) { times?.let { nextPrayer(it, now) } }
     val refreshFocus = remember { FocusRequester() }
+    // A refresh that worked says so for a moment; one that failed shows its error instead
+    var justUpdated by remember { mutableStateOf(false) }
+    var wasRefreshing by remember { mutableStateOf(refreshing) }
+    val currentError by rememberUpdatedState(error)
+    LaunchedEffect(refreshing) {
+        val finished = wasRefreshing && !refreshing
+        wasRefreshing = refreshing
+        if (finished && currentError == null) {
+            justUpdated = true
+            delay(2500)
+            justUpdated = false
+        }
+    }
     val today = times != null && times.forDate == now.toLocalDate()
 
     OverlayPage(
@@ -63,8 +83,16 @@ fun PrayerPage(
         width = 880.dp,
         framed = false,
         topLeft = {
-            PageButton(if (refreshing) "Refreshing…" else "Refresh", onClick = onRefresh, modifier = Modifier.focusRequester(refreshFocus)) { tint ->
-                RefreshIcon(tint, 18.dp)
+            PageButton(
+                when {
+                    refreshing -> "Refreshing…"
+                    justUpdated -> "Updated ✓"
+                    else -> "Refresh"
+                },
+                onClick = onRefresh,
+                modifier = Modifier.focusRequester(refreshFocus),
+            ) { tint ->
+                RefreshIcon(tint, 18.dp, spinning = refreshing)
             }
         },
     ) { _ ->
@@ -212,19 +240,49 @@ private fun DayLine(times: PrayerTimes, next: Prayer?, now: ZonedDateTime, modif
     }
 }
 
-/** Two arrows chasing round a circle. */
+/** Two arrows chasing round a circle; [spinning] while a refresh is under way, so the press visibly did something. */
 @Composable
-fun RefreshIcon(tint: Color, size: androidx.compose.ui.unit.Dp) {
-    Canvas(Modifier.size(size)) {
-        val w = 1.8.dp.toPx()
-        val r = this.size.minDimension / 2 - w
+fun RefreshIcon(tint: Color, size: androidx.compose.ui.unit.Dp, spinning: Boolean = false) {
+    val turn = remember { Animatable(0f) }
+    LaunchedEffect(spinning) {
+        if (spinning) {
+            while (true) {
+                turn.animateTo(turn.value + 360f, tween(900, easing = LinearEasing))
+            }
+        } else {
+            // Finish the turn it is on, so it doesn't stop at an odd angle
+            val rest = (turn.value / 360f).let { kotlin.math.ceil(it) } * 360f
+            turn.animateTo(rest, tween(250, easing = Motion.EnterEasing))
+            turn.snapTo(0f)
+        }
+    }
+    Canvas(Modifier.size(size).graphicsLayer { rotationZ = turn.value }) {
+        // An open circle turning clockwise, with a solid arrowhead where it ends (at the top),
+        // pointing the way it turns: the usual refresh sign, reading clearly at 18–22 dp
+        val w = (this.size.minDimension * 0.11f).coerceAtLeast(1.6.dp.toPx())
+        val head = this.size.minDimension * 0.26f
+        val r = this.size.minDimension / 2 - head * 0.5f
         val c = Offset(this.size.width / 2, this.size.height / 2)
-        drawArc(tint, -60f, 240f, false, Offset(c.x - r, c.y - r), androidx.compose.ui.geometry.Size(r * 2, r * 2), style = Stroke(w, cap = StrokeCap.Round))
-        // The arrow head at the arc's end (at -60°, top right)
-        val a = Math.toRadians(-60.0)
-        val tip = Offset(c.x + r * Math.cos(a).toFloat(), c.y + r * Math.sin(a).toFloat())
-        val h = this.size.minDimension * 0.26f
-        drawLine(tint, tip, Offset(tip.x - h, tip.y), w, StrokeCap.Round)
-        drawLine(tint, tip, Offset(tip.x, tip.y + h), w, StrokeCap.Round)
+        val start = 0f
+        val sweep = 300f
+        drawArc(
+            tint, start, sweep, false,
+            Offset(c.x - r, c.y - r), androidx.compose.ui.geometry.Size(r * 2, r * 2),
+            style = Stroke(w, cap = StrokeCap.Round),
+        )
+        // The arc's end, and the way it is heading there (clockwise on screen)
+        val end = Math.toRadians((start + sweep).toDouble())
+        val out = Offset(Math.cos(end).toFloat(), Math.sin(end).toFloat())
+        val ahead = Offset(-out.y, out.x)
+        val at = c + out * r
+        val arrow = androidx.compose.ui.graphics.Path().apply {
+            val tip = at + ahead * (head * 0.6f)
+            val back = at - ahead * (head * 0.2f)
+            moveTo(tip.x, tip.y)
+            lineTo((back + out * (head * 0.5f)).x, (back + out * (head * 0.5f)).y)
+            lineTo((back - out * (head * 0.5f)).x, (back - out * (head * 0.5f)).y)
+            close()
+        }
+        drawPath(arrow, tint)
     }
 }

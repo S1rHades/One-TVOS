@@ -849,7 +849,7 @@ class DataTest {
             assertEquals("Obada", source.cached("4321")!!.mosque)
             // An ID MAWAQIT doesn't know: every source says "not found"
             assertTrue(source.fetch("$base/api/v1", "999").exceptionOrNull() is NoSuchMosque)
-            assertEquals(listOf("/fr/id/4321", "/fr/id/999", "/api/v1/999/", "/api/v1/999/prayer-times"), asked.toList())
+            assertEquals(listOf("/fr/id/4321", "/fr/id/999"), asked.toList())
         } finally {
             server.close()
         }
@@ -869,5 +869,48 @@ class DataTest {
         assertEquals(listOf("b", "a", "c", "e", "d"), orderByUse(pins, mapOf("d" to 5, "b" to 5)))
         // Counts survive storage, junk is skipped
         assertEquals(mapOf("a" to 3, "b" to 1), usesFromStored(usesToStored(mapOf("a" to 3, "b" to 1)) + ",bad,=4,c=x"))
+    }
+
+    /** Search takes names however they're typed: accents, case and hyphens aside, and one slip in a longer word. */
+    @Test
+    fun forgivingSearch() {
+        assertTrue(matchesQuery("Aïn Témouchent", "ain tem"))
+        assertTrue(matchesQuery("Béni-Saf", "beni saf"))
+        assertFalse(matchesQuery("Netflix", "netflx"))
+        assertTrue(nearlyMatches("Netflix", "netflx"))
+        assertTrue(nearlyMatches("Spotify", "spotfy"))
+        assertFalse(nearlyMatches("Netflix", "ntx"))
+        assertFalse(nearlyMatches("Music", "photos"))
+        assertTrue(oneEditApart("cinema", "cinemas"))
+        assertFalse(oneEditApart("cinema", "kinemas"))
+        assertTrue('e' in nextLetters(listOf("Télé"), "t"))
+    }
+
+    /** Recent mosques: newest first, no repeats, four at most, and they survive storage. */
+    @Test
+    fun recentMosques() {
+        var recent = emptyList<Pair<String, String>>()
+        for (id in listOf("1", "2", "3", "4", "5")) recent = withRecentMosque(recent, id, "Mosque $id")
+        recent = withRecentMosque(recent, "3", "Mosque Three")
+        assertEquals(listOf("3", "5", "4", "2"), recent.map { it.first })
+        assertEquals("Mosque Three", recent.first().second)
+        assertEquals(recent, recentMosquesFromStored(recentMosquesToStored(recent)))
+        assertEquals(emptyList<Pair<String, String>>(), recentMosquesFromStored(null))
+    }
+
+    /** OpenStreetMap's place search, the fallback for small towns: name, region, country and position. */
+    @Test
+    fun osmPlaces() {
+        val body = """[
+            {"lat":"35.3009","lon":"-1.3822","name":"Beni Saf","display_name":"Beni Saf, Aïn Témouchent, Algeria",
+             "address":{"town":"Beni Saf","state":"Aïn Témouchent","country":"Algeria"}},
+            {"lat":"35.30","lon":"-1.38","name":"","address":{"village":"Sidi Safi","state":"Aïn Témouchent","country":"Algeria"}},
+            {"lat":"x","lon":"1"}
+        ]"""
+        val places = parseOsmPlaces(body)
+        assertEquals(2, places.size)
+        assertEquals("Beni Saf, Aïn Témouchent, Algeria", places[0].label)
+        assertEquals(35.3009, places[0].lat, 1e-6)
+        assertEquals("Sidi Safi", places[1].name)
     }
 }
