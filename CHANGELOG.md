@@ -10,6 +10,7 @@ Animation fixes, found by rendering the main transitions frame by frame:
 - **The bar at the top right**: leaving it, the white disc now fades where it is. It used to glide back towards Home while fading, sweeping a ghost disc across the bar and leaving the item it left dark for a moment; opening Settings made it slide left and back. The disc's glow is gone too: the bar's glass cut it flat at the top and bottom.
 - **Opening a page** (Internet, weather, football, news, clock, prayer times): the blurred photo behind it now comes up ahead of the page, so the page's title and buttons no longer appear over the home screen's greeting and widgets for the first third of a second.
 - **The notification bar**: opening the list, the old line fades before the new one comes in instead of both showing at once, and Favorites fade out faster so they no longer show through the list as it opens.
+- **Files**: the last-phone line on the Files page is updated as the TV answers, not just after, so it can't lag a step behind.
 
 ## 3.4.3 (November 2026)
 
