@@ -16,8 +16,6 @@ import java.time.format.DateTimeFormatter
 enum class Prayer(val title: String) {
     Fajr("Fajr"), Dhuhr("Dhuhr"), Asr("Asr"), Maghrib("Maghrib"), Isha("Isha");
 
-    /** The key MAWAQIT uses for this prayer in a times object. */
-    val key: String get() = name.lowercase()
 }
 
 /**
@@ -49,6 +47,10 @@ const val DefaultPrayerApi = "https://mawaqit-api.vercel.app/api/v1"
 /** A mosque's name on MAWAQIT, as in its page's address: letters, digits and dashes. */
 fun cleanMosqueSlug(text: String): String =
     text.trim().trimEnd('/').substringAfterLast('/').substringBefore('?').lowercase().filter { it.isLetterOrDigit() || it == '-' || it == '_' }
+
+/** A name to show from the mosque's address when the answer has none: "grande-mosquee-de-paris" → "Grande Mosquee De Paris". */
+fun mosqueName(slug: String): String =
+    slug.split('-', '_').filter { it.isNotBlank() }.joinToString(" ") { w -> w.replaceFirstChar { it.titlecase() } }
 
 /** The API's address with no trailing slash, or the default when blank or not a web address. */
 fun cleanPrayerApi(text: String): String {
@@ -84,13 +86,18 @@ fun untilText(at: ZonedDateTime, now: ZonedDateTime): String {
 }
 
 /**
- * MAWAQIT's answer, in either shape the community API has used: `times` as an object
- * (`{"fajr": "05:15", …}`) or as a list of the five in order; the mosque under `mosque` or
- * `name`; `shuruq` inside `times` or beside it; `iqama` as times or as "+10" offsets from
- * the prayer. Anything unreadable is left out; an answer with no prayer at all is an error.
+ * MAWAQIT's answer, in any of the shapes the community API gives or has given:
+ * - `/{mosque}/prayer-times`: the six times flat, with MAWAQIT's own key names
+ *   (`{"fajr", "sunrise", "dohr", "asr", "maghreb", "icha"}`) and no mosque name;
+ * - `/{mosque}`: MAWAQIT's whole page data under `rawdata`, with `times` as a list of the
+ *   five, `shuruq` beside it, the name, and the year's iqama offsets in `iqamaCalendar`;
+ * - `{"mosque", "times": {…}, "iqama": {…}}` with English names.
+ * Iqama may be clock times or "+10"-style offsets. Anything unreadable is left out; an
+ * answer with no prayer at all is an error. [fallbackName] names a mosque the answer doesn't.
  */
 fun parsePrayerTimes(body: String, fetchedAt: Instant, forDate: LocalDate, fallbackName: String = ""): PrayerTimes {
-    val json = JSONObject(body)
+    val outer = JSONObject(body)
+    val json = outer.optJSONObject("rawdata") ?: outer
     val mosque = listOf("mosque", "name", "label").firstNotNullOfOrNull { k ->
         json.opt(k)?.let { v -> if (v is JSONObject) v.optString("name") else v.toString() }?.takeIf { it.isNotBlank() && it != "null" }
     } ?: fallbackName
@@ -98,8 +105,8 @@ fun parsePrayerTimes(body: String, fetchedAt: Instant, forDate: LocalDate, fallb
     var shuruq: LocalTime? = null
     when (val raw = json.opt("times")) {
         is JSONObject -> {
-            for (p in Prayer.entries) parseClock(raw.optString(p.key))?.let { times[p] = it }
-            shuruq = parseClock(raw.optString("shuruq").ifBlank { raw.optString("sunrise") })
+            readNamed(raw, times)
+            shuruq = sunriseIn(raw)
         }
         is JSONArray -> {
             // Five entries are the prayers; six put sunrise second, as MAWAQIT's own pages do
@@ -111,15 +118,47 @@ fun parsePrayerTimes(body: String, fetchedAt: Instant, forDate: LocalDate, fallb
                 i++
             }
         }
+        // The prayer-times endpoint: the times are the answer itself
+        else -> readNamed(json, times)
     }
-    if (shuruq == null) shuruq = parseClock(json.optString("shuruq").ifBlank { json.optString("sunrise") })
+    if (shuruq == null) shuruq = sunriseIn(json)
     check(times.isNotEmpty()) { "No prayer times in the answer" }
     val iqama = HashMap<Prayer, LocalTime>()
-    when (val raw = json.opt("iqama")) {
-        is JSONObject -> for (p in Prayer.entries) iqamaFor(raw.optString(p.key), times[p])?.let { iqama[p] = it }
-        is JSONArray -> for ((i, p) in Prayer.entries.withIndex()) if (i < raw.length()) iqamaFor(raw.optString(i), times[p])?.let { iqama[p] = it }
+    val todays = json.opt("iqama") ?: iqamaFromCalendar(json.optJSONArray("iqamaCalendar"), forDate)
+    when (todays) {
+        is JSONObject -> for (p in Prayer.entries) iqamaFor(namedIn(todays, p), times[p])?.let { iqama[p] = it }
+        is JSONArray -> for ((i, p) in Prayer.entries.withIndex()) if (i < todays.length()) iqamaFor(todays.optString(i), times[p])?.let { iqama[p] = it }
     }
     return PrayerTimes(mosque, times, shuruq, iqama, forDate, fetchedAt)
+}
+
+/** The names a prayer goes by in MAWAQIT's answers: English, then MAWAQIT's own French ones. */
+private val PrayerKeys = mapOf(
+    Prayer.Fajr to listOf("fajr", "sobh"),
+    Prayer.Dhuhr to listOf("dhuhr", "dohr", "zuhr", "duhr"),
+    Prayer.Asr to listOf("asr"),
+    Prayer.Maghrib to listOf("maghrib", "maghreb"),
+    Prayer.Isha to listOf("isha", "icha"),
+)
+
+private fun namedIn(o: JSONObject, p: Prayer): String? =
+    PrayerKeys.getValue(p).firstNotNullOfOrNull { k -> o.optString(k).takeIf { it.isNotBlank() && it != "null" } }
+
+private fun readNamed(o: JSONObject, into: MutableMap<Prayer, LocalTime>) {
+    for (p in Prayer.entries) parseClock(namedIn(o, p))?.let { into[p] = it }
+}
+
+private fun sunriseIn(o: JSONObject): LocalTime? =
+    listOf("shuruq", "sunrise", "chourouk").firstNotNullOfOrNull { parseClock(o.optString(it)) }
+
+/** Today's iqama offsets from MAWAQIT's year of them: a month per entry, keyed by the day of the month. */
+private fun iqamaFromCalendar(calendar: JSONArray?, day: LocalDate): Any? {
+    val month = calendar?.opt(day.monthValue - 1) ?: return null
+    return when (month) {
+        is JSONObject -> month.opt(day.dayOfMonth.toString())
+        is JSONArray -> month.opt(day.dayOfMonth - 1)
+        else -> null
+    }
 }
 
 /** "05:15" or "5:15", else null. */
@@ -153,7 +192,7 @@ class PrayerSource(context: Context, private val zone: ZoneId = ZoneId.systemDef
         val body = prefs.getString("body", null) ?: return null
         val at = Instant.ofEpochMilli(prefs.getLong("at", 0))
         val forDate = prefs.getString("date", null)?.let { LocalDate.parse(it) } ?: at.atZone(zone).toLocalDate()
-        parsePrayerTimes(body, at, forDate, slug).copy(fromCache = true)
+        parsePrayerTimes(body, at, forDate, mosqueName(slug)).copy(fromCache = true)
     }.getOrNull()
 
     /**
@@ -166,12 +205,13 @@ class PrayerSource(context: Context, private val zone: ZoneId = ZoneId.systemDef
         val base = cleanPrayerApi(api)
         val now = Instant.now()
         val today = now.atZone(zone).toLocalDate()
-        val body = runCatching { httpGet("$base/$slug", PrayerUserAgent) }.getOrElse { first ->
+        // The mosque's whole page first (its name and iqama with the times), then the times alone
+        val body = runCatching { httpGet("$base/$slug/", PrayerUserAgent) }.getOrElse { first ->
             runCatching { httpGet("$base/$slug/prayer-times", PrayerUserAgent) }.getOrElse { second ->
                 throw IOException("${shortReason(first)}; prayer-times: ${shortReason(second)}")
             }
         }
-        val times = parsePrayerTimes(body, now, today, fallbackName = slug)
+        val times = parsePrayerTimes(body, now, today, fallbackName = mosqueName(slug))
         prefs.edit()
             .putString("slug", slug).putString("body", body).putLong("at", now.toEpochMilli()).putString("date", today.toString())
             .apply()

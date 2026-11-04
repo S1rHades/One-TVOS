@@ -612,6 +612,22 @@ class DataTest {
         assertEquals("13:30", six.times.getValue(Prayer.Dhuhr).toString())
         assertEquals("06:42", six.shuruq.toString())
 
+        // The prayer-times endpoint as the community API answers: flat, MAWAQIT's own names, no mosque
+        val flat = parsePrayerTimes("""{"fajr":"06:01","sunrise":"07:55","dohr":"12:14","asr":"13:49","maghreb":"16:22","icha":"18:07"}""", at, day, fallbackName = mosqueName("moscow-cathedral-mosque"))
+        assertEquals("Moscow Cathedral Mosque", flat.mosque)
+        assertEquals(listOf("06:01", "12:14", "13:49", "16:22", "18:07"), flat.list.map { it.second.toString() })
+        assertEquals("07:55", flat.shuruq.toString())
+        // The mosque's page data, wrapped in rawdata: the name, the five, shuruq, and today's iqama from the year's calendar
+        val iqamaYear = (1..12).joinToString(",", "[", "]") { m -> if (m == 11) """{"3":["+20","+10","+10","+5","+15"]}""" else "{}" }
+        val raw = parsePrayerTimes("""{"rawdata":{"name":"Al Noor","times":["06:01","12:14","13:49","16:22","18:07"],"shuruq":"07:55","iqamaCalendar":$iqamaYear}}""", at, day)
+        assertEquals("Al Noor", raw.mosque)
+        assertEquals("16:22", raw.times.getValue(Prayer.Maghrib).toString())
+        assertEquals("07:55", raw.shuruq.toString())
+        assertEquals("06:21", raw.iqama.getValue(Prayer.Fajr).toString())
+        assertEquals("18:22", raw.iqama.getValue(Prayer.Isha).toString())
+        // Another day of the year has no iqama in this calendar
+        assertTrue(parsePrayerTimes("""{"rawdata":{"times":["06:01","12:14","13:49","16:22","18:07"],"iqamaCalendar":$iqamaYear}}""", at, day.plusDays(1)).iqama.isEmpty())
+
         // Missing or unreadable entries are left out; no prayers at all is an error
         val partial = parsePrayerTimes("""{"mosque":"X","times":{"fajr":"05:15","dhuhr":"noon","isha":null}}""", at, day)
         assertEquals(listOf(Prayer.Fajr), partial.list.map { it.first })
@@ -650,6 +666,8 @@ class DataTest {
     fun prayerSettingsAndCache() {
         assertEquals("grande-mosquee-de-paris", cleanMosqueSlug("  https://mawaqit.net/fr/grande-mosquee-de-paris?x=1 "))
         assertEquals("al-noor_2", cleanMosqueSlug("Al-Noor_2"))
+        assertEquals("grande-mosquee-de-paris", cleanMosqueSlug("mawaqit.net/fr/grande-mosquee-de-paris/"))
+        assertEquals("Grande Mosquee De Paris", mosqueName("grande-mosquee-de-paris"))
         assertEquals(DefaultPrayerApi, cleanPrayerApi("   "))
         assertEquals(DefaultPrayerApi, cleanPrayerApi("mawaqit"))
         assertEquals("https://example.org/api", cleanPrayerApi("https://example.org/api/"))

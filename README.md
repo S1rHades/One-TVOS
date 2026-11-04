@@ -354,7 +354,7 @@ Al Jazeera is read from its RSS feed, or from a copy the Fixtures mirror keeps o
 
 ### Prayer times
 
-The prayer times widget shows today's five prayers from your mosque on [MAWAQIT](https://mawaqit.net), fetched through the community MAWAQIT API (`https://mawaqit-api.vercel.app/api/v1/<mosque>`; no account or key). The card names the mosque, shows the next prayer with its time and how long until it, ticking every minute, and the five prayers along the bottom with the next one marked. In a compact layout it shows the prayer after the next instead of the row. After Isha it counts down to tomorrow's Fajr.
+The prayer times widget shows today's five prayers from your mosque on [MAWAQIT](https://mawaqit.net), fetched through the community MAWAQIT API (`https://mawaqit-api.vercel.app/api/v1/<mosque>/`, with `/prayer-times` as a fallback; no account or key). The card names the mosque, shows the next prayer with its time and how long until it, ticking every minute, and the five prayers along the bottom with the next one marked. In a compact layout it shows the prayer after the next instead of the row. After Isha it counts down to tomorrow's Fajr.
 
 <p align="center"><img src="docs/screenshots/prayer-widget.png" width="100%" alt="The home screen with two wide widgets: the clock, and the prayer card for Moscow Cathedral Mosque with Maghrib next in 42 minutes and Fajr, Dhuhr, Asr, Maghrib and Isha with their times along the bottom, Maghrib marked with a green dot"></p>
 
