@@ -243,12 +243,12 @@ private fun WrapRows(
 }
 
 /**
- * Sideways scrolling for the favourites: nothing moves while the focused tile and a
- * [peek] of its neighbour are in view; otherwise the row slides just far enough, on the
- * shared curve (or instantly with animations off).
+ * Scrolling for the favourites (and the Settings lists, up and down): nothing moves while
+ * the focused item and a [peek] beyond it are in view; otherwise the list slides just far
+ * enough, on the shared curve (or instantly with animations off).
  */
 @OptIn(ExperimentalFoundationApi::class)
-private class RowScrollSpec(private val peek: Float, animate: Boolean) : BringIntoViewSpec {
+internal class RowScrollSpec(private val peek: Float, animate: Boolean) : BringIntoViewSpec {
     override val scrollAnimationSpec: AnimationSpec<Float> = motion(animate)
 
     override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float {

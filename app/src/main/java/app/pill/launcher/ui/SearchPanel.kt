@@ -1,6 +1,7 @@
 package app.pill.launcher.ui
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.MutableTransitionState
@@ -63,6 +64,7 @@ import app.pill.launcher.AppEntry
 import kotlinx.coroutines.delay
 
 private const val PANEL_MS = 260
+private const val ContentLag = 150
 private val CardShape = RoundedCornerShape(28.dp)
 
 /**
@@ -94,7 +96,7 @@ fun SearchPanel(
     LaunchedEffect(visible.isIdle, visible.currentState) {
         if (visible.isIdle && !visible.currentState) onDismiss()
     }
-    val scrimAlpha by animateFloatAsState(if (visible.targetState) 1f else 0f, tween(PANEL_MS), label = "searchScrim")
+    val scrimAlpha by rememberDim(visible.targetState, PANEL_MS)
 
     Dialog(onDismissRequest = close, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Box(Modifier.fillMaxSize()) {
@@ -110,9 +112,17 @@ fun SearchPanel(
                     Modifier
                         .padding(top = NavRoom, start = 48.dp, end = 48.dp)
                         .fillMaxWidth()
+                        // The card grows to the matches instead of jumping to its new height
+                        .animateContentSize(tween(Motion.Quick, easing = FastOutSlowInEasing))
                         .shadow(32.dp, CardShape)
                         .glass(CardShape)
-                        .padding(24.dp),
+                        .padding(24.dp)
+                        // The words come once the glass is there to hide the home screen
+                        // behind them, and go before it: never text over text
+                        .animateEnterExit(
+                            enter = fadeIn(tween(160, delayMillis = ContentLag)),
+                            exit = fadeOut(tween(100)),
+                        ),
                 ) {
                     SearchField(query, { query = it }, Modifier.focusRequester(field))
                     Spacer(Modifier.height(12.dp))

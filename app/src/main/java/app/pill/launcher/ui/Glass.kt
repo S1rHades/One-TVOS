@@ -1,6 +1,9 @@
 package app.pill.launcher.ui
 
 import android.graphics.Bitmap
+import androidx.compose.foundation.ScrollState
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.border
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
@@ -151,7 +154,7 @@ private fun boxBlur(px: IntArray, w: Int, h: Int, radius: Int, horizontal: Boole
 }
 
 /** Draws [image] the way the photo is shown: cropped to fill [screen], offset by [origin]. */
-fun DrawScope.drawBackdrop(image: ImageBitmap, screen: IntSize, origin: Offset = Offset.Zero) {
+fun DrawScope.drawBackdrop(image: ImageBitmap, screen: IntSize, origin: Offset = Offset.Zero, alpha: Float = 1f) {
     if (screen.width == 0 || screen.height == 0) return
     val scale = max(screen.width.toFloat() / image.width, screen.height.toFloat() / image.height)
     val srcW = (screen.width / scale).roundToInt().coerceAtMost(image.width)
@@ -162,6 +165,7 @@ fun DrawScope.drawBackdrop(image: ImageBitmap, screen: IntSize, origin: Offset =
         srcSize = IntSize(srcW, srcH),
         dstOffset = IntOffset(-origin.x.roundToInt(), -origin.y.roundToInt()),
         dstSize = screen,
+        alpha = alpha,
         filterQuality = FilterQuality.Low,
     )
 }
@@ -193,5 +197,41 @@ fun Modifier.glass(shape: Shape, tint: Color = GlassTint): Modifier {
         .drawWithContent {
             drawContent()
             drawOutline(shape.createOutline(size, layoutDirection, this), wallpaper.value.copy(alpha = EdgeTintAlpha), style = Stroke(2.dp.toPx()))
+        }
+}
+
+/**
+ * Softens a scrolling list that sits on [glass] at the top and bottom where there is more
+ * to scroll to: the glass is painted again over each edge, solid at the edge and clear
+ * [edge] in, so rows fade into the panel instead of being cut through. (Painting the glass
+ * over the rows, rather than masking them in a layer, looks the same in every renderer.)
+ */
+@Composable
+fun Modifier.glassEdges(scroll: ScrollState, edge: Dp, tint: Color = GlassTint): Modifier {
+    val backdrop = LocalBackdrop.current
+    val wallpaper = LocalWallpaperTint.current
+    var origin by remember { mutableStateOf(Offset.Zero) }
+    var screen by remember { mutableStateOf(IntSize.Zero) }
+    return this
+        .onGloballyPositioned {
+            origin = it.positionInRoot()
+            screen = it.findRootCoordinates().size
+        }
+        .drawWithContent {
+            drawContent()
+            val depth = edge.toPx()
+            val slices = 12
+            val step = depth / slices
+            // One band of glass, [from] the list's top, as solid as [alpha]
+            fun band(from: Float, alpha: Float) = clipRect(top = from, bottom = from + step + 0.5f) {
+                backdrop?.let { drawBackdrop(it, screen, origin, alpha) }
+                drawRect(tint, alpha = alpha)
+                drawRect(glassTintLayer(wallpaper.value), alpha = alpha)
+            }
+            for (i in 0 until slices) {
+                val alpha = 1f - (i + 0.5f) / slices
+                if (scroll.value > 0) band(i * step, alpha)
+                if (scroll.value < scroll.maxValue) band(size.height - (i + 1) * step, alpha)
+            }
         }
 }

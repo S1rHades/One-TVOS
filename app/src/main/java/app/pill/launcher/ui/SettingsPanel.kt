@@ -45,6 +45,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -122,6 +126,14 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 
 private const val PANEL_MS = 320
+
+/** A page change: the old page fades in [PageOut], then the new one in [PageIn], both sliding over [PageSlide]. */
+private const val PageOut = 90
+private const val PageIn = 180
+private const val PageSlide = 260
+
+/** How far a list goes soft at an edge with more beyond it. */
+private val ListEdge = 22.dp
 private val PanelShape = RoundedCornerShape(28.dp)
 private val RowShape = RoundedCornerShape(16.dp)
 
@@ -130,6 +142,7 @@ private val RowShape = RoundedCornerShape(16.dp)
  * D-pad focus stays inside it. Back (the dialog's dismiss request) slides it out
  * before it is removed.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SettingsPanel(
     settings: LauncherSettings,
@@ -240,11 +253,7 @@ fun SettingsPanel(
         if (visible.isIdle && !visible.currentState) onDismiss()
     }
 
-    val scrimAlpha by animateFloatAsState(
-        if (visible.targetState && !customizing) 1f else 0f,
-        tween(if (customizing) Motion.Page else PANEL_MS, easing = Motion.EnterEasing),
-        label = "scrimAlpha",
-    )
+    val scrimAlpha by rememberDim(visible.targetState && !customizing, if (customizing) Motion.Page else PANEL_MS)
     val motion = tween<Float>(PANEL_MS, easing = FastOutSlowInEasing)
 
     Dialog(
@@ -277,14 +286,23 @@ fun SettingsPanel(
                         .glass(PanelShape)
                         .padding(horizontal = 22.dp, vertical = 22.dp),
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 8.dp)) {
-                        if (page == null) {
-                            GearIcon(tint = Palette.TextPrimary, iconSize = 26.dp)
-                        } else {
-                            Text("‹", color = Palette.TextSecondary, fontSize = 30.sp, fontWeight = FontWeight.Medium)
+                    // The heading changes with the page below it, not ahead of it
+                    AnimatedContent(
+                        targetState = page,
+                        transitionSpec = { fadeIn(tween(PageIn, delayMillis = PageOut)) togetherWith fadeOut(tween(PageOut)) },
+                        // The panel's width, so a longer heading is never clipped while it grows
+                        modifier = Modifier.fillMaxWidth(),
+                        label = "settingsHeading",
+                    ) { shown ->
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 8.dp)) {
+                            if (shown == null) {
+                                GearIcon(tint = Palette.TextPrimary, iconSize = 26.dp)
+                            } else {
+                                Text("‹", color = Palette.TextSecondary, fontSize = 30.sp, fontWeight = FontWeight.Medium)
+                            }
+                            Spacer(Modifier.width(12.dp))
+                            Text(shown?.title ?: "Settings", color = Palette.TextPrimary, fontSize = 28.sp, fontWeight = FontWeight.SemiBold)
                         }
-                        Spacer(Modifier.width(12.dp))
-                        Text(page?.title ?: "Settings", color = Palette.TextPrimary, fontSize = 28.sp, fontWeight = FontWeight.SemiBold)
                     }
                     Spacer(Modifier.height(18.dp))
 
@@ -293,13 +311,18 @@ fun SettingsPanel(
                         targetState = page,
                         transitionSpec = {
                             val forward = targetState != null
-                            (slideInHorizontally(tween(240, easing = FastOutSlowInEasing)) { if (forward) it / 4 else -it / 4 } + fadeIn(tween(240))) togetherWith
-                                (slideOutHorizontally(tween(240, easing = FastOutSlowInEasing)) { if (forward) -it / 4 else it / 4 } + fadeOut(tween(160)))
+                            // The old page has gone before the new one shows, so their rows never lie over each other
+                            (slideInHorizontally(tween(PageSlide, easing = FastOutSlowInEasing)) { if (forward) it / 4 else -it / 4 } + fadeIn(tween(PageIn, delayMillis = PageOut))) togetherWith
+                                (slideOutHorizontally(tween(PageSlide, easing = FastOutSlowInEasing)) { if (forward) -it / 4 else it / 4 } + fadeOut(tween(PageOut)))
                         },
                         modifier = Modifier.weight(1f),
                         label = "settingsPage",
                     ) { shown ->
-                        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                        val scroll = rememberScrollState()
+                        val edge = with(LocalDensity.current) { ListEdge.toPx() }
+                        // Rows go soft at an edge with more beyond it, and the focused row stops clear of that
+                        CompositionLocalProvider(LocalBringIntoViewSpec provides remember(edge) { RowScrollSpec(edge, animate = true) }) {
+                        Column(Modifier.fillMaxSize().glassEdges(scroll, ListEdge).verticalScroll(scroll)) {
                             when (shown) {
                                 null -> Group(null) {
                                     for (category in SettingsPage.entries.filter { it.parent == null }) {
@@ -559,6 +582,7 @@ fun SettingsPanel(
                                     firstModifier = Modifier.focusRequester(pageFirst),
                                 )
                             }
+                        }
                         }
                     }
 
