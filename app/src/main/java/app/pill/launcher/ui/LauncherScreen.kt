@@ -486,7 +486,8 @@ fun LauncherScreen(
             .sortedByDescending { it.at }
     }
     val unread = allNotices.count { it.at.toEpochMilli() > noticesSeen }
-    val listOver by animateFloatAsState(if (noticesOpen) 1f else 0f, tween(Motion.Enter, easing = Motion.EnterEasing), label = "listOver")
+    // Faster than the list opens, so Favorites never show through it
+    val listOver by animateFloatAsState(if (noticesOpen) 1f else 0f, tween(Motion.Quick, easing = Motion.EnterEasing), label = "listOver")
     LaunchedEffect(noticesOpen) { if (noticesOpen) onNoticesSeen() }
     LaunchedEffect(idle) { if (idle) noticesOpen = false }
 

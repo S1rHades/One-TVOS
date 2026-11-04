@@ -413,11 +413,13 @@ class FileShare(
         val asked = if (request.path == "/" && request.params.containsKey("p")) "the scanned code" else "${request.method} ${request.path}"
         // Whatever goes wrong, the phone gets an answer: a connection closed with none makes Chrome
         // send the request again and again, then give up with ERR_TOO_MANY_RETRIES
-        val answer = StatusOut(out)
+        // Noted as the answer's first line goes out, so the TV shows it before the phone has it.
+        // The browser's own icon request says nothing about how the visit went
+        val answer = StatusOut(out) { status ->
+            if (request.path != "/favicon.ico") visit(remote, asked, if (status < 400) "answered" else "turned away ($status)")
+        }
         try {
             serve(request, remote, answer)
-            // The browser's own icon request says nothing about how the visit went
-            if (request.path != "/favicon.ico") visit(remote, asked, answer.status?.let { if (it < 400) "answered" else "turned away ($it)" } ?: "answered")
         } catch (e: Throwable) {
             // Throwable: an Error (a method this Android version lacks, say) mustn't close the connection silently either
             visit(remote, asked, "failed: " + (e.message?.let { "${e::class.java.simpleName}: $it" } ?: e::class.java.simpleName))
@@ -430,13 +432,13 @@ class FileShare(
     }
 
     /** Remembers the status of the answer written through it. */
-    private class StatusOut(val inner: OutputStream) : OutputStream() {
+    private class StatusOut(val inner: OutputStream, val onStatus: (Int) -> Unit) : OutputStream() {
         var status: Int? = null
         override fun write(b: Int) = inner.write(b)
         override fun write(b: ByteArray, off: Int, len: Int) {
             if (status == null && len >= 12) {
                 val start = String(b, off, minOf(len, 12), Charsets.ISO_8859_1)
-                if (start.startsWith("HTTP/1.1 ")) status = start.substring(9, 12).toIntOrNull()
+                if (start.startsWith("HTTP/1.1 ")) status = start.substring(9, 12).toIntOrNull()?.also(onStatus)
             }
             inner.write(b, off, len)
         }
