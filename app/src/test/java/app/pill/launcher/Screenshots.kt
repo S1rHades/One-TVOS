@@ -1388,7 +1388,7 @@ class Screenshots {
 
     // ---- Demo reel (temporary): a scripted tour of 3.5 to 3.7, frame by frame, for a video --
 
-    private val demoDir get() = File(File(out).absoluteFile.parentFile.parentFile, "build/demo-frames").apply { mkdirs() }
+    private val demoDir get() = File(out.absoluteFile.parentFile.parentFile, "build/demo-frames").apply { mkdirs() }
     private var demoFrame = 0
     private var caption = ""
     private val captionPaint = Paint().apply { color = 0xFFFFFFFF.toInt(); textSize = 30f; isAntiAlias = true; typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD) }
