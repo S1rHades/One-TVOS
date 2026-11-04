@@ -674,12 +674,12 @@ class DataTest {
 
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         val zone = ZoneId.of("Europe/Moscow")
-        val source = PrayerSource(context, zone)
+        val source = PrayerSource(context, zone, site = "http://127.0.0.1:9")
         assertNull(source.cached("my-mosque"))
         // A fetch that can't reach anything fails, naming the reasons, and leaves no cache
         val failed = source.fetch("http://127.0.0.1:9", "my-mosque")
         assertTrue(failed.isFailure)
-        assertTrue(failed.exceptionOrNull()!!.message!!.contains("prayer-times"))
+        assertTrue(failed.exceptionOrNull()!!.message!!, failed.exceptionOrNull()!!.message!!.contains("mawaqit.net: ConnectException; API: ConnectException; API times: ConnectException"))
         assertNull(source.cached("my-mosque"))
         assertTrue(source.fetch(DefaultPrayerApi, "").isFailure)
         // Saved answers come back marked, and only for their own mosque
@@ -779,11 +779,77 @@ class DataTest {
         }.apply { isDaemon = true }.start()
         try {
             val context = ApplicationProvider.getApplicationContext<android.content.Context>()
-            val failed = PrayerSource(context).fetch("http://127.0.0.1:${server.localPort}/api/v1", "benisaf")
+            val failed = PrayerSource(context, site = "http://127.0.0.1:${server.localPort}").fetch("http://127.0.0.1:${server.localPort}/api/v1", "benisaf")
             val error = failed.exceptionOrNull()!!
             assertTrue(error.toString(), error is NoSuchMosque)
-            assertEquals("MAWAQIT has no mosque at “benisaf”. Use the end of its mawaqit.net address, such as obada-benisaf · checked 12:31", prayerProblem(error, "12:31"))
-            assertEquals("Can't reach MAWAQIT (SocketTimeoutException) · checked 12:31", prayerProblem(java.io.IOException(java.net.SocketTimeoutException()), "12:31"))
+            assertEquals("MAWAQIT has no mosque “benisaf”. Type its ID (the number at the bottom left of its MAWAQIT screen) or the end of its mawaqit.net address · checked 12:31", prayerProblem(error, "12:31"))
+            assertEquals("Can't get the times (SocketTimeoutException) · checked 12:31", prayerProblem(java.io.IOException(java.net.SocketTimeoutException()), "12:31"))
+            assertEquals("Can't get the times (mawaqit.net: HTTP 403; API: HTTP 500) · checked 12:31", prayerProblem(java.io.IOException("mawaqit.net: HTTP 403; API: HTTP 500"), "12:31"))
+        } finally {
+            server.close()
+        }
+    }
+
+    /** A mosque's MAWAQIT page carries its data as `confData`; it is taken whole, braces in strings and all. */
+    @Test
+    fun mosqueDataFromItsPage() {
+        val page = """<html><script>var x = 1;</script><script>
+            let confData = {"name":"مسجد عبادة بن الصّامت","label":"Beni Saf { ; }","times":["06:12","12:49","15:47","18:11","19:31"],"shuruq":"07:38","iqamaCalendar":[{},{},{},{},{},{},{},{},{},{},{"4":["+20","+10","+10","+5","+10"]},{}],"note":"a \"quoted\" } brace"};
+            var other = {};</script></html>"""
+        val json = confDataIn(page)
+        assertTrue(json.endsWith("brace\"}"))
+        val t = parsePrayerTimes(json, Instant.EPOCH, java.time.LocalDate.of(2026, 11, 4))
+        assertEquals("مسجد عبادة بن الصّامت", t.mosque)
+        assertEquals(listOf("06:12", "12:49", "15:47", "18:11", "19:31"), t.list.map { it.second.toString() })
+        assertEquals("07:38", t.shuruq.toString())
+        assertEquals("12:59", t.iqama.getValue(Prayer.Dhuhr).toString())
+        assertTrue(runCatching { confDataIn("<html>No mosque here</html>") }.isFailure)
+        assertTrue(runCatching { confDataIn("var confData = {\"times\": [") }.isFailure)
+    }
+
+    /** A mosque ID (as its MAWAQIT screen shows it) or an address, typed any way, is tidied. */
+    @Test
+    fun mosqueIdsAndAddresses() {
+        assertEquals("1234", cleanMosqueSlug("1234"))
+        assertEquals("1234", cleanMosqueSlug(" ID 1234 "))
+        assertEquals("1234", cleanMosqueSlug("id:1234"))
+        assertEquals("obada-benisaf", cleanMosqueSlug("https://mawaqit.net/en/obada-benisaf"))
+        assertEquals("Mosque 1234", mosqueName("1234"))
+    }
+
+    /** By ID the times come from the mosque's page on MAWAQIT itself; the community API is only a fallback. */
+    @Test
+    fun timesByMosqueId() {
+        val asked = java.util.Collections.synchronizedList(ArrayList<String>())
+        val page = """<html><script>var confData = {"name":"Obada","times":["06:12","12:49","15:47","18:11","19:31"],"shuruq":"07:38"};</script></html>"""
+        val server = java.net.ServerSocket(0, 8, java.net.InetAddress.getByName("127.0.0.1"))
+        Thread {
+            while (!server.isClosed) {
+                val c = runCatching { server.accept() }.getOrNull() ?: break
+                c.use {
+                    val input = it.getInputStream().bufferedReader()
+                    val path = input.readLine().orEmpty().split(' ').getOrElse(1) { "" }
+                    asked += path
+                    while (input.readLine().orEmpty().isNotEmpty()) Unit
+                    val body = if (path == "/fr/id/4321") page.toByteArray() else ByteArray(0)
+                    val status = if (path == "/fr/id/4321") "200 OK" else "404 Not Found"
+                    it.getOutputStream().write("HTTP/1.1 $status\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: ${body.size}\r\nConnection: close\r\n\r\n".toByteArray() + body)
+                }
+            }
+        }.apply { isDaemon = true }.start()
+        try {
+            val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+            val base = "http://127.0.0.1:${server.localPort}"
+            val source = PrayerSource(context, site = base)
+            val t = source.fetch("$base/api/v1", "4321").getOrThrow()
+            assertEquals("Obada", t.mosque)
+            assertEquals("18:11", t.times.getValue(Prayer.Maghrib).toString())
+            assertEquals(listOf("/fr/id/4321"), asked.toList())
+            // Saved for next time, under the ID
+            assertEquals("Obada", source.cached("4321")!!.mosque)
+            // An ID MAWAQIT doesn't know: every source says "not found"
+            assertTrue(source.fetch("$base/api/v1", "999").exceptionOrNull() is NoSuchMosque)
+            assertEquals(listOf("/fr/id/4321", "/fr/id/999", "/api/v1/999/", "/api/v1/999/prayer-times"), asked.toList())
         } finally {
             server.close()
         }

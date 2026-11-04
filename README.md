@@ -232,7 +232,7 @@ On TVs that ignore that command, turning off the stock launcher works too (turn 
 
 The `latest` release is rebuilt automatically every time `main` changes, so installing it again always gets you the newest version.
 
-Every version also keeps its own release, named after it (**Pill Launcher 3.4.2**, tag `v3.4.2`, file `pill-launcher-3.4.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v3.4.2/pill-launcher-3.4.apk`. The newest is titled **Pill Launcher 3.4.2 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
+Every version also keeps its own release, named after it (**Pill Launcher 3.4.3**, tag `v3.4.3`, file `pill-launcher-3.4.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v3.4.3/pill-launcher-3.4.apk`. The newest is titled **Pill Launcher 3.4.3 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
 
 ### Uninstalling
 
@@ -362,7 +362,7 @@ Al Jazeera is read from its RSS feed, or from a copy the Fixtures mirror keeps o
 
 ### Prayer times
 
-The prayer times widget shows today's five prayers from your mosque on [MAWAQIT](https://mawaqit.net), fetched through the community MAWAQIT API (`https://mawaqit-api.vercel.app/api/v1/<mosque>/`, with `/prayer-times` as a fallback; no account or key). The card names the mosque, shows the next prayer with its time and how long until it, ticking every minute, and the five prayers along the bottom with the next one marked. In a compact layout it shows the prayer after the next instead of the row. After Isha it counts down to tomorrow's Fajr.
+The prayer times widget shows today's five prayers from your mosque on [MAWAQIT](https://mawaqit.net), read from the mosque's page on mawaqit.net, with the community MAWAQIT API (`https://mawaqit-api.vercel.app/api/v1/<mosque>/`) as a fallback; no account or key. The card names the mosque, shows the next prayer with its time and how long until it, ticking every minute, and the five prayers along the bottom with the next one marked. In a compact layout it shows the prayer after the next instead of the row. After Isha it counts down to tomorrow's Fajr.
 
 <p align="center"><img src="docs/screenshots/prayer-widget.png" width="100%" alt="The home screen with two wide widgets: the clock, and the prayer card for Moscow Cathedral Mosque with Maghrib next in 42 minutes and Fajr, Dhuhr, Asr, Maghrib and Isha with their times along the bottom, Maghrib marked with a green dot"></p>
 
@@ -372,9 +372,9 @@ OK on the card opens the prayer page: the next prayer large with the time left a
 
 The times are saved on the TV, so the card has them at once after a restart or while offline (the label turns grey and the page says "saved"), and they refresh on their own just after midnight for the new day. A failed fetch keeps the saved times and tries again, after 10 seconds, then 30, a minute, two, five. Yesterday's times stay up, marked, until the new day's arrive.
 
-Choose the mosque under **Settings → Widgets → Prayer times**: type the end of its MAWAQIT address (for `mawaqit.net/en/obada-benisaf` that is `obada-benisaf`; pasting the whole address works too), then Done. There is no mosque search: MAWAQIT doesn't allow other apps to use its search, so find the mosque on mawaqit.net first, on a phone. An address MAWAQIT doesn't know says so, and every failed check shows the time it was made, so **Refresh** visibly tries again. The page shows what came back and when, has **Refresh now**, and takes the API's address for anyone running their own copy of it. Until a mosque is chosen the card says so, and the launcher contacts MAWAQIT for nothing.
+Choose the mosque under **Settings → Widgets → Prayer times** by its MAWAQIT ID, the number at the bottom left of the mosque's MAWAQIT screen, or by the end of its mawaqit.net address (for `mawaqit.net/en/obada-benisaf` that is `obada-benisaf`; pasting the whole address works too), then Done. The times are read from the mosque's own MAWAQIT page, where its screen gets them, with the community API as a fallback. There is no mosque search: MAWAQIT doesn't allow other apps to use its search. An ID or address MAWAQIT doesn't know says so, a failure names what each source answered, and every failed check shows the time it was made, so **Refresh** visibly tries again.
 
-<p align="center"><img src="docs/screenshots/settings-prayers.png" width="100%" alt="Settings, Widgets, Prayer times: a field reading The mosque's MAWAQIT address, e.g. obada-benisaf, a note that MAWAQIT doesn't let other apps search and how to find the address on mawaqit.net, Refresh now, and under API the community address; beside the panel, the home screen's prayer card says Choose a mosque in Settings"></p>
+<p align="center"><img src="docs/screenshots/settings-prayers.png" width="100%" alt="Settings, Widgets, Prayer times: a field reading Mosque ID, e.g. 1234, or its address, e.g. obada-benisaf, a note on where to find the ID and that MAWAQIT doesn't let other apps search, Refresh now, and under API the community address; beside the panel, the home screen's prayer card says Choose a mosque in Settings"></p>
 
 ### Internet speed test
 
@@ -405,7 +405,7 @@ gradle assembleDebug                                   # app/build/outputs/apk/d
 gradle :app:testDebugUnitTest --tests '*Screenshots*'  # re-render docs/screenshots
 ```
 
-**Builds are automated.** `.github/workflows/build.yml` builds the APK for every pull request and push; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v3.4.2`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
+**Builds are automated.** `.github/workflows/build.yml` builds the APK for every pull request and push; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v3.4.3`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
 
 <details>
 <summary><b>Architecture</b></summary>
