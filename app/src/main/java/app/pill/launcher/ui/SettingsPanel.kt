@@ -705,7 +705,8 @@ private fun Group(label: String?, content: @Composable ColumnScope.() -> Unit) {
         verticalArrangement = Arrangement.spacedBy(2.dp),
         content = content,
     )
-    Spacer(Modifier.height(Space.Group))
+    // Groups stand apart more than rows within them do
+    Spacer(Modifier.height(Space.Item + 2.dp))
 }
 
 /**
