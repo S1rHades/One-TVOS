@@ -62,6 +62,7 @@ import org.junit.Before
 import org.junit.Rule
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.hasContentDescription
 import org.junit.Test
 import org.junit.rules.ExternalResource
 import org.junit.rules.RuleChain
@@ -615,6 +616,21 @@ class Screenshots {
         settle()
         compose.onNodeWithText("Home screen").assertDoesNotExist()
         check(focusedName().contains("Cinema")) { "Home from Settings goes to the first favourite: ${focusedName()}" }
+    }
+
+    /** Opening Settings from the bar, focus goes straight to the panel: it never stops on the page's bar on the way. */
+    @Test
+    fun barKeepsOutOfTheWayAsAPageOpens() {
+        show("pine-forest", pins = favorites)
+        compose.onNodeWithContentDescription("Settings").performSemanticsAction(SemanticsActions.OnClick)
+        repeat(12) {
+            compose.mainClock.advanceTimeBy(40)
+            compose.waitForIdle()
+            val onBar = compose.onAllNodes(isFocused() and (hasContentDescription("Home") or hasContentDescription("Search"))).fetchSemanticsNodes()
+            check(onBar.isEmpty()) { "focus stopped on the bar while Settings opened (${it * 40 + 40} ms)" }
+        }
+        settle()
+        compose.onNode(isFocused() and (hasText("Home screen") or hasText("Widgets") or hasText("Notifications"))).assertExists()
     }
 
     /** A page opened from the bar: Down from the bar reaches the page, Home closes it. */
