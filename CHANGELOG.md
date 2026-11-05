@@ -3,6 +3,11 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 3.7.1 (November 2026)
+
+- **The bar follows your press**: pressing **OK** on Home, Search, Wi-Fi or Settings in the bar now glides the grey "you are here" disc from the page you were on into the item you pressed, under the white focus disc, which then fades.
+- **No dart to Home**: opening Settings (or any page) from the bar, the white focus disc used to jump to Home on the bar and back, because the page's window handed focus to the bar's first button before the page took it. The bar now waits for the page to take focus first.
+
 ## 3.7 (November 2026)
 
 Every press answers back, the last part of the UX-laws plan (the Doherty threshold, feedback loops, recognition over recall, Postel's and Tesler's laws, the goal-gradient effect, and the peak-end rule):

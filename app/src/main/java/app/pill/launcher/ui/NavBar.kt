@@ -3,8 +3,6 @@ package app.pill.launcher.ui
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.VectorConverter
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -36,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
@@ -53,7 +52,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.os.SystemClock
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 
 /** The places the bar leads to, left to right. All apps is below Favorites, so it needs no button. */
@@ -77,6 +78,28 @@ val NavRoom = NavTop + NavHeight + 8.dp
 
 /** Where item [i] starts along the bar, from its inner edge. */
 private fun itemX(i: Int) = (ItemSize + ItemGap) * i + if (i >= NavItem.Internet.ordinal) DividerRoom else 0.dp
+
+/** How long a new bar waits before it can take focus, so the page it opens with takes it first. */
+private const val ReadyMs = 400L
+
+/**
+ * The last press on a bar, handed to the bar of the page it opens: [from] is the page the
+ * press was made on and [pressed] the item. Only a fresh press counts, and only once.
+ */
+private object NavPress {
+    class Handoff(val from: Int, val pressed: Int)
+    private var last: Handoff? = null
+    private var at = 0L
+    fun press(from: Int, pressed: Int) {
+        last = Handoff(from, pressed)
+        at = SystemClock.uptimeMillis()
+    }
+    fun take(): Handoff? {
+        val h = last?.takeIf { SystemClock.uptimeMillis() - at < 700 }
+        last = null
+        return h
+    }
+}
 
 /** Provided by the home screen, so every page and panel shows the same bar in the same place. */
 val LocalNavBar = compositionLocalOf<(@Composable (current: NavItem?) -> Unit)?> { null }
@@ -102,19 +125,34 @@ fun NavBar(
     settingsFocus: FocusRequester? = null,
     /** Where Down from the bar goes; without it, to whatever is below. */
     onDown: (() -> Unit)? = null,
+    /** True for the bar a page opens with: it can't take focus until the page has. */
+    waitForPage: Boolean = false,
 ) {
     val network by rememberNetworkStatus()
     // The focused item, or -1 while focus is elsewhere
     var focused by remember { mutableIntStateOf(-1) }
     val active = focused >= 0
     // Two discs: a grey one that stays on the page you're on, and a white one that follows
-    // focus while the bar has it (setting off from the current page, so it glides out of it)
+    // focus while the bar has it (setting off from the current page, so it glides out of it).
+    // A page opens with a bar of its own; when a press in another bar opened it, the grey
+    // disc sets off from the page you pressed it on and glides into the item you pressed,
+    // where the white disc fades.
     val here = current?.ordinal ?: -1
-    val hereX by animateDpAsState(BarPad + itemX(here.coerceAtLeast(0)), Motion.glide(), label = "navHere")
-    val hereAlpha by animateFloatAsState(if (here >= 0) 1f else 0f, tween(Motion.Quick), label = "navHereAlpha")
+    val handoff = remember { NavPress.take() }
+    val from = handoff?.from ?: -1
+    val hereX = remember { Animatable(BarPad + itemX(if (from >= 0) from else here.coerceAtLeast(0)), Dp.VectorConverter) }
+    val hereAlpha = remember { Animatable(if (here >= 0 && (from >= 0 || handoff == null)) 1f else 0f) }
+    LaunchedEffect(here) {
+        launch { hereAlpha.animateTo(if (here >= 0) 1f else 0f, tween(Motion.Quick)) }
+        if (here >= 0) {
+            if (hereAlpha.value == 0f) hereX.snapTo(BarPad + itemX(here))
+            hereX.animateTo(BarPad + itemX(here), Motion.glide())
+        }
+    }
     // Coming into the bar it sets off from the page you're on; leaving, it fades where it is
     // (gliding back while fading swept a ghost disc across the bar and left the item dark)
-    val focusX = remember { Animatable(BarPad + itemX(here.coerceAtLeast(0)), Dp.VectorConverter) }
+    val pressed = handoff?.pressed ?: -1
+    val focusX = remember { Animatable(BarPad + itemX(if (pressed >= 0) pressed else here.coerceAtLeast(0)), Dp.VectorConverter) }
     var wasActive by remember { mutableStateOf(false) }
     LaunchedEffect(focused) {
         if (focused < 0) {
@@ -125,7 +163,27 @@ fun NavBar(
         wasActive = true
         focusX.animateTo(BarPad + itemX(focused), Motion.glide())
     }
-    val focusAlpha by animateFloatAsState(if (active) 1f else 0f, tween(Motion.Quick), label = "navFocusAlpha")
+    val focusAlpha = remember { Animatable(if (pressed >= 0) 1f else 0f) }
+    var handing by remember { mutableStateOf(pressed >= 0) }
+    LaunchedEffect(active) {
+        // A handed-over white disc lingers while the grey one glides in under it
+        if (!active && handing) {
+            focusAlpha.animateTo(0f, tween(Motion.Page))
+            handing = false
+            return@LaunchedEffect
+        }
+        handing = false
+        focusAlpha.animateTo(if (active) 1f else 0f, tween(Motion.Quick))
+    }
+    // A new window gives focus to the first thing it finds, which is this bar's Home; the
+    // page then takes it. Until the page has, the bar can't take focus, so the white disc
+    // doesn't dart to Home and back as a page opens.
+    var ready by remember { mutableStateOf(!waitForPage) }
+    LaunchedEffect(Unit) {
+        if (ready) return@LaunchedEffect
+        delay(ReadyMs)
+        ready = true
+    }
     Box(
         modifier.onPreviewKeyEvent { event ->
             if (onDown == null || event.key != Key.DirectionDown) return@onPreviewKeyEvent false
@@ -136,9 +194,9 @@ fun NavBar(
         Box(Modifier.glass(RoundedCornerShape(50)).padding(BarPad)) {
             Box(
                 Modifier
-                    .offset(x = hereX - BarPad)
+                    .offset { IntOffset((hereX.value - BarPad).roundToPx(), 0) }
                     .size(ItemSize)
-                    .graphicsLayer { alpha = hereAlpha }
+                    .graphicsLayer { alpha = hereAlpha.value }
                     .background(Color(0x38FFFFFF), CircleShape),
             )
             Box(
@@ -146,7 +204,7 @@ fun NavBar(
                     .offset { IntOffset((focusX.value - BarPad).roundToPx(), 0) }
                     .size(ItemSize)
                     // No glow: the bar's glass clips it, which cut it flat at the bar's edges
-                    .graphicsLayer { alpha = focusAlpha }
+                    .graphicsLayer { alpha = focusAlpha.value }
                     .background(Palette.Focus, CircleShape),
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -159,7 +217,7 @@ fun NavBar(
                                 .background(Color(0x40FFFFFF)),
                         )
                     }
-                    val on = focused == item.ordinal
+                    val on = focused == item.ordinal || (handing && !active && item.ordinal == pressed)
                     val tint by animateColorAsState(if (on) Palette.Ink else Palette.TextPrimary, tween(Motion.Quick), label = "navTint")
                     Box(
                         Modifier
@@ -169,7 +227,11 @@ fun NavBar(
                             .semantics { contentDescription = if (item == NavItem.Internet) "Internet: " + network.label else item.label }
                             .onFocusChanged { if (it.isFocused) focused = item.ordinal else if (focused == item.ordinal) focused = -1 }
                             .then(if (item == NavItem.Settings && settingsFocus != null) Modifier.focusRequester(settingsFocus) else Modifier)
-                            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onSelect(item) },
+                            .then(if (ready) Modifier else Modifier.focusProperties { canFocus = false })
+                            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+                                NavPress.press(from = here, pressed = item.ordinal)
+                                onSelect(item)
+                            },
                         contentAlignment = Alignment.Center,
                     ) {
                         when (item) {

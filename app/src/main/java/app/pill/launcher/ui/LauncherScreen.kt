@@ -606,7 +606,7 @@ fun LauncherScreen(
             NavItem.Settings -> Unit
         }
     }
-    val navBar: @Composable (NavItem?) -> Unit = { current -> NavBar(current, onSelect = { navigate(it) }) }
+    val navBar: @Composable (NavItem?) -> Unit = { current -> NavBar(current, onSelect = { navigate(it) }, waitForPage = true) }
 
     // The blurred photo for glass surfaces, and Roboto Flex as the default for all text
     CompositionLocalProvider(
