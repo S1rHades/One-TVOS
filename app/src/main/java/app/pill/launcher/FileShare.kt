@@ -22,7 +22,7 @@ import java.util.Timer
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.Semaphore
-import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.SynchronousQueue
 import java.util.TimerTask
 import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
@@ -147,6 +147,10 @@ fun homeAddress(): String? = runCatching {
 }.getOrNull()
 
 private const val FirstPort = 8642
+/** Connections handled at once (each phone's browser opens several). */
+private const val MaxConnections = 32
+/** How long a connection may wait for its request, or stall in the middle of one. */
+private const val IdleMs = 60_000
 private const val SpareBytes = 50L * 1000 * 1000
 private const val SendersFile = ".senders.json"
 private const val Cookie = "pill"
@@ -169,7 +173,7 @@ private const val BlockMs = 10 * 60 * 1000L
  * private cookie and stays trusted for 90 days, until removed or until every phone is
  * signed out. Every request must name the TV's own address (so another website can't
  * borrow the phone's browser) and anything that changes something must carry a header
- * other websites can't add. At most 4 connections are handled at once, and 2 uploads.
+ * other websites can't add. At most 32 connections are handled at once, and 2 uploads.
  */
 class FileShare(
     val dir: File,
@@ -218,8 +222,14 @@ class FileShare(
         stopTask = null
         val here = address()
         if (socket != null) {
-            state.value = state.value.copy(until = null, address = here ?: state.value.address)
-            return
+            // Still listening where the code points. When the TV's address has changed (a new
+            // lease from the router, Wi-Fi to cable), the code would point at the new address
+            // while the server listened on the old one: start again on the new one
+            if (here == null || here == state.value.address) {
+                state.value = state.value.copy(until = null)
+                return
+            }
+            stop()
         }
         if (here == null) {
             state.value = state.value.copy(running = false, address = null, problem = "Connect the TV to your home network to share files")
@@ -236,8 +246,10 @@ class FileShare(
             return
         }
         socket = bound
-        val workers = ThreadPoolExecutor(4, 4, 30, TimeUnit.SECONDS, ArrayBlockingQueue(16)) { r -> Thread(r, "share").apply { isDaemon = true } }
-        workers.allowCoreThreadTimeOut(true)
+        // A thread for each connection, up to [MaxConnections]: a phone's browser opens a few
+        // connections ahead of time and may leave them unused, and with a small fixed pool those
+        // held every thread, so the phone's real request waited unanswered until they timed out
+        val workers = ThreadPoolExecutor(0, MaxConnections, 30, TimeUnit.SECONDS, SynchronousQueue()) { r -> Thread(r, "share").apply { isDaemon = true } }
         pool = workers
         Thread({ acceptLoop(bound, workers) }, "share-accept").apply { isDaemon = true }.start()
         state.value = state.value.copy(running = true, address = here, port = bound.localPort, until = null, problem = null)
@@ -387,7 +399,7 @@ class FileShare(
             } catch (e: Exception) {
                 continue
             }
-            // Busy (4 at work, 16 waiting): turn it away rather than pile up
+            // Busy ([MaxConnections] open at once): turn it away rather than pile up
             runCatching { workers.execute { client.use { handle(it) } } }.onFailure { runCatching { client.close() } }
         }
     }
@@ -402,7 +414,10 @@ class FileShare(
     )
 
     private fun handle(client: Socket) {
-        client.soTimeout = 30_000
+        // A connection opened ahead of time is kept for a minute (longer than a browser keeps one
+        // it hasn't used): closing it sooner can catch the browser just as it sends its request
+        // there, and a browser that keeps finding its connections closed retries, then gives up
+        client.soTimeout = IdleMs
         val input = BufferedInputStream(client.getInputStream())
         val out = client.getOutputStream()
         val remote = client.inetAddress

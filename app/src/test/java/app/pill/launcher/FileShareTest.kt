@@ -276,4 +276,43 @@ class FileShareTest {
             profile.deleteRecursively()
         }
     }
+
+    /**
+     * A phone's browser opens connections ahead of time and may leave them unused. They used
+     * to take every one of the server's few threads, so the real request waited unanswered
+     * until they timed out half a minute later.
+     */
+    @Test
+    fun unusedConnectionsDontHoldUpTheRealOne() {
+        val unused = List(8) { Socket("127.0.0.1", port) }
+        try {
+            val started = System.nanoTime()
+            assertEquals(200, call("GET", "/").status)
+            val ms = (System.nanoTime() - started) / 1_000_000
+            assertTrue("answered at once with 8 unused connections open, not after $ms ms", ms < 5_000)
+        } finally {
+            unused.forEach { runCatching { it.close() } }
+        }
+    }
+
+    /** When the TV's address changes, the server moves to the new one, where the code now points. */
+    @Test
+    fun followsTheTvToANewAddress() {
+        var ip = "127.0.0.1"
+        val moving = FileShare(File(dir, "Moving"), page = { "<html>moved</html>" }, address = { ip }, code = "333333", key = "m".repeat(32))
+        try {
+            moving.start()
+            ip = "127.0.0.2"
+            moving.start()
+            val s = moving.state.value
+            assertTrue("still running", s.running)
+            assertEquals("127.0.0.2", s.address)
+            val c = URL("http://127.0.0.2:${s.port}/").openConnection() as HttpURLConnection
+            c.connectTimeout = 5_000
+            c.readTimeout = 5_000
+            assertEquals(200, c.responseCode)
+        } finally {
+            moving.stop()
+        }
+    }
 }

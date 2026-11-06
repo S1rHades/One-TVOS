@@ -103,7 +103,14 @@ fun FilesPage(
     onDismiss: () -> Unit,
 ) {
     val state by share.state.collectAsState()
-    LaunchedEffect(Unit) { withContext(Dispatchers.IO) { share.start() } }
+    // Started as the page opens, then checked every few seconds: if the TV's address changes
+    // (a new lease from the router), the server moves to it, so the code always leads somewhere
+    LaunchedEffect(Unit) {
+        while (true) {
+            withContext(Dispatchers.IO) { share.start() }
+            delay(5_000)
+        }
+    }
     var filter by remember { mutableStateOf<FileKind?>(null) }
     var menuFor by remember { mutableStateOf<Pair<SharedFile, Boolean>?>(null) }
     var sending by remember { mutableStateOf<SharedFile?>(null) }
