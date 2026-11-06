@@ -3,6 +3,13 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 3.7.2 (November 2026)
+
+- **Files: scanning the code, again.** Two more ways the scan could fail are fixed:
+  - **Spare connections:** a phone's browser opens a few connections to the TV ahead of time and may leave them unused. They used to take all four of the TV's threads, so the phone's real request waited unanswered for up to half a minute. Each connection now gets its own thread, up to 32. A request is answered at once, even with eight unused connections open (it took 24 seconds before).
+  - **Cut-off timing:** unused connections are now kept for a minute instead of half a minute. That is longer than a browser holds one, so the TV no longer closes a connection just as the phone starts using it. Repeated closes like that are what make Chrome retry and then give up with ERR_TOO_MANY_RETRIES.
+- **Files: when the TV's address changes** (a new address from the router, or switching between Wi-Fi and cable), the code moved to the new address but the TV kept listening on the old one. The TV now moves with it, and the Files page checks every few seconds while it is open.
+
 ## 3.7.1 (November 2026)
 
 - **The bar follows your press**: pressing **OK** on Home, Search, Wi-Fi or Settings in the bar now glides the grey "you are here" disc from the page you were on into the item you pressed, under the white focus disc, which then fades.
