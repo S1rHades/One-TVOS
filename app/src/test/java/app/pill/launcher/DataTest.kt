@@ -1,6 +1,11 @@
 package app.pill.launcher
 
 import androidx.test.core.app.ApplicationProvider
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -912,5 +917,72 @@ class DataTest {
         assertEquals("Beni Saf, Aïn Témouchent, Algeria", places[0].label)
         assertEquals(35.3009, places[0].lat, 1e-6)
         assertEquals("Sidi Safi", places[1].name)
+    }
+
+    /**
+     * With no town chosen, the weather goes by the mosque's spot: MAWAQIT's page says where
+     * the mosque is, and the town's name comes from the mosque's own until it is looked up.
+     */
+    @Test
+    fun weatherAroundTheMosque() {
+        val at = Instant.parse("2026-11-10T12:00:00Z")
+        val day = at.atZone(ZoneOffset.UTC).toLocalDate()
+        val times = parsePrayerTimes(
+            """{"name":"مسجد عبادة بن الصّامت - بني-صاف","latitude":35.300411322943,"longitude":-1.378871309123,"times":["06:08","12:49","15:43","18:06","19:25"]}""",
+            at, day,
+        )
+        val spot = times.spot!!
+        assertEquals(35.3004, spot.lat, 1e-4)
+        assertEquals(-1.3789, spot.lon, 1e-4)
+        assertEquals("بني-صاف", spot.name)
+        // No coordinates, or MAWAQIT's 0, 0 for a mosque it can't place: no spot
+        assertNull(parsePrayerTimes("""{"name":"Al Noor","times":["06:08","12:49","15:43","18:06","19:25"]}""", at, day).spot)
+        assertNull(parsePrayerTimes("""{"name":"Al Noor","latitude":0,"longitude":0,"times":["06:08","12:49","15:43","18:06","19:25"]}""", at, day).spot)
+
+        // OpenStreetMap's reverse lookup names the town
+        assertEquals("Béni Saf", parseOsmTown("""{"name":"Béni Saf","address":{"town":"Béni Saf","state":"Aïn Témouchent","country":"Algeria"}}"""))
+        assertEquals("Sidi Safi", parseOsmTown("""{"name":"","address":{"village":"Sidi Safi","country":"Algeria"}}"""))
+        assertNull(parseOsmTown("""{"error":"Unable to geocode"}"""))
+
+        // A saved reading for the approximate location isn't shown as the mosque's, nor the other way round
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val prefs = context.getSharedPreferences("weather", android.content.Context.MODE_PRIVATE)
+        prefs.edit().clear().putString("service", "open-meteo").putString("body", data("openmeteo.json")).putLong("at", 1_700_000_000_000L)
+            .putString("place", "Oran").putFloat("lat", 35.7f).putFloat("lon", -0.6f).apply()
+        val source = WeatherSource(context)
+        assertEquals("Oran", source.cached()!!.place)
+        assertNull(source.cached(near = spot))
+        prefs.edit().putString("for", "near:" + spot.key).putString("place", "Béni Saf").apply()
+        assertEquals("Béni Saf", source.cached(near = spot)!!.place)
+        assertNull(source.cached())
+    }
+
+    /**
+     * A wait between fetches ends early on a nudge only when it is over by the clock (the TV
+     * slept through it) or follows a failure (the internet is back); otherwise it carries on.
+     */
+    @Test
+    fun nudgesEndOverdueWaits(): Unit = runBlocking {
+        var clock = 0L
+        val nudges = Nudges { clock }
+        // Not due and nothing failed: a nudge changes nothing
+        val waiting = async(Dispatchers.Default) { nudges.wait(60_000) }
+        delay(150)
+        nudges.nudge()
+        delay(150)
+        assertTrue("still waiting: not due yet", waiting.isActive)
+        // The TV slept: half an hour passed by the clock, none of it by the timer
+        clock = 31 * 60_000L
+        nudges.nudge()
+        withTimeout(2_000) { waiting.await() }
+        // After a failure any nudge retries at once
+        val retry = async(Dispatchers.Default) { nudges.wait(300_000, failed = true) }
+        delay(150)
+        nudges.nudge()
+        withTimeout(2_000) { retry.await() }
+        // With no nudge the wait is just a wait
+        val started = System.nanoTime()
+        nudges.wait(200)
+        assertTrue((System.nanoTime() - started) / 1_000_000 >= 190)
     }
 }

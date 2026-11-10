@@ -33,7 +33,17 @@ data class PrayerTimes(
     val fetchedAt: Instant,
     /** True for the saved copy shown before the first fetch of this run, or after a failed one. */
     val fromCache: Boolean = false,
+    /** Where the mosque is, when MAWAQIT says. */
+    val lat: Double? = null,
+    val lon: Double? = null,
 ) {
+    /**
+     * The mosque's spot as a place for the weather: the TV is near its mosque far more surely
+     * than where its internet address says. Named by the town MAWAQIT puts after the mosque's
+     * name ("… - Beni Saf") until the town is looked up; null when MAWAQIT gives no coordinates.
+     */
+    val spot: Place? get() = if (lat != null && lon != null) Place(mosque.substringAfterLast(" - ", "").trim(), "", "", lat, lon) else null
+
     /** The five prayers in order with their times; prayers the answer lacked are skipped. */
     val list: List<Pair<Prayer, LocalTime>> get() = Prayer.entries.mapNotNull { p -> times[p]?.let { p to it } }
 }
@@ -143,7 +153,11 @@ fun parsePrayerTimes(body: String, fetchedAt: Instant, forDate: LocalDate, fallb
         is JSONObject -> for (p in Prayer.entries) iqamaFor(namedIn(todays, p), times[p])?.let { iqama[p] = it }
         is JSONArray -> for ((i, p) in Prayer.entries.withIndex()) if (i < todays.length()) iqamaFor(todays.optString(i), times[p])?.let { iqama[p] = it }
     }
-    return PrayerTimes(mosque, times, shuruq, iqama, forDate, fetchedAt)
+    val lat = json.optDouble("latitude").takeIf { it in -90.0..90.0 }
+    val lon = json.optDouble("longitude").takeIf { it in -180.0..180.0 }
+    // Both or neither; MAWAQIT leaves a mosque it can't place at 0, 0
+    val placed = lat != null && lon != null && !(lat == 0.0 && lon == 0.0)
+    return PrayerTimes(mosque, times, shuruq, iqama, forDate, fetchedAt, lat = lat.takeIf { placed }, lon = lon.takeIf { placed })
 }
 
 /** The names a prayer goes by in MAWAQIT's answers: English, then MAWAQIT's own French ones. */

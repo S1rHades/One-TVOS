@@ -836,6 +836,12 @@ fun LauncherScreen(
                                 SetupStep("Make it the home screen, so Home and closed apps come back here", done = home.isDefault || home.redirectOn),
                                 SetupStep("Pin your apps: go down to All apps and hold OK on one", done = pins.isNotEmpty()),
                                 SetupStep("Choose the widgets across the top", done = settings.widgetsVisited),
+                                // Known already from a chosen mosque; not needed with no weather on show
+                                SetupStep(
+                                    "Choose your town, so the weather is yours and not the nearest city's",
+                                    done = settings.weatherPlace != null || prayers?.spot != null ||
+                                        settings.activeWidgets().none { it == WidgetKind.Weather || it == WidgetKind.Daylight },
+                                ),
                             )
                             val allDone = steps.all { it.done }
                             val latestSettings by rememberUpdatedState(settings)
@@ -856,7 +862,7 @@ fun LauncherScreen(
                                     steps = steps,
                                     nextAction = when (next) {
                                         steps[1] -> "Set up"
-                                        steps[3] -> "Choose"
+                                        steps[3], steps[4] -> "Choose"
                                         else -> null
                                     },
                                     onNext = {
@@ -864,6 +870,10 @@ fun LauncherScreen(
                                             steps[1] -> setUpHome()
                                             steps[3] -> {
                                                 settingsStart = SettingsPage.Widgets
+                                                panelOpen = true
+                                            }
+                                            steps[4] -> {
+                                                settingsStart = SettingsPage.WeatherPlace
                                                 panelOpen = true
                                             }
                                             else -> Unit
