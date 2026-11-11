@@ -644,7 +644,7 @@ fun SettingsPanel(
                                 )
                                 SettingsPage.Football -> FootballPage(settings, onChange, football, searchTeams, Modifier.focusRequester(pageFirst))
                                 SettingsPage.News -> NewsPage(settings, onChange, news, Modifier.focusRequester(pageFirst))
-                                SettingsPage.WeatherPlace -> WeatherPlacePage(settings, onChange, weather, searchPlaces, Modifier.focusRequester(pageFirst))
+                                SettingsPage.WeatherPlace -> WeatherPlacePage(settings, onChange, weather, nearMosque = prayers?.spot != null, searchPlaces, Modifier.focusRequester(pageFirst))
                                 SettingsPage.Prayers -> PrayersPage(settings, onChange, prayers, prayersError, prayersRefreshing, onRefreshPrayers, Modifier.focusRequester(pageFirst))
                                 SettingsPage.Stack -> StackPage(
                                     settings = settings,
@@ -1265,15 +1265,18 @@ private fun TeamSearchField(value: String, onChange: (String) -> Unit, hint: Str
 }
 
 /**
- * Settings → Widgets → Weather location: Automatic (the TV's approximate location, from
- * its internet address, which can be a city some way off), or a town found by name, or
- * coordinates typed in. The forecast is for that exact point.
+ * Settings → Widgets → Weather location: Automatic (around the mosque when one is chosen
+ * and MAWAQIT says where it is; else the TV's approximate location, from its internet
+ * address, which can be a city some way off), or a town found by name, or coordinates
+ * typed in. The forecast is for that exact point.
  */
 @Composable
 private fun WeatherPlacePage(
     settings: LauncherSettings,
     onChange: (LauncherSettings) -> Unit,
     weather: Weather?,
+    /** Automatic goes by the mosque's place rather than the internet address. */
+    nearMosque: Boolean,
     searchPlaces: suspend (String) -> Result<List<Place>>,
     firstModifier: Modifier,
 ) {
@@ -1281,7 +1284,7 @@ private fun WeatherPlacePage(
     Group("Weather for") {
         SettingRow(
             title = "Automatic",
-            subtitle = "From the TV's internet address, which may be the nearest city" +
+            subtitle = (if (nearMosque) "Around your mosque" else "From the TV's internet address, which may be the nearest city") +
                 (if (chosen == null) weather?.place?.takeIf { it.isNotBlank() }?.let { " · now $it" } ?: "" else ""),
             onClick = { onChange(settings.copy(weatherPlace = null)) },
             modifier = firstModifier,

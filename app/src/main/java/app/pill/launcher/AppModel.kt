@@ -30,6 +30,8 @@ data class AppEntry(
     val category: AppCategory = AppCategory.Other,
     /** The app's own name when it has been renamed in the launcher; null otherwise. */
     val originalLabel: String? = null,
+    /** When the app was last installed or updated: a saved icon is still its icon while this hasn't changed. */
+    val updatedAt: Long = 0,
 )
 
 /** [apps] with the names given in the launcher in place of their own. */
@@ -103,14 +105,24 @@ fun accentOf(bitmap: Bitmap): Int {
 /** Icon bitmap size: sharp at the largest tile (108dp) on a 1080p TV (xhdpi). */
 private const val ICON_PX = 216
 
-/** Lists launchable apps (TV apps first, then regular launcher apps), one entry per package. */
-fun loadApps(pm: PackageManager, self: String): List<AppEntry> {
+/**
+ * Lists launchable apps (TV apps first, then regular launcher apps), one entry per package.
+ * Reading an app's icon is the slow part, so entries in [reuse] (by package, from the last
+ * scan) are kept as they are while the app still opens the same way: after one app is
+ * installed or updated, only that app is read again.
+ */
+fun loadApps(pm: PackageManager, self: String, reuse: Map<String, AppEntry> = emptyMap()): List<AppEntry> {
     val seen = LinkedHashMap<String, AppEntry>()
     for (category in listOf(Intent.CATEGORY_LEANBACK_LAUNCHER, Intent.CATEGORY_LAUNCHER)) {
         val query = Intent(Intent.ACTION_MAIN).addCategory(category)
         for (info in pm.queryIntentActivities(query, 0)) {
             val pkg = info.activityInfo.packageName
             if (pkg == self || seen.containsKey(pkg)) continue
+            val kept = reuse[pkg]
+            if (kept != null && kept.component.className == info.activityInfo.name) {
+                seen[pkg] = kept
+                continue
+            }
             val drawable = try {
                 info.activityInfo.loadIcon(pm)
             } catch (e: Exception) {
@@ -134,6 +146,7 @@ fun loadApps(pm: PackageManager, self: String): List<AppEntry> {
                     @Suppress("DEPRECATION")
                     categoryOf(app.category, (app.flags and ApplicationInfo.FLAG_IS_GAME) != 0, info.loadLabel(pm).toString(), pkg)
                 },
+                updatedAt = runCatching { pm.getPackageInfo(pkg, 0).lastUpdateTime }.getOrDefault(0),
             )
         }
     }

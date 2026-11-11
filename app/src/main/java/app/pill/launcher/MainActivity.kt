@@ -29,6 +29,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import app.pill.launcher.ui.LauncherScreen
+import app.pill.launcher.ui.Link
+import app.pill.launcher.ui.rememberNetworkStatus
 import app.pill.launcher.ui.SystemAction
 import app.pill.launcher.ui.describe
 import kotlinx.coroutines.Dispatchers
@@ -59,12 +61,23 @@ class MainActivity : ComponentActivity() {
      */
     private var appsChanged by mutableIntStateOf(0)
     private var lastScan = 0L
+
+    /** Apps installed, updated or removed since the last scan: only these are read again. Main thread only. */
+    private val changedApps = HashSet<String>()
+
+    /** Set when every app should be read again (the first scan, the hourly check, a change with no name). */
+    private var rescanAll = true
+    private fun noteAppChange(vararg packages: String?) {
+        for (p in packages) if (p != null) changedApps += p else rescanAll = true
+        if (packages.isEmpty()) rescanAll = true
+        appsChanged++
+    }
     private val appWatch = object : LauncherApps.Callback() {
-        override fun onPackageRemoved(packageName: String?, user: UserHandle?) { appsChanged++ }
-        override fun onPackageAdded(packageName: String?, user: UserHandle?) { appsChanged++ }
-        override fun onPackageChanged(packageName: String?, user: UserHandle?) { appsChanged++ }
-        override fun onPackagesAvailable(packageNames: Array<out String>?, user: UserHandle?, replacing: Boolean) { appsChanged++ }
-        override fun onPackagesUnavailable(packageNames: Array<out String>?, user: UserHandle?, replacing: Boolean) { appsChanged++ }
+        override fun onPackageRemoved(packageName: String?, user: UserHandle?) = noteAppChange(packageName)
+        override fun onPackageAdded(packageName: String?, user: UserHandle?) = noteAppChange(packageName)
+        override fun onPackageChanged(packageName: String?, user: UserHandle?) = noteAppChange(packageName)
+        override fun onPackagesAvailable(packageNames: Array<out String>?, user: UserHandle?, replacing: Boolean) = noteAppChange(*packageNames.orEmpty())
+        override fun onPackagesUnavailable(packageNames: Array<out String>?, user: UserHandle?, replacing: Boolean) = noteAppChange(*packageNames.orEmpty())
     }
     private var homePresses by mutableIntStateOf(0)
 
@@ -73,8 +86,12 @@ class MainActivity : ComponentActivity() {
     private val screenOn = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             wakes++
+            nudges.nudge()
         }
     }
+
+    /** Ends the data loops' waits early when the TV wakes, the launcher comes back or the internet returns. */
+    private val nudges = Nudges()
     private lateinit var store: SettingsStore
     private lateinit var crashGuard: CrashGuard
 
@@ -126,10 +143,22 @@ class MainActivity : ComponentActivity() {
         photoFeed = PhotoFeed(this)
 
         setContent {
-            // null until the first scan finishes; later refreshes keep the old list on screen
+            // At a cold start, the list as it was last seen (saved on disk) until the first scan finishes;
+            // null only on a first start. Later scans keep the old list on screen, and read again only the
+            // apps that changed: reading every app's icon is the slow part.
+            val appCache = remember { AppCache(java.io.File(cacheDir, "apps")) }
             val scanned by produceState<List<AppEntry>?>(null, appsChanged) {
-                value = withContext(Dispatchers.Default) { loadApps(packageManager, packageName) }
+                if (value == null) value = withContext(Dispatchers.IO) { appCache.read() }
+                val changed = changedApps.toSet()
+                val all = rescanAll
+                val reuse = if (all) emptyMap() else value.orEmpty().filter { it.pkg !in changed }.associateBy { it.pkg }
+                // A change arriving meanwhile cancels this scan and starts another, with these still to do
+                val fresh = withContext(Dispatchers.Default) { loadApps(packageManager, packageName, reuse) }
+                changedApps -= changed
+                if (all) rescanAll = false
+                value = fresh
                 lastScan = SystemClock.elapsedRealtime()
+                withContext(Dispatchers.IO) { appCache.write(fresh) }
             }
             // Names given in the launcher replace the apps' own everywhere it shows them
             var names by remember { mutableStateOf(store.readNames()) }
@@ -146,24 +175,33 @@ class MainActivity : ComponentActivity() {
                     crashGuard.clear()
                 }
             }
+            // The internet coming back ends the loops' waits after a failure, as the TV waking does a wait that is over
+            val network by rememberNetworkStatus()
+            val online = network.link != Link.Offline
+            LaunchedEffect(online) { if (online) nudges.nudge() }
             // Refreshed every 30 minutes while a widget needs it; the last reading stays up if a refresh fails,
             // and the saved one shows at once after a restart. Sunrise and sunset need only the location.
+            // Timers stand still while the TV sleeps, so each wait also ends when the TV wakes with it overdue.
             val active = if (safe != null) emptySet() else settings.activeWidgets()
             val weatherOn = WidgetKind.Weather in active || WidgetKind.Daylight in active
             var weatherError by remember { mutableStateOf<String?>(null) }
             // A chosen town (Settings → Widgets → Weather location), or the approximate location
             val weatherPlace = settings.weatherPlace
-            val savedWeather = remember { weatherSource.cached(weatherPlace) }
-            val weather by produceState(savedWeather, weatherOn, weatherPlace) {
+            // With no town chosen, the forecast is for the mosque's spot when one is set and MAWAQIT says where
+            // it is: the TV's internet address often belongs to the nearest city instead
+            var mosqueSpot by remember { mutableStateOf(prayerSource.cached(settings.mosque)?.spot) }
+            val near = if (weatherPlace == null) mosqueSpot else null
+            val savedWeather = remember { weatherSource.cached(weatherPlace, near) }
+            val weather by produceState(savedWeather, weatherOn, weatherPlace, near) {
                 // A new place: its saved reading if there is one, else nothing until the fetch
-                value = weatherSource.cached(weatherPlace)
+                value = weatherSource.cached(weatherPlace, near)
                 weatherError = null
                 var failures = 0
                 while (weatherOn) {
-                    val result = withContext(Dispatchers.IO) { weatherSource.fetch(weatherPlace) }
+                    val result = withContext(Dispatchers.IO) { weatherSource.fetch(weatherPlace, near) }
                     result.onSuccess { value = it; weatherError = null; failures = 0 }
                     result.onFailure { weatherError = describe(it); failures++ }
-                    delay(if (result.isSuccess) REFRESH_MS else RetryDelaysMs[(failures - 1).coerceAtMost(RetryDelaysMs.lastIndex)])
+                    nudges.wait(if (result.isSuccess) REFRESH_MS else RetryDelaysMs[(failures - 1).coerceAtMost(RetryDelaysMs.lastIndex)], failed = result.isFailure)
                 }
             }
 
@@ -185,12 +223,13 @@ class MainActivity : ComponentActivity() {
                     val soon = list.any { f ->
                         f.next?.kickoff?.let { Duration.between(now, it).abs() < Duration.ofHours(3) } == true || f.last?.isLive(now) == true
                     }
-                    delay(
+                    nudges.wait(
                         when {
                             failed -> RetryDelaysMs[(failures - 1).coerceAtMost(RetryDelaysMs.lastIndex)]
                             soon -> LIVE_REFRESH_MS
                             else -> REFRESH_MS
                         },
+                        failed = failed,
                     )
                 }
             }
@@ -208,6 +247,7 @@ class MainActivity : ComponentActivity() {
                 if (prayersFor != mosque || value == null) {
                     value = prayerSource.cached(mosque)
                     prayersFor = mosque
+                    mosqueSpot = value?.spot
                 }
                 if (mosque.isBlank()) {
                     prayersError = null
@@ -226,6 +266,7 @@ class MainActivity : ComponentActivity() {
                     }
                     result.onSuccess { times ->
                         value = times
+                        mosqueSpot = times.spot
                         prayersError = null
                         failures = 0
                         // Remembered with its name, so Settings can offer it again by name
@@ -242,7 +283,7 @@ class MainActivity : ComponentActivity() {
                         value = value?.copy(fromCache = true)
                     }
                     if (!prayersOn) break
-                    delay(if (result.isSuccess) prayerSource.untilNextDay().toMillis() else RetryDelaysMs[(failures - 1).coerceAtMost(RetryDelaysMs.lastIndex)])
+                    nudges.wait(if (result.isSuccess) prayerSource.untilNextDay().toMillis() else RetryDelaysMs[(failures - 1).coerceAtMost(RetryDelaysMs.lastIndex)], failed = result.isFailure)
                 }
             }
 
@@ -255,7 +296,7 @@ class MainActivity : ComponentActivity() {
                     val fresh = withContext(Dispatchers.IO) { newsFeed.fetch() }
                     value = fresh
                     failures = if (fresh.errors.size == NewsSource.entries.size) failures + 1 else 0
-                    delay(if (failures == 0) REFRESH_MS else RetryDelaysMs[(failures - 1).coerceAtMost(RetryDelaysMs.lastIndex)])
+                    nudges.wait(if (failures == 0) REFRESH_MS else RetryDelaysMs[(failures - 1).coerceAtMost(RetryDelaysMs.lastIndex)], failed = failures > 0)
                 }
             }
 
@@ -268,7 +309,7 @@ class MainActivity : ComponentActivity() {
                     val result = withContext(Dispatchers.IO) { photoFeed.fetch() }
                     result.onSuccess { if (it != value) value = it; failures = 0 }
                     result.onFailure { failures++ }
-                    delay(if (result.isSuccess) 6 * 60 * 60 * 1000L else RetryDelaysMs[(failures - 1).coerceAtMost(RetryDelaysMs.lastIndex)])
+                    nudges.wait(if (result.isSuccess) 6 * 60 * 60 * 1000L else RetryDelaysMs[(failures - 1).coerceAtMost(RetryDelaysMs.lastIndex)], failed = result.isFailure)
                 }
             }
 
@@ -296,7 +337,7 @@ class MainActivity : ComponentActivity() {
                 delay(UPDATE_FIRST_CHECK_MS)
                 while (true) {
                     checkForUpdate()
-                    delay(UPDATE_CHECK_MS)
+                    nudges.wait(UPDATE_CHECK_MS)
                 }
             }
             // A failed or cancelled install comes back from Android's installer
@@ -568,7 +609,9 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         refresh++
-        if (lastScan != 0L && SystemClock.elapsedRealtime() - lastScan > 60 * 60 * 1000L) appsChanged++
+        nudges.nudge()
+        // Once an hour, on coming back: every app again, in case a change went unreported
+        if (lastScan != 0L && SystemClock.elapsedRealtime() - lastScan > 60 * 60 * 1000L) noteAppChange()
         wakes++
     }
 

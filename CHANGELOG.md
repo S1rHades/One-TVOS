@@ -3,6 +3,18 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 3.8 (November 2026)
+
+Fresher and faster:
+
+- **Up to date when the TV wakes**: the weather, football, headlines, prayer times and online photos each wait their interval between refreshes, but timers stand still while the TV sleeps, so a card could wake up showing the evening before for up to half an hour. A refresh that came due during sleep now happens the moment the TV wakes or the launcher comes back to the front.
+- **Back the moment the internet is**: after a failed refresh the cards used to wait out a retry delay of up to five minutes. They now try again as soon as the connection returns.
+- **The weather goes by your mosque**: with the weather location on **Automatic** and a mosque chosen under Prayer times, the forecast is for the mosque's place (MAWAQIT says where it is) instead of wherever the TV's internet address points, which is often the nearest city. The town's name is looked up once on OpenStreetMap. A town you choose still wins.
+- **Getting started asks for your town**: a fifth step, **Choose your town**, opens the weather location page. It is already done when a mosque is chosen or no weather widget is on.
+- **Apps at once**: the app list as it was last seen is saved, so a cold start shows your favourites and All apps straight away instead of after every app's icon has been read again. And when one app is installed, updated or removed, only that app is read again, not all of them.
+- **Files: what to check on the phone**: until a phone has reached the TV, the Files page says what to do when the phone reports that the site can't be reached: allow **Nearby devices** for Chrome in the phone's settings (Android 17 keeps Chrome off the home network until then), and stay on the same Wi-Fi without a VPN.
+- **Every test before every release**: the build now runs all the tests, the remote-navigation ones included, before it builds or publishes anything. Before, only some of them could stop a release.
+
 ## 3.7.2 (November 2026)
 
 - **Files: scanning the code, again.** Two more ways the scan could fail are fixed:

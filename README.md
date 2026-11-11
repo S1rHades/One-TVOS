@@ -155,11 +155,11 @@ Pill Launcher's own notifications:
 
 **OK** on a file opens it: photos in the launcher's own viewer (**Left** / **Right** for the next one), videos and documents in the TV's apps, and an app's APK with Android's install screen. Holding **OK** offers **Install** or **Open**, **Send to phone** (a code that saves it on your phone) and **Delete**.
 
-Your phone opens a plain page in its browser, with nothing to install: **Send to TV** picks photos, videos or files and shows each one's progress, and the TV's files are listed with **Save**. The phone must be on the same home network as the TV (the TV on a cable and the phone on Wi-Fi is fine; a guest Wi-Fi usually keeps devices apart). Under the code, the Files page shows the last phone that reached the TV, from which address, and how that went. If a scan fails and the TV still says no phone has reached it, the phone isn't reaching the TV at all: check that it is on the same Wi-Fi, not on mobile data, and that no VPN is on.
+Your phone opens a plain page in its browser, with nothing to install: **Send to TV** picks photos, videos or files and shows each one's progress, and the TV's files are listed with **Save**. The phone must be on the same home network as the TV (the TV on a cable and the phone on Wi-Fi is fine; a guest Wi-Fi usually keeps devices apart). Under the code, the Files page shows the last phone that reached the TV, from which address, and how that went. If a scan fails and the TV still says no phone has reached it, the phone isn't reaching the TV at all, and the page says what to check. On a phone with Android 17, Chrome is kept off the home network until it is allowed (it then says the site can't be reached, with ERR_TOO_MANY_RETRIES): on the phone, open **Settings → Apps → Chrome → Permissions** and allow **Nearby devices**. Otherwise, check that the phone is on the same Wi-Fi, not on mobile data, and that no VPN is on.
 
 <table>
   <tr>
-    <td width="66%"><img src="docs/screenshots/files.png" alt="The Files page: on the left, Receive, with a QR code, Scan with your phone, the address 192.168.1.24:8642 and code 482913, No phone has reached the TV yet, the space free and Keep receiving: Off; on the right, chips for All 4, Photos, Videos, Apps and Documents over cards for holiday.jpg with a preview, match-highlights.mp4, kinopub-2.4.apk and tv-manual.pdf"><br><sub><b>Files on the TV</b>: receiving on the left, everything on the TV on the right.</sub></td>
+    <td width="66%"><img src="docs/screenshots/files.png" alt="The Files page: on the left, Receive, with a QR code, Scan with your phone, the address 192.168.1.24:8642 and code 482913, No phone has reached the TV yet with what to check on the phone, the space free and Keep receiving: Off; on the right, chips for All 4, Photos, Videos, Apps and Documents over cards for holiday.jpg with a preview, match-highlights.mp4, kinopub-2.4.apk and tv-manual.pdf"><br><sub><b>Files on the TV</b>: receiving on the left, everything on the TV on the right.</sub></td>
     <td width="34%"><img src="docs/files-phone.png" alt="The phone's page: Your TV, Send to TV, kinopub-2.5.apk on its way at 34.6 of 48 MB, and the TV's files with Save beside each"><br><sub><b>On the phone</b>: send, or save what's on the TV.</sub></td>
   </tr>
 </table>
@@ -220,9 +220,9 @@ To make it your home screen, open **Settings** (the gear) → **Home & startup**
 
 Many TVs, most Google TV devices among them, don't let any app replace the home screen. On those, use **Settings → Home & startup → Home button helper**: it opens Accessibility settings, where you turn on **Pill Launcher Home button**. Whenever the TV's own home screen opens (Home pressed, an app closed or killed), the helper brings Pill Launcher straight back. It only checks which app came to the front, never what is on screen. On Android 13 and later, a sideloaded app's accessibility switch may be greyed out at first: open **Settings → Apps → Pill Launcher**, choose **⋮ → Allow restricted settings**, then turn it on.
 
-A new install starts with **Getting started** above the favourites: a ring that fills as the steps are done (installed, the home screen, your favourite apps, the widgets), the next step with its button, and **Not now**. It begins one step in, and when the last is done it says **You're set** and goes. After that, until the home screen is set up, a reminder with a **Set up** button stays, which tries the first way and then the second. **Not now** hides it.
+A new install starts with **Getting started** above the favourites: a ring that fills as the steps are done (installed, the home screen, your favourite apps, the widgets, your town for the weather), the next step with its button, and **Not now**. The town step is already done when a mosque is chosen (the weather goes by its place) or no weather widget is on. It begins one step in, and when the last is done it says **You're set** and goes. After that, until the home screen is set up, a reminder with a **Set up** button stays, which tries the first way and then the second. **Not now** hides it.
 
-<p align="center"><img src="docs/screenshots/getting-started.png" width="70%" alt="Getting started above the favourites: a ring at 2 of 4, Make it the home screen, so Home and closed apps come back here, with Set up and Not now buttons"></p>
+<p align="center"><img src="docs/screenshots/getting-started.png" width="70%" alt="Getting started above the favourites: a ring at 2 of 5, Make it the home screen, so Home and closed apps come back here, with Set up and Not now buttons"></p>
 
 <p align="center"><img src="docs/screenshots/home-prompt.png" width="70%" alt="A reminder above the favourites: Closing an app takes you to the TV's own home screen, with Set up and Not now buttons"></p>
 
@@ -236,7 +236,7 @@ On TVs that ignore that command, turning off the stock launcher works too (turn 
 
 The `latest` release is rebuilt automatically every time `main` changes, so installing it again always gets you the newest version.
 
-Every version also keeps its own release, named after it (**Pill Launcher 3.7.2**, tag `v3.7.2`, file `pill-launcher-3.7.2.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v3.7.2/pill-launcher-3.7.2.apk`. The newest is titled **Pill Launcher 3.7.2 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
+Every version also keeps its own release, named after it (**Pill Launcher 3.8**, tag `v3.8`, file `pill-launcher-3.8.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v3.8/pill-launcher-3.8.apk`. The newest is titled **Pill Launcher 3.8 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
 
 ### Uninstalling
 
@@ -302,12 +302,12 @@ Settings and favourites are saved on the TV and survive restarts and updates.
 
 The forecast comes from [Open-Meteo](https://open-meteo.com/), or from [MET Norway](https://api.met.no/) if Open-Meteo can't be reached, for an exact point, so a small town gets its own weather. Where that point is depends on **Settings → Widgets → Weather location**:
 
-- **Automatic** (the default) finds the TV's approximate location from its internet address with [GeoJS](https://www.geojs.io/). That is often the provider's nearest city rather than your town.
+- **Automatic** (the default) goes by your mosque's place when one is chosen under Prayer times and MAWAQIT says where it is: the TV is near its mosque, so the forecast is for there, and the town's name is looked up once on OpenStreetMap. With no mosque, it finds the TV's approximate location from its internet address with [GeoJS](https://www.geojs.io/), which is often the provider's nearest city rather than your town.
 - **A town you choose**: type its name, and OK on it in the list. Open-Meteo's place search covers small towns and villages, such as Beni Saf; it is tried as typed and without accents or hyphens, and when it finds nothing, OpenStreetMap's place search is asked too. Typing a latitude and longitude, such as `35.30, -1.38`, works too.
 
 <p align="center"><img src="docs/screenshots/settings-weather-place.png" width="100%" alt="Settings, Widgets, Weather location: Automatic, then Choose a town with beni saf typed in, and Beni Saf, Aïn Témouchent, Algeria and Beni Saf Port listed with their coordinates"></p>
 
-None of these services needs an account or key. It refreshes every 30 minutes. Choose °C or °F in settings. Turn off both the Weather and the Sunrise & sunset widgets, and the launcher contacts none of these services. If the weather can't load, Settings shows why under the Weather widget's row. Sunrise and sunset are worked out on the TV from the same location.
+None of these services needs an account or key. It refreshes every 30 minutes, and at once when the TV wakes after sleeping through a refresh, or when the internet comes back after a failed one (the same goes for football, headlines, prayer times and the online photos). Choose °C or °F in settings. Turn off both the Weather and the Sunrise & sunset widgets, and the launcher contacts none of these services. If the weather can't load, Settings shows why under the Weather widget's row. Sunrise and sunset are worked out on the TV from the same location.
 
 OK on the weather card opens the weather dashboard:
 
@@ -412,7 +412,7 @@ gradle assembleDebug                                   # app/build/outputs/apk/d
 gradle :app:testDebugUnitTest --tests '*Screenshots*'  # re-render docs/screenshots
 ```
 
-**Builds are automated.** `.github/workflows/build.yml` builds the APK for every pull request and push; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v3.7.2`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
+**Builds are automated.** `.github/workflows/build.yml` runs every test and then builds the APK for every pull request and push, so a failing test stops a release; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v3.8`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
 
 <details>
 <summary><b>Architecture</b></summary>
@@ -421,6 +421,8 @@ gradle :app:testDebugUnitTest --tests '*Screenshots*'  # re-render docs/screensh
 app/src/main/java/app/pill/launcher/
   MainActivity.kt        launcher activity: loads apps, opens them, keeps pins and settings
   AppModel.kt            lists launchable apps with their icons and kinds (video, music, games)
+  AppCache.kt            the app list as last seen, saved so a cold start shows the apps at once
+  Refresh.kt             ends the data loops' waits early when the TV wakes or the internet returns
   LauncherSettings.kt    settings and pinned apps in SharedPreferences
   Weather.kt             location and forecast lookup, condition names and units
   Widgets.kt             the widget kinds, the four-widget limit, toggling and reordering

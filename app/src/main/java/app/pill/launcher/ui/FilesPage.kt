@@ -298,6 +298,18 @@ private fun ColumnScope.ReceivePanel(state: app.pill.launcher.ShareState, keepRe
         overflow = TextOverflow.Ellipsis,
         modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
     )
+    // A scan that never arrives is the phone's doing. The commonest cause on a new phone:
+    // Android 17 keeps Chrome off the home network until it is allowed
+    if (state.running && state.lastVisit == null) {
+        Text(
+            "Phone says the site can't be reached? On the phone: Settings → Apps → Chrome → Permissions → Nearby devices → Allow. It must be on this Wi-Fi, without a VPN.",
+            color = Palette.TextTertiary,
+            fontSize = 12.sp,
+            lineHeight = 16.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+        )
+    }
     Spacer(Modifier.height(12.dp))
     for (t in state.transfers.take(2)) {
         Column(Modifier.fillMaxWidth().padding(bottom = 8.dp).background(Color(0x14FFFFFF), RoundedCornerShape(14.dp)).padding(horizontal = 12.dp, vertical = 9.dp)) {

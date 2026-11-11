@@ -1129,7 +1129,7 @@ class Screenshots {
     @Test
     fun gettingStarted() {
         show("canyon-river", pins = favorites, home = HomeStatus(isDefault = false, redirectOn = false), settings = LauncherSettings(weather = WeatherMode.Celsius, setupDone = false))
-        compose.onNodeWithText("Getting started · 2 of 4 done").assertIsDisplayed()
+        compose.onNodeWithText("Getting started · 2 of 5 done").assertIsDisplayed()
         compose.onNodeWithText("Set up").assertIsDisplayed()
         // The old reminder waits until getting started is over
         compose.onNodeWithText("Closing an app takes you to the TV's own home screen").assertDoesNotExist()

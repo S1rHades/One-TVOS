@@ -175,9 +175,17 @@ fun parseOsmPlaces(body: String): List<Place> {
     }.distinctBy { it.label }
 }
 
+/** The town at a point, from Nominatim's reverse lookup (`address.town` and its kin, else the result's own name); null when it names none. */
+fun parseOsmTown(body: String): String? {
+    val json = JSONObject(body)
+    val address = json.optJSONObject("address")
+    return listOf("city", "town", "village", "municipality", "hamlet").firstNotNullOfOrNull { k -> address?.optString(k)?.takeIf { it.isNotBlank() } }
+        ?: json.optString("name").takeIf { it.isNotBlank() }
+}
+
 /**
- * Fetches the weather for a chosen [Place], or else for the TV's approximate location,
- * found from its IP address.
+ * Fetches the weather for a chosen [Place]; or else for a place the TV is known to be near
+ * (its mosque); or else for the TV's approximate location, found from its IP address.
  * No API keys: GeoJS for the location and Open-Meteo for the forecast, or MET Norway when
  * Open-Meteo can't be reached. The answer is saved, so the card and the forecast page have
  * the last reading at once after a restart or while offline. Call off the main thread.
@@ -185,10 +193,32 @@ fun parseOsmPlaces(body: String): List<Place> {
 class WeatherSource(context: Context) {
     private val prefs = context.getSharedPreferences("weather", Context.MODE_PRIVATE)
 
-    /** The last reading for [place] (null: the approximate location), re-read from the saved answer; marked by its fetch time. */
-    fun cached(place: Place? = null): Weather? = runCatching {
+    /** Lookups of a town's name that failed in this run, so each is tried once, not on every refresh. */
+    private val townsTried = HashSet<String>()
+
+    private fun keyFor(chosen: Place?, near: Place?) = chosen?.key ?: near?.let { "near:" + it.key } ?: Automatic
+
+    /**
+     * The name of the town at [near], asked of OpenStreetMap once and remembered; until it
+     * answers, the name [near] came with (which may be blank, or in the mosque's own language).
+     */
+    private fun townAt(near: Place): String {
+        val saved = prefs.getString("town:" + near.key, null)
+        if (saved != null) return saved
+        if (townsTried.add(near.key)) {
+            val url = String.format(Locale.ROOT, "https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=10&accept-language=en&lat=%.5f&lon=%.5f", near.lat, near.lon)
+            runCatching { parseOsmTown(httpGet(url, OsmUserAgent)) }.getOrNull()?.let { town ->
+                prefs.edit().putString("town:" + near.key, town).apply()
+                return town
+            }
+        }
+        return near.name
+    }
+
+    /** The last reading for [place] (or near [near]; neither: the approximate location), re-read from the saved answer; marked by its fetch time. */
+    fun cached(place: Place? = null, near: Place? = null): Weather? = runCatching {
         // A reading for somewhere else isn't shown: "Finding your area…" until the new one comes
-        if (prefs.getString("for", Automatic) != (place?.key ?: Automatic)) return null
+        if (prefs.getString("for", Automatic) != keyFor(place, near)) return null
         val body = prefs.getString("body", null) ?: return null
         val at = Instant.ofEpochMilli(prefs.getLong("at", 0))
         val place = prefs.getString("place", "").orEmpty()
@@ -201,12 +231,14 @@ class WeatherSource(context: Context) {
         }
     }.getOrNull()
 
-    fun fetch(chosen: Place? = null): Result<Weather> = runCatching {
-        val (lat, lon, place) = if (chosen != null) {
-            Triple(chosen.lat, chosen.lon, chosen.name)
-        } else {
-            val geo = JSONObject(httpGet("https://get.geojs.io/v1/ip/geo.json"))
-            Triple(geo.getString("latitude").toDouble(), geo.getString("longitude").toDouble(), geo.optString("city"))
+    fun fetch(chosen: Place? = null, near: Place? = null): Result<Weather> = runCatching {
+        val (lat, lon, place) = when {
+            chosen != null -> Triple(chosen.lat, chosen.lon, chosen.name)
+            near != null -> Triple(near.lat, near.lon, townAt(near))
+            else -> {
+                val geo = JSONObject(httpGet("https://get.geojs.io/v1/ip/geo.json"))
+                Triple(geo.getString("latitude").toDouble(), geo.getString("longitude").toDouble(), geo.optString("city"))
+            }
         }
         val now = Instant.now()
         // Some networks cannot reach Open-Meteo at all; MET Norway covers the whole world too
@@ -223,7 +255,7 @@ class WeatherSource(context: Context) {
         prefs.edit()
             .putString("service", service).putString("body", body).putLong("at", now.toEpochMilli())
             .putString("place", place).putFloat("lat", lat.toFloat()).putFloat("lon", lon.toFloat())
-            .putString("for", chosen?.key ?: Automatic)
+            .putString("for", keyFor(chosen, near))
             .apply()
         weather
     }
@@ -233,7 +265,7 @@ private const val OpenMeteo = "open-meteo"
 /** Saved readings for the approximate location (from before places could be chosen, too). */
 private const val Automatic = "auto"
 private const val MetNorway = "met-norway"
-private const val MetUserAgent = "PillLauncher/2.5 github.com/S1rHades/One-TVOS"
+private const val MetUserAgent = "PillLauncher github.com/S1rHades/One-TVOS"
 
 /** The root cause's class name, e.g. "SocketTimeoutException". */
 private fun shortName(error: Throwable): String = generateSequence(error) { it.cause }.last()::class.java.simpleName
