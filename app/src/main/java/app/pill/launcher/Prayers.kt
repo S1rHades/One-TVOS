@@ -22,7 +22,8 @@ enum class Prayer(val title: String) {
  * One day of a mosque's prayer times from MAWAQIT. [times] holds the five prayers (any the
  * answer lacked are left out); [iqama] the congregation times where the mosque gives them,
  * already worked out from "+10"-style offsets. [forDate] is the day the times are for: a
- * saved copy from an earlier day is still shown, marked.
+ * saved copy from an earlier day is still shown, marked, unless the mosque's saved calendar
+ * has the new day ([fromCalendar]).
  */
 data class PrayerTimes(
     val mosque: String,
@@ -36,6 +37,14 @@ data class PrayerTimes(
     /** Where the mosque is, when MAWAQIT says. */
     val lat: Double? = null,
     val lon: Double? = null,
+    /** Fajr on the day after [forDate], from the mosque's calendar: what "next" is after Isha. */
+    val fajrTomorrow: LocalTime? = null,
+    /** The Friday prayer, where the mosque gives its time. */
+    val jumua: LocalTime? = null,
+    /** Days the mosque's Islamic date runs ahead of (or behind) the calculated calendar. */
+    val hijriAdjustment: Int = 0,
+    /** The times are [forDate]'s from the mosque's saved calendar, not from a fetch that day. */
+    val fromCalendar: Boolean = false,
 ) {
     /**
      * The mosque's spot as a place for the weather: the TV is near its mosque far more surely
@@ -84,7 +93,9 @@ fun nextPrayer(times: PrayerTimes, now: ZonedDateTime): NextPrayer? {
         if (!at.isBefore(now)) return NextPrayer(p, at, tomorrow = false)
     }
     val (p, t) = list.first()
-    return NextPrayer(p, ZonedDateTime.of(today.plusDays(1), t, now.zone), tomorrow = true)
+    // Tomorrow's own Fajr where the calendar has it (a minute or so off today's), else today's time again
+    val fajr = if (p == Prayer.Fajr && times.forDate == today) times.fajrTomorrow ?: t else t
+    return NextPrayer(p, ZonedDateTime.of(today.plusDays(1), fajr, now.zone), tomorrow = true)
 }
 
 /** "in 42 min", "in 2 h 05 min", "now" within the minute. */
@@ -118,8 +129,13 @@ fun whenText(at: ZonedDateTime, now: ZonedDateTime): String {
  * - `{"mosque", "times": {…}, "iqama": {…}}` with English names.
  * Iqama may be clock times or "+10"-style offsets. Anything unreadable is left out; an
  * answer with no prayer at all is an error. [fallbackName] names a mosque the answer doesn't.
+ *
+ * The answer's own times are for the day it was fetched. MAWAQIT's page data also carries
+ * the mosque's `calendar` for the whole year (a month per entry, each day's six times with
+ * sunrise second): with [fromCalendar], [forDate]'s times are read from it instead, so a
+ * saved answer still gives the right times on a later day. An error when it lacks that day.
  */
-fun parsePrayerTimes(body: String, fetchedAt: Instant, forDate: LocalDate, fallbackName: String = ""): PrayerTimes {
+fun parsePrayerTimes(body: String, fetchedAt: Instant, forDate: LocalDate, fallbackName: String = "", fromCalendar: Boolean = false): PrayerTimes {
     val outer = JSONObject(body)
     val json = outer.optJSONObject("rawdata") ?: outer
     val mosque = listOf("mosque", "name", "label").firstNotNullOfOrNull { k ->
@@ -127,7 +143,8 @@ fun parsePrayerTimes(body: String, fetchedAt: Instant, forDate: LocalDate, fallb
     } ?: fallbackName
     val times = HashMap<Prayer, LocalTime>()
     var shuruq: LocalTime? = null
-    when (val raw = json.opt("times")) {
+    val calendar = json.optJSONArray("calendar")
+    when (val raw = if (fromCalendar) dayIn(calendar, forDate) ?: error("The saved calendar has no times for $forDate") else json.opt("times")) {
         is JSONObject -> {
             readNamed(raw, times)
             shuruq = sunriseIn(raw)
@@ -145,10 +162,10 @@ fun parsePrayerTimes(body: String, fetchedAt: Instant, forDate: LocalDate, fallb
         // The prayer-times endpoint: the times are the answer itself
         else -> readNamed(json, times)
     }
-    if (shuruq == null) shuruq = sunriseIn(json)
+    if (shuruq == null && !fromCalendar) shuruq = sunriseIn(json)
     check(times.isNotEmpty()) { "No prayer times in the answer" }
     val iqama = HashMap<Prayer, LocalTime>()
-    val todays = json.opt("iqama") ?: iqamaFromCalendar(json.optJSONArray("iqamaCalendar"), forDate)
+    val todays = (if (fromCalendar) null else json.opt("iqama")) ?: dayIn(json.optJSONArray("iqamaCalendar"), forDate)
     when (todays) {
         is JSONObject -> for (p in Prayer.entries) iqamaFor(namedIn(todays, p), times[p])?.let { iqama[p] = it }
         is JSONArray -> for ((i, p) in Prayer.entries.withIndex()) if (i < todays.length()) iqamaFor(todays.optString(i), times[p])?.let { iqama[p] = it }
@@ -157,7 +174,20 @@ fun parsePrayerTimes(body: String, fetchedAt: Instant, forDate: LocalDate, fallb
     val lon = json.optDouble("longitude").takeIf { it in -180.0..180.0 }
     // Both or neither; MAWAQIT leaves a mosque it can't place at 0, 0
     val placed = lat != null && lon != null && !(lat == 0.0 && lon == 0.0)
-    return PrayerTimes(mosque, times, shuruq, iqama, forDate, fetchedAt, lat = lat.takeIf { placed }, lon = lon.takeIf { placed })
+    // Tomorrow's Fajr: the first of the next day's times in the calendar
+    val fajrTomorrow = when (val next = dayIn(calendar, forDate.plusDays(1))) {
+        is JSONArray -> parseClock(next.optString(0))
+        is JSONObject -> namedIn(next, Prayer.Fajr)?.let(::parseClock)
+        else -> null
+    }
+    return PrayerTimes(
+        mosque, times, shuruq, iqama, forDate, fetchedAt,
+        lat = lat.takeIf { placed }, lon = lon.takeIf { placed },
+        fajrTomorrow = fajrTomorrow,
+        jumua = parseClock(json.optString("jumua")),
+        hijriAdjustment = json.optInt("hijriAdjustment", 0).coerceIn(-3, 3),
+        fromCalendar = fromCalendar,
+    )
 }
 
 /** The names a prayer goes by in MAWAQIT's answers: English, then MAWAQIT's own French ones. */
@@ -179,8 +209,8 @@ private fun readNamed(o: JSONObject, into: MutableMap<Prayer, LocalTime>) {
 private fun sunriseIn(o: JSONObject): LocalTime? =
     listOf("shuruq", "sunrise", "chourouk").firstNotNullOfOrNull { parseClock(o.optString(it)) }
 
-/** Today's iqama offsets from MAWAQIT's year of them: a month per entry, keyed by the day of the month. */
-private fun iqamaFromCalendar(calendar: JSONArray?, day: LocalDate): Any? {
+/** [day]'s entry in one of MAWAQIT's year calendars (prayer times, or iqama offsets): a month per entry, keyed by the day of the month. */
+private fun dayIn(calendar: JSONArray?, day: LocalDate): Any? {
     val month = calendar?.opt(day.monthValue - 1) ?: return null
     return when (month) {
         is JSONObject -> month.opt(day.dayOfMonth.toString())
@@ -225,7 +255,11 @@ class PrayerSource(
         val body = prefs.getString("body", null) ?: return null
         val at = Instant.ofEpochMilli(prefs.getLong("at", 0))
         val forDate = prefs.getString("date", null)?.let { LocalDate.parse(it) } ?: at.atZone(zone).toLocalDate()
-        parsePrayerTimes(body, at, forDate, mosqueName(slug)).copy(fromCache = true)
+        val today = LocalDate.now(zone)
+        // Saved on an earlier day: today's times from the mosque's calendar in the saved answer, where
+        // it has one; failing that the saved day's times, which the card marks as yesterday's
+        val fromCalendar = if (forDate == today) null else runCatching { parsePrayerTimes(body, at, today, mosqueName(slug), fromCalendar = true) }.getOrNull()
+        (fromCalendar ?: parsePrayerTimes(body, at, forDate, mosqueName(slug))).copy(fromCache = true)
     }.getOrNull()
 
     /**

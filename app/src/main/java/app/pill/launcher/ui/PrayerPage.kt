@@ -44,6 +44,7 @@ import app.pill.launcher.untilText
 import kotlinx.coroutines.delay
 import java.time.Duration
 import java.time.ZonedDateTime
+import java.util.Locale
 
 /**
  * The page behind the prayer card: the next prayer large with the time left, the day as
@@ -77,6 +78,11 @@ fun PrayerPage(
         }
     }
     val today = times != null && times.forDate == now.toLocalDate()
+    // The Islamic date as the mosque counts it: the calculated calendar, moved by the days MAWAQIT says the mosque is off it
+    val locale = Locale.getDefault()
+    val hijri = remember(now.toLocalDate(), times?.hijriAdjustment, locale) {
+        hijriDate(now.toLocalDate().plusDays((times?.hijriAdjustment ?: 0).toLong()), locale)
+    }
 
     OverlayPage(
         onDismiss = onDismiss,
@@ -103,8 +109,11 @@ fun PrayerPage(
         PageTitle(
             times?.mosque?.ifBlank { null } ?: "Prayer times",
             listOfNotNull(
+                hijri,
                 when {
                     times == null -> null
+                    // A day the TV couldn't ask MAWAQIT: the day's times as the mosque's calendar had them
+                    times.fromCalendar -> "from the mosque's calendar, saved " + ageText(times.fetchedAt).lowercase()
                     times.fromCache -> "saved " + ageText(times.fetchedAt).lowercase()
                     else -> "updated " + ageText(times.fetchedAt).lowercase()
                 },
@@ -171,6 +180,11 @@ fun PrayerPage(
                     for ((p, t) in times.list) {
                         TimeRow(p.title, t.format(clock), if (times.iqama.isEmpty()) null else times.iqama[p]?.format(clock) ?: "–", current = next?.prayer == p)
                     }
+                    // The Friday prayer, where the mosque gives its time: bright on a Friday until it has begun
+                    times.jumua?.let { j ->
+                        val due = now.dayOfWeek == java.time.DayOfWeek.FRIDAY && now.toLocalTime().isBefore(j)
+                        TimeRow("Friday prayer", j.format(clock), if (times.iqama.isEmpty()) null else "", current = false, bright = due)
+                    }
                 }
                 Spacer(Modifier.weight(1f))
                 PageFooter(
@@ -190,8 +204,8 @@ private val AdhanWidth = 118.dp
 private val IqamaWidth = 86.dp
 
 @Composable
-private fun TimeRow(name: String, time: String, iqama: String?, current: Boolean) {
-    val color = if (current) Palette.TextPrimary else Palette.TextSecondary
+private fun TimeRow(name: String, time: String, iqama: String?, current: Boolean, bright: Boolean = current) {
+    val color = if (bright) Palette.TextPrimary else Palette.TextSecondary
     Row(Modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.width(14.dp), contentAlignment = Alignment.Center) {
             if (current) Box(Modifier.size(7.dp).background(PrayerGreen, CircleShape))

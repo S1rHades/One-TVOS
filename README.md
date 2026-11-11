@@ -138,6 +138,7 @@ Pill Launcher's own notifications:
 - **Updates**: a new version is ready, "Updated to 3.3" with what was new in it, or why an update didn't install.
 - **Football**: the kick-off reminder ten minutes before a followed team plays, then goals and wins.
 - **Connection**: when the internet has been gone a minute, then "Back online" with how long it dropped.
+- **Prayer times**: each prayer as its time comes, with its iqama, for a quarter of an hour, while the prayer times widget is on. **OK** on it opens the prayer page.
 - **Files**: each file that arrives from a phone.
 
 **Other apps' notifications** show too once the TV allows it: **Settings → Notifications → Other apps' notifications** opens the TV's **Notification access** screen. Many TVs hide that screen; then it's allowed once from a computer with `adb shell cmd notification allow_listener app.pill.launcher/app.pill.launcher.NotificationWatcher`. Low-memory TVs don't allow it at all. Ongoing ones (music playing, downloads) stay out, and each app can be muted on the same page. **Hide private messages** shows a notification an app marks private (a message's text, say) as just "New notification" under the app's name.
@@ -145,7 +146,7 @@ Pill Launcher's own notifications:
 <table>
   <tr>
     <td width="50%"><img src="docs/screenshots/notifications.png" alt="The notification bar opened downwards over Favorites, grouped by source on cards: Pill Launcher with 3.4 is ready (Update and Later) and Updated to 3.3, a film app's new episode, Files with holiday.jpg arrived from an iPhone, and Football with a goal for Algeria; Clear all and the bell at the top right"><br><sub><b>The list</b>: OK on the bell opens every notification, grouped by source.</sub></td>
-    <td width="50%"><img src="docs/screenshots/settings-notifications.png" alt="Settings, Notifications: Other apps' notifications needing Notification access, then Football and Connection switched on"><br><sub><b>Settings → Notifications</b>: other apps, football and the connection.</sub></td>
+    <td width="50%"><img src="docs/screenshots/settings-notifications.png" alt="Settings, Notifications: Other apps' notifications needing Notification access, then Football, Connection and Prayer times switched on"><br><sub><b>Settings → Notifications</b>: other apps, football, the connection and prayer times.</sub></td>
   </tr>
 </table>
 
@@ -181,7 +182,7 @@ Your phone opens a plain page in its browser, with nothing to install: **Send to
 
 ### Settings
 
-**Settings** in the bar opens a floating card with six categories, all on screen at once: **Home screen** (the photos, the favourites row and the idle screen), **Widgets**, **Notifications**, **Files**, **Home & startup**, and **TV & system**. **TV & system** holds the launcher's **Updates**, frees memory, and opens the TV's network, display, sound, storage and update screens. Options few people need, such as the prayer times' API address and the list of trusted phones, wait under an **Advanced** row on their page; OK unfolds them.
+**Settings** in the bar opens a floating card with six categories, all on screen at once: **Home screen** (the photos, the favourites row and the idle screen), **Widgets**, **Notifications**, **Files**, **Home & startup**, and **TV & system**. **TV & system** holds the launcher's **Updates**, frees memory, opens the TV's network, display, sound, storage and update screens, and backs up and restores the launcher's settings (see [Backing up your settings](#backing-up-your-settings)). Options few people need, such as the prayer times' API address and the list of trusted phones, wait under an **Advanced** row on their page; OK unfolds them.
 
 <table>
   <tr>
@@ -236,7 +237,13 @@ On TVs that ignore that command, turning off the stock launcher works too (turn 
 
 The `latest` release is rebuilt automatically every time `main` changes, so installing it again always gets you the newest version.
 
-Every version also keeps its own release, named after it (**Pill Launcher 3.8**, tag `v3.8`, file `pill-launcher-3.8.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v3.8/pill-launcher-3.8.apk`. The newest is titled **Pill Launcher 3.8 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
+Every version also keeps its own release, named after it (**Pill Launcher 3.9**, tag `v3.9`, file `pill-launcher-3.9.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v3.9/pill-launcher-3.9.apk`. The newest is titled **Pill Launcher 3.9 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
+
+### Backing up your settings
+
+**Settings → TV & system → Back up settings** saves everything you've set up as one small file in Files, named `pill-launcher-backup-` and the date: your favourites and their order, the names you gave apps, the widgets, teams, your mosque, the weather town and every switch. Open the **Files** page and send it to your phone to keep it; a reinstall removes the TV's copy with everything else.
+
+To put a backup back, on this TV or another: send the file from your phone to the TV on the Files page, then choose **Settings → TV & system → Restore settings**. It takes the newest backup in Files, says which one and when it was made, and asks for **OK** a second time before it replaces the settings. Paired phones, notifications and fetched data (the weather, fixtures, prayer times) aren't in a backup: phones pair again, and the data is fetched again.
 
 ### Uninstalling
 
@@ -293,6 +300,7 @@ If the launcher won't open, use the TV's own **Settings → Apps → Pill Launch
 | See another prayer's time on the prayer card | With it focused, **Left** / **Right** (it goes back to the next prayer after 10 seconds) |
 | Open the prayer page, and refresh the times | Go up to the prayer card, then **OK**; **Refresh** at the top left |
 | Free up memory, or open the TV's network, display, sound or update screens | **Settings → TV & system** |
+| Back up the launcher's settings to a file, or restore them from one | **Settings → TV & system → Back up settings** / **Restore settings** (OK twice) |
 | Uninstall Pill Launcher (OK twice, then confirm) | **Settings → TV & system → Uninstall Pill Launcher** |
 | Close a page or settings | **Back** (pages say so the first three times) |
 
@@ -369,15 +377,19 @@ Al Jazeera is read from its RSS feed, or from a copy the Fixtures mirror keeps o
 
 ### Prayer times
 
-The prayer times widget shows today's five prayers from your mosque on [MAWAQIT](https://mawaqit.net), read from the mosque's page on mawaqit.net, with the community MAWAQIT API (`https://mawaqit-api.vercel.app/api/v1/<mosque>/`) as a fallback; no account or key. The card names the mosque, shows the next prayer with its time and how long until it, ticking every minute, and the five prayers along the bottom with the next one marked. In a compact layout it shows the prayer after the next instead of the row. After Isha it counts down to tomorrow's Fajr. With the card focused, **Left** / **Right** step through the day's prayers: the picked one's time takes the big line, with how long ago it was or how long until it, and the card goes back to the next prayer ten seconds after the last press, or when you move off it.
+The prayer times widget shows today's five prayers from your mosque on [MAWAQIT](https://mawaqit.net), read from the mosque's page on mawaqit.net, with the community MAWAQIT API (`https://mawaqit-api.vercel.app/api/v1/<mosque>/`) as a fallback; no account or key. The card names the mosque, shows the next prayer with its time and how long until it, ticking every minute, and the five prayers along the bottom with the next one marked. In a compact layout it shows the prayer after the next instead of the row, or on a Friday, until it begins, the Friday prayer where the mosque gives its time. After Isha it counts down to tomorrow's Fajr, at tomorrow's own time. With the card focused, **Left** / **Right** step through the day's prayers: the picked one's time takes the big line, with how long ago it was or how long until it, and the card goes back to the next prayer ten seconds after the last press, or when you move off it.
 
 <p align="center"><img src="docs/screenshots/prayer-widget.png" width="100%" alt="The home screen with two wide widgets: the clock, and the prayer card for Moscow Cathedral Mosque with Maghrib next in 42 minutes and Fajr, Dhuhr, Asr, Maghrib and Isha with their times along the bottom, Maghrib marked with a green dot"></p>
 
-OK on the card opens the prayer page: the next prayer large with the time left and its iqama, the day as a line from Fajr to Isha with a mark for now, and every prayer with its adhan and iqama times where the mosque gives them. The title says when the times last came. **Refresh** at the top left asks MAWAQIT again: its arrows turn while it asks, and it says **Updated ✓** for a moment when the new times are in. Changing the TV's time zone, date or clock fetches them again by itself.
+OK on the card opens the prayer page: the next prayer large with the time left and its iqama, the day as a line from Fajr to Isha with a mark for now, and every prayer with its adhan and iqama times where the mosque gives them, with the **Friday prayer** under them when the mosque has one. The title gives the Islamic date as the mosque counts it (the Umm al-Qura calendar, moved by the day or two MAWAQIT says the mosque is off it) and says when the times last came. **Refresh** at the top left asks MAWAQIT again: its arrows turn while it asks, and it says **Updated ✓** for a moment when the new times are in. Changing the TV's time zone, date or clock fetches them again by itself.
 
-<p align="center"><img src="docs/screenshots/prayer-page.png" width="100%" alt="The prayer page for Moscow Cathedral Mosque: a Refresh button at the top left; Next, Maghrib, its time and in 42 min with its iqama; Today as a line from Fajr to Isha with Maghrib's dot in green; and on the right the five prayers with Adhan and Iqama columns"></p>
+<p align="center"><img src="docs/screenshots/prayer-page.png" width="100%" alt="The prayer page for Moscow Cathedral Mosque, with the Islamic date beside its name: a Refresh button at the top left; Next, Maghrib, its time and in 42 min with its iqama; Today as a line from Fajr to Isha with Maghrib's dot in green; and on the right the five prayers with Adhan and Iqama columns, and the Friday prayer under them"></p>
 
-The times are saved on the TV, so the card has them at once after a restart or while offline (the label turns grey and the page says "saved"), and they refresh on their own just after midnight for the new day. A failed fetch keeps the saved times and tries again, after 10 seconds, then 30, a minute, two, five. Yesterday's times stay up, marked, until the new day's arrive.
+At each prayer's time a notice joins the notification bar for a quarter of an hour, with the prayer, its time and its iqama. **Settings → Notifications → Prayer times** turns it off.
+
+<p align="center"><img src="docs/screenshots/prayer-notice.png" width="100%" alt="The home screen three minutes after Maghrib: the notification bar under the clock and the prayer card shows a crescent and Maghrib, 4:22 PM, Prayer time, Iqama 4:27 PM, 3 min, and the bell has a red dot"></p>
+
+The times are saved on the TV, so the card has them at once after a restart or while offline (the label turns grey and the page says "saved"), and they refresh on their own just after midnight for the new day. A failed fetch keeps the saved times and tries again, after 10 seconds, then 30, a minute, two, five. MAWAQIT's page carries the mosque's calendar for the whole year, and it is saved with the times: on a day the TV can't reach MAWAQIT (offline at midnight, or for a week), the card shows that day's times from the saved calendar, and the page says so. Only a mosque whose answer has no calendar keeps yesterday's times up, marked, until the new day's arrive.
 
 Choose the mosque under **Settings → Widgets → Prayer times** by its MAWAQIT ID, the number at the bottom left of the mosque's MAWAQIT screen, or by the end of its mawaqit.net address (for `mawaqit.net/en/obada-benisaf` that is `obada-benisaf`; pasting the whole address works too), then Done. The page says which mosque that is by name (**✓ Found: …**), so you can tell it's the right one, and mosques that worked before stay under **Recent**, one press away. The times are read from the mosque's own MAWAQIT page, where its screen gets them, with the community API as a fallback. There is no mosque search: MAWAQIT doesn't allow other apps to use its search. An ID or address MAWAQIT doesn't know says so, a failure names what each source answered, and every failed check shows the time it was made, so **Refresh** visibly tries again.
 
@@ -412,7 +424,7 @@ gradle assembleDebug                                   # app/build/outputs/apk/d
 gradle :app:testDebugUnitTest --tests '*Screenshots*'  # re-render docs/screenshots
 ```
 
-**Builds are automated.** `.github/workflows/build.yml` runs every test and then builds the APK for every pull request and push, so a failing test stops a release; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v3.8`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
+**Builds are automated.** `.github/workflows/build.yml` runs every test and then builds the APK for every pull request and push, so a failing test stops a release; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v3.9`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
 
 <details>
 <summary><b>Architecture</b></summary>
@@ -429,10 +441,11 @@ app/src/main/java/app/pill/launcher/
   Football.kt            followed teams' fixtures and tables from TheSportsDB or the mirror
   MatchDay.kt            match-day countdown and the kick-off reminder
   News.kt                headlines from Al Jazeera and RT, picked by topic
-  Prayers.kt             prayer times from a mosque on MAWAQIT: the answer, the next prayer, the saved copy
+  Prayers.kt             prayer times from a mosque on MAWAQIT: the answer, the mosque's calendar, the next prayer, the saved copy
+  Backup.kt              the settings as one file, and putting one back
   SpeedTest.kt           ping, download and upload against Cloudflare's speed test
   Updates.kt             newer releases from GitHub: check, download, install, and the installer's answer
-  Notifications.kt       the notification bar's notices: kept ones, updates, football, the connection, and other apps' (NotificationWatcher)
+  Notifications.kt       the notification bar's notices: kept ones, updates, football, the connection, prayer times, and other apps' (NotificationWatcher)
   FileShare.kt           Files: the small web server phones send to, pairing and trusted phones, the files on the TV, tidying
   CrashGuard.kt          notes crashes; two within a minute start the launcher in safe mode
   Moments.kt             goals and wins noticed between football fetches, and the match minute

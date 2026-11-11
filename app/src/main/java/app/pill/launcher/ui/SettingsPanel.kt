@@ -900,13 +900,14 @@ private fun summaryOf(page: SettingsPage, settings: LauncherSettings, home: Home
         if (settings.appNotices) "App notifications" else null,
         if (settings.footballNotices) "football" else null,
         if (settings.connectionNotices) "connection" else null,
+        if (settings.prayerNotices) "prayer times" else null,
     ).joinToString(", ").replaceFirstChar { it.uppercase() }.ifEmpty { "Updates and files only" }
     SettingsPage.Files -> listOfNotNull(
         if (settings.keepReceiving) "Keep receiving" else null,
         if (settings.askInstalledApks) "asks before deleting APKs" else null,
         if (settings.tidyOld) "files kept 30 days" else null,
     ).joinToString(", ").replaceFirstChar { it.uppercase() }.ifEmpty { "Phones, tidying" }
-    SettingsPage.System -> "Updates, free up memory, network, display, sound, uninstall"
+    SettingsPage.System -> "Updates, backup, free up memory, network, display, sound, uninstall"
     SettingsPage.Football -> settings.teams.joinToString(", ") { it.name }
     SettingsPage.News -> settings.newsTopics.joinToString(", ") { it.title }
     SettingsPage.Stack -> settings.stack.joinToString(", ") { it.title }
@@ -925,6 +926,8 @@ enum class SystemAction(val title: String, val subtitle: String) {
     DateTime("Date & time", "Time zone and clock format"),
     About("About this TV", "Model, Android version, security patch"),
     AllSettings("All Android TV settings", "Everything else"),
+    Backup("Back up settings", "Saves your favourites, names, widgets, teams, mosque and switches as a file in Files"),
+    Restore("Restore settings", "From the newest backup in Files; send one from your phone first"),
     Uninstall("Uninstall Pill Launcher", "Removes the launcher and its settings; the TV's own home screen takes over"),
 }
 
@@ -1144,6 +1147,11 @@ private fun NotificationsPage(
             subtitle = "When the internet drops, and how long it was gone",
             onClick = { onChange(settings.copy(connectionNotices = !settings.connectionNotices)) },
         ) { focused -> Switch(checked = settings.connectionNotices, focused = focused) }
+        SettingRow(
+            title = "Prayer times",
+            subtitle = "Each prayer as its time comes, for a quarter of an hour, while the prayer times widget is on",
+            onClick = { onChange(settings.copy(prayerNotices = !settings.prayerNotices)) },
+        ) { focused -> Switch(checked = settings.prayerNotices, focused = focused) }
     }
     if (access && settings.appNotices && apps.isNotEmpty()) {
         Group("Apps") {

@@ -20,7 +20,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /** Where a notification comes from, which decides its icon and what OK does. */
-enum class NoticeKind { Update, Updated, Football, Connection, File, App }
+enum class NoticeKind { Update, Updated, Football, Connection, File, App, Prayer }
 
 /**
  * One notification in the bar under the widgets: Pill Launcher's own (an update, a goal,
@@ -145,6 +145,23 @@ fun momentNotice(m: FootballMoment): Notice {
 }
 
 /** No connection right now (shown while it lasts). */
+/** How long a prayer's notice stays in the bar after its time. */
+val PrayerNoticeFor: Duration = Duration.ofMinutes(15)
+
+/**
+ * The prayer whose time has just come, as a notice: from its time until [PrayerNoticeFor]
+ * later. [clock] writes a time as the TV shows it ("6:06 PM"). Null between prayers, and
+ * for times that aren't today's (a saved copy from an earlier day).
+ */
+fun prayerNotice(times: PrayerTimes, now: java.time.ZonedDateTime, clock: (java.time.LocalTime) -> String): Notice? {
+    if (times.forDate != now.toLocalDate()) return null
+    val (prayer, time) = times.list.lastOrNull { (_, t) -> !now.toLocalTime().isBefore(t) } ?: return null
+    val at = java.time.ZonedDateTime.of(times.forDate, time, now.zone)
+    if (Duration.between(at, now) >= PrayerNoticeFor) return null
+    val iqama = times.iqama[prayer]?.let { " · Iqama " + clock(it) }.orEmpty()
+    return Notice("prayer:${times.forDate}:${prayer.name}", NoticeKind.Prayer, "${prayer.title} · ${clock(time)}", "Prayer time$iqama", at.toInstant())
+}
+
 fun offlineNotice(since: Instant): Notice =
     Notice("offline:${since.toEpochMilli()}", NoticeKind.Connection, "No internet connection", "Weather, football and photos wait until it's back", since)
 
@@ -289,6 +306,7 @@ fun noticeGroups(notices: List<Notice>, appLabel: (String) -> String?): List<Pai
             NoticeKind.File -> "Files"
             NoticeKind.Football -> "Football"
             NoticeKind.Connection -> "Connection"
+            NoticeKind.Prayer -> "Prayer times"
             NoticeKind.App -> n.pkg?.let(appLabel) ?: n.title.ifBlank { "Other apps" }
         }
         groups.getOrPut(source) { mutableListOf() } += n

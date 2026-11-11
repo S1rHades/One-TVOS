@@ -985,4 +985,138 @@ class DataTest {
         nudges.wait(200)
         assertTrue((System.nanoTime() - started) / 1_000_000 >= 190)
     }
+
+    /** A year of the mosque's times, as MAWAQIT's page carries it: every day the same but for [special]. */
+    private fun mawaqitCalendar(special: Map<java.time.LocalDate, String>): String =
+        (1..12).joinToString(",", "[", "]") { month ->
+            (1..31).joinToString(",", "{", "}") { day ->
+                val times = special.entries.firstOrNull { it.key.monthValue == month && it.key.dayOfMonth == day }?.value
+                    ?: """["06:00","07:30","12:45","15:40","18:00","19:20"]"""
+                "\"$day\":$times"
+            }
+        }
+
+    /**
+     * MAWAQIT's page data carries the mosque's calendar for the year. A saved answer gives
+     * a later day's times from it, so the card is right on a day the TV couldn't ask; and
+     * after Isha the next prayer is tomorrow's own Fajr.
+     */
+    @Test
+    fun aLaterDaysTimesFromTheMosquesCalendar() {
+        val day = java.time.LocalDate.of(2026, 11, 10)
+        val at = day.atTime(12, 0).toInstant(ZoneOffset.UTC)
+        val calendar = mawaqitCalendar(mapOf(day.plusDays(1) to """["06:09","07:36","12:50","15:42","18:05","19:24"]"""))
+        val iqama = (1..12).joinToString(",", "[", "]") { """{"10":["+15","+10","+10","+5","+10"],"11":["+20","+10","+10","+5","+10"]}""" }
+        val body = """{"name":"Al Noor","times":["06:08","12:49","15:43","18:06","19:25"],"shuruq":"07:36","jumua":"13:00","hijriAdjustment":-1,
+            "calendar":$calendar,"iqamaCalendar":$iqama}"""
+
+        // The day it was fetched: the answer's own times, with tomorrow's Fajr, the Friday prayer and the mosque's Islamic date
+        val fresh = parsePrayerTimes(body, at, day)
+        assertEquals(java.time.LocalTime.of(6, 8), fresh.times[Prayer.Fajr])
+        assertFalse(fresh.fromCalendar)
+        assertEquals(java.time.LocalTime.of(6, 9), fresh.fajrTomorrow)
+        assertEquals(java.time.LocalTime.of(13, 0), fresh.jumua)
+        assertEquals(-1, fresh.hijriAdjustment)
+        // After Isha, the next prayer is tomorrow's Fajr at tomorrow's time
+        val late = day.atTime(22, 0).atZone(ZoneOffset.UTC)
+        val next = nextPrayer(fresh, late)!!
+        assertTrue(next.tomorrow)
+        assertEquals(day.plusDays(1).atTime(6, 9).atZone(ZoneOffset.UTC), next.at)
+
+        // The day after, from the calendar: that day's times, sunrise and iqama
+        val later = parsePrayerTimes(body, at, day.plusDays(1), fromCalendar = true)
+        assertTrue(later.fromCalendar)
+        assertEquals(day.plusDays(1), later.forDate)
+        assertEquals(java.time.LocalTime.of(6, 9), later.times[Prayer.Fajr])
+        assertEquals(java.time.LocalTime.of(7, 36), later.shuruq)
+        assertEquals(java.time.LocalTime.of(19, 24), later.times[Prayer.Isha])
+        assertEquals(java.time.LocalTime.of(6, 29), later.iqama[Prayer.Fajr])
+        // An answer with no calendar can't say: an error, not the wrong day's times
+        assertTrue(runCatching { parsePrayerTimes("""{"times":["06:08","12:49","15:43","18:06","19:25"]}""", at, day.plusDays(1), fromCalendar = true) }.isFailure)
+
+        // The saved copy on a later day: today's times from its calendar, marked as saved
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val zone = ZoneId.of("Africa/Algiers")
+        val today = java.time.LocalDate.now(zone)
+        val todays = mawaqitCalendar(mapOf(today to """["05:11","06:41","12:01","15:02","17:33","18:55"]"""))
+        val prefs = context.getSharedPreferences("prayers", android.content.Context.MODE_PRIVATE)
+        prefs.edit().putString("slug", "al-noor").putString("body", """{"name":"Al Noor","times":["06:08","12:49","15:43","18:06","19:25"],"calendar":$todays}""")
+            .putLong("at", Instant.now().minusSeconds(3 * 86400).toEpochMilli()).putString("date", today.minusDays(3).toString()).apply()
+        val saved = PrayerSource(context, zone).cached("al-noor")!!
+        assertEquals(today, saved.forDate)
+        assertTrue(saved.fromCalendar && saved.fromCache)
+        assertEquals(java.time.LocalTime.of(5, 11), saved.times[Prayer.Fajr])
+        // Saved today: the answer's own times, not the calendar's
+        prefs.edit().putString("date", today.toString()).apply()
+        val sameDay = PrayerSource(context, zone).cached("al-noor")!!
+        assertFalse(sameDay.fromCalendar)
+        assertEquals(java.time.LocalTime.of(6, 8), sameDay.times[Prayer.Fajr])
+    }
+
+    /** A prayer's notice shows from its time for a quarter of an hour, on the day the times are for. */
+    @Test
+    fun aPrayersNoticeAtItsTime() {
+        val day = java.time.LocalDate.of(2026, 11, 10)
+        fun t(h: Int, m: Int) = java.time.LocalTime.of(h, m)
+        val times = PrayerTimes(
+            "Al Noor",
+            mapOf(Prayer.Fajr to t(6, 8), Prayer.Dhuhr to t(12, 49), Prayer.Asr to t(15, 43), Prayer.Maghrib to t(18, 6), Prayer.Isha to t(19, 25)),
+            iqama = mapOf(Prayer.Maghrib to t(18, 11)),
+            forDate = day, fetchedAt = Instant.EPOCH,
+        )
+        val clock = { time: java.time.LocalTime -> "%d:%02d".format(time.hour, time.minute) }
+        fun at(h: Int, m: Int) = day.atTime(h, m).atZone(ZoneOffset.UTC)
+        assertNull("before its time", prayerNotice(times, at(18, 5), clock))
+        val notice = prayerNotice(times, at(18, 6), clock)!!
+        assertEquals(NoticeKind.Prayer, notice.kind)
+        assertEquals("Maghrib · 18:06", notice.title)
+        assertEquals("Prayer time · Iqama 18:11", notice.text)
+        assertEquals(at(18, 6).toInstant(), notice.at)
+        // The same notice for the whole quarter of an hour, so dismissing it once is enough
+        assertEquals(notice.id, prayerNotice(times, at(18, 20), clock)!!.id)
+        assertNull("a quarter of an hour on", prayerNotice(times, at(18, 21), clock))
+        // No iqama given: just the prayer
+        assertEquals("Prayer time", prayerNotice(times, at(19, 30), clock)!!.text)
+        // Yesterday's saved times say nothing about today
+        assertNull(prayerNotice(times, day.plusDays(1).atTime(18, 7).atZone(ZoneOffset.UTC), clock))
+    }
+
+    /** A backup holds every setting, favourites and names; restoring it puts them back and leaves this TV's history alone. */
+    @Test
+    fun settingsBackUpAndComeBack() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val store = SettingsStore(context)
+        val beniSaf = Place("Beni Saf", "Aïn Témouchent", "Algeria", 35.30099, -1.38226)
+        val mine = LauncherSettings(
+            weatherPlace = beniSaf, mosque = "obada-benisaf", prayerNotices = false, idleMinutes = 5,
+            widgets = listOf(WidgetKind.Prayers, WidgetKind.Weather), mutedApps = setOf("tv.noisy", "tv.loud"),
+        )
+        store.save(mine)
+        store.savePins(listOf("tv.cinema", "tv.music"))
+        store.saveNames(mapOf("tv.cinema" to "Films"))
+        store.lastVersion = "3.8"
+        val text = store.backup("3.9", Instant.parse("2026-11-11T10:00:00Z"))
+        val info = backupInfo(text)!!
+        assertEquals("3.9", info.version)
+        assertEquals(Instant.parse("2026-11-11T10:00:00Z"), info.at)
+        assertFalse("this TV's history stays out of a backup", text.contains("lastVersion"))
+
+        // Another TV, or this one after a reinstall: different settings, its own history
+        store.save(LauncherSettings(idleMinutes = 0))
+        store.savePins(listOf("tv.other"))
+        store.saveNames(emptyMap())
+        store.lastVersion = "3.9"
+        assertTrue(store.restore(text))
+        assertEquals(mine, store.load())
+        assertEquals(listOf("tv.cinema", "tv.music"), store.readPins())
+        assertEquals(mapOf("tv.cinema" to "Films"), store.readNames())
+        assertEquals("3.9", store.lastVersion)
+
+        // Anything else is refused, and changes nothing
+        assertNull(backupInfo("""{"hello":"world"}"""))
+        assertNull(backupInfo("not json"))
+        assertFalse(store.restore("""{"app":"pill-launcher","backup":1,"settings":{"idle":{"t":"i","v":"soon"}}}"""))
+        assertFalse(store.restore("holiday.jpg"))
+        assertEquals(mine, store.load())
+    }
 }

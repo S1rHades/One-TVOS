@@ -137,6 +137,7 @@ import app.pill.launcher.NoticeKind
 import app.pill.launcher.backOnlineNotice
 import app.pill.launcher.fileKind
 import app.pill.launcher.kickoffNotice
+import app.pill.launcher.prayerNotice
 import app.pill.launcher.momentNotice
 import app.pill.launcher.offlineNotice
 import app.pill.launcher.updateNotice
@@ -477,14 +478,23 @@ fun LauncherScreen(
         }
     }
 
-    // Everything in the notification bar: an update, a kick-off, the connection, then what's kept
-    // and other apps' (unless muted), newest first
+    // The prayer whose time has come, for a quarter of an hour, while the prayer times widget is on
+    val prayerMinute by rememberMinute()
+    val prayerClock = rememberClockFormat()
+    val prayerNow = remember(prayers, prayerMinute, settings, prayerClock) {
+        prayers?.takeIf { settings.prayerNotices && WidgetKind.Prayers in settings.activeWidgets() }
+            ?.let { prayerNotice(it, prayerMinute) { t -> t.format(prayerClock) } }
+    }
+
+    // Everything in the notification bar: an update, a kick-off, a prayer's time, the connection,
+    // then what's kept and other apps' (unless muted), newest first
     var dismissedLive by remember { mutableStateOf(setOf<String>()) }
-    val allNotices = remember(notices, update, updateDismissed, banner, offlineShown, dismissedLive, settings, bannerNow) {
+    val allNotices = remember(notices, update, updateDismissed, banner, offlineShown, dismissedLive, settings, bannerNow, prayerNow) {
         val now = Instant.now()
         listOfNotNull(
             updateNotice(update, updateDismissed, now),
             banner?.takeIf { settings.footballNotices }?.let { (team, match) -> kickoffNotice(team, match, now) },
+            prayerNow,
             offlineSince?.takeIf { offlineShown && settings.connectionNotices }?.let { offlineNotice(it) },
         ).plus(
             notices.filter { it.kind != NoticeKind.App || (settings.appNotices && it.pkg !in settings.mutedApps) }
@@ -503,7 +513,7 @@ fun LauncherScreen(
         when {
             n.kind == NoticeKind.Update -> onLaterUpdate()
             n.id.startsWith("kickoff:") -> bannersShown = bannersShown + n.id.removePrefix("kickoff:")
-            n.id.startsWith("offline:") -> dismissedLive = dismissedLive + n.id
+            n.id.startsWith("offline:") || n.kind == NoticeKind.Prayer -> dismissedLive = dismissedLive + n.id
             else -> onDismissNotice(n)
         }
     }
@@ -521,6 +531,7 @@ fun LauncherScreen(
             }
             NoticeKind.Football -> (football.firstOrNull { it.team.id == n.target } ?: football.firstOrNull())?.let { hubTeam = it.team }
             NoticeKind.Connection -> internetOpen = true
+            NoticeKind.Prayer -> prayersOpen = true
             NoticeKind.File -> {
                 val file = n.target?.let { share?.file(it) }
                 if (n.id.startsWith(InstalledApk)) {

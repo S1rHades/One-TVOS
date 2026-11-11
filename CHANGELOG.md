@@ -3,6 +3,17 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 3.9 (November 2026)
+
+Prayer times that hold up, and a backup:
+
+- **Right on a day the TV can't ask**: MAWAQIT's page carries the mosque's calendar for the whole year, and it is now saved with the day's times. When the TV is offline at midnight, or for days, the card shows each day's own times from the saved calendar instead of yesterday's, and the prayer page says they are from the calendar.
+- **Tomorrow's Fajr at tomorrow's time**: after Isha, the countdown is to tomorrow's own Fajr from the calendar, not today's time again.
+- **A notice at each prayer's time**: the prayer, its time and its iqama join the notification bar for a quarter of an hour, with a crescent; **OK** opens the prayer page. **Settings → Notifications → Prayer times** turns it off.
+- **The Friday prayer**: where the mosque gives its time, it is on the prayer page under the five, and on a Friday the compact card shows it until it begins.
+- **The Islamic date on the prayer page**, as the mosque counts it: the Umm al-Qura calendar (already on the clock page), moved by the day or two MAWAQIT says the mosque is off it.
+- **Back up and restore your settings**: **Settings → TV & system → Back up settings** saves your favourites, the names you gave apps, widgets, teams, mosque, weather town and every switch as one file in Files, to send to your phone. **Restore settings** puts the newest backup in Files back, on this TV or another, after a second **OK**.
+
 ## 3.8 (November 2026)
 
 Fresher and faster:

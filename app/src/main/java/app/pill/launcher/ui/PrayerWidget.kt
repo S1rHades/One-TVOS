@@ -127,15 +127,22 @@ fun PrayerWidget(
         }
         if (compact) {
             val after = times.list.firstOrNull { (p, _) -> p.ordinal > next.prayer.ordinal && !next.tomorrow }
+            // On a Friday, until it has begun: the Friday prayer, where the mosque gives its time
+            val friday = times.jumua?.takeIf { now.dayOfWeek == java.time.DayOfWeek.FRIDAY && now.toLocalTime().isBefore(it) && times.forDate == now.toLocalDate() }
             FitText(
                 when {
                     big != null -> "Next: ${next.prayer.title} ${next.at.format(clock)}"
+                    friday != null -> "Friday prayer ${friday.format(clock)}"
                     else -> after?.let { (p, t) -> "Then ${p.title} ${t.format(clock)}" } ?: lastLine(times)
                 },
                 style = prayerStyle(12.sp, Palette.TextTertiary),
                 maxLines = 1,
                 shorter = listOfNotNull(
-                    if (big != null) "${next.prayer.title} ${next.at.format(clock)}" else after?.let { (p, t) -> "${p.title} ${t.format(clock)}" },
+                    when {
+                        big != null -> "${next.prayer.title} ${next.at.format(clock)}"
+                        friday != null -> "Friday ${friday.format(clock)}"
+                        else -> after?.let { (p, t) -> "${p.title} ${t.format(clock)}" }
+                    },
                     "",
                 ),
             )
