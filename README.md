@@ -237,7 +237,7 @@ On TVs that ignore that command, turning off the stock launcher works too (turn 
 
 The `latest` release is rebuilt automatically every time `main` changes, so installing it again always gets you the newest version.
 
-Every version also keeps its own release, named after it (**Pill Launcher 3.9**, tag `v3.9`, file `pill-launcher-3.9.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v3.9/pill-launcher-3.9.apk`. The newest is titled **Pill Launcher 3.9 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
+Every version also keeps its own release, named after it (**Pill Launcher 3.9.1**, tag `v3.9.1`, file `pill-launcher-3.9.1.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v3.9.1/pill-launcher-3.9.1.apk`. The newest is titled **Pill Launcher 3.9.1 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
 
 ### Backing up your settings
 
@@ -424,7 +424,7 @@ gradle assembleDebug                                   # app/build/outputs/apk/d
 gradle :app:testDebugUnitTest --tests '*Screenshots*'  # re-render docs/screenshots
 ```
 
-**Builds are automated.** `.github/workflows/build.yml` runs every test and then builds the APK for every pull request and push, so a failing test stops a release; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v3.9`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
+**Builds are automated.** `.github/workflows/build.yml` runs every test and then builds the APK for every pull request and push, so a failing test stops a release; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v3.9.1`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
 
 <details>
 <summary><b>Architecture</b></summary>
@@ -455,6 +455,7 @@ app/src/main/java/app/pill/launcher/
   BootReceiver.kt        opens the launcher when the TV starts, if Autostart is on
   ui/
     LauncherScreen.kt    the home screen: greeting, widgets, favourites, All apps below, page scrolling
+    LauncherParts.kt     the home screen's smaller pieces: page scrolling, the idle presentation, titles, the toast
     NavBar.kt            the bar at the top right (Home, Search, Wi-Fi, Settings) and the greeting
     RenameDialog.kt      Rename… from the app menu
     NotificationBar.kt   the notification bar under the widgets, its list, the bell and Files buttons
@@ -465,11 +466,17 @@ app/src/main/java/app/pill/launcher/
     PageParts.kt         shared page title, cards and sparkline
     AllApps.kt           kind chips and colour app cards
     ClockPage.kt, ForecastPage.kt, FootballHub.kt, HeadlinePage.kt, InternetPage.kt, PrayerPage.kt   the pages
-    WidgetCards.kt       the header's glass widget cards and their row
+    WidgetCards.kt       the header's glass widget cards and their row: clock, weather, headlines, prayers, text that fits
+    WidgetStack.kt       the widget stack: several widgets in one card's place
+    FootballCard.kt      the football card: teams in turn, match day, goals and wins
+    SystemCards.kt       the sunrise & sunset and system info cards
     WeatherWidget.kt     the weather card's content, with drawn condition icons
     PrayerWidget.kt      the prayer card's content: the next prayer, the countdown, the five in a row
     FavoritesRow.kt, AppTile.kt   the favourites row and its icon tiles
     SearchPanel.kt, SettingsPanel.kt, AppMenu.kt   panels over the home screen
+    SettingsParts.kt     what settings pages are built from: groups, rows, switches
+    SettingsWidgetPages.kt   Settings → Widgets: football teams, headlines, weather location, prayer times, the stack
+    SettingsSystemPages.kt   Settings → Notifications, Files, TV & system and Updates
     HomePrompt.kt        the Set up reminder until Pill Launcher is the home screen
     NetworkStatus.kt     how the TV is connected, the Wi-Fi signal and whether a VPN is on
     TileInput.kt         OK, long-press and Menu handling shared by tiles and cards

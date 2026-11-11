@@ -3,6 +3,10 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 3.9.1 (November 2026)
+
+- **Nothing to see**: the three largest source files are split into smaller ones (the settings pages, the widget cards and the home screen's smaller pieces each get files of their own), so later changes touch less at a time. The launcher behaves exactly as before.
+
 ## 3.9 (November 2026)
 
 Prayer times that hold up, and a backup:
