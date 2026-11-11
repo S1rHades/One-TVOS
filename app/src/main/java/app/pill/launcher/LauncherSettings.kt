@@ -58,6 +58,8 @@ data class LauncherSettings(
     val footballNotices: Boolean = true,
     /** The connection dropping and coming back, in the bar. */
     val connectionNotices: Boolean = true,
+    /** A notice in the bar at each prayer's time, while the prayer times widget is on. */
+    val prayerNotices: Boolean = true,
     /** Files keep arriving for 15 minutes after the launcher goes behind another app. */
     val keepReceiving: Boolean = false,
     /** Once an APK's app is installed, the notification bar offers to delete the APK (never on its own). */
@@ -124,6 +126,7 @@ class SettingsStore(context: Context) {
         mutedApps = prefs.getString("mutedApps", "").orEmpty().split(",").filter { it.isNotBlank() }.toSet(),
         footballNotices = prefs.getBoolean("footballNotices", true),
         connectionNotices = prefs.getBoolean("connectionNotices", true),
+        prayerNotices = prefs.getBoolean("prayerNotices", true),
         keepReceiving = prefs.getBoolean("keepReceiving", false),
         askInstalledApks = prefs.getBoolean("askInstalledApks", true),
         tidyOld = prefs.getBoolean("tidyOld", false),
@@ -160,6 +163,7 @@ class SettingsStore(context: Context) {
             .putString("mutedApps", settings.mutedApps.joinToString(","))
             .putBoolean("footballNotices", settings.footballNotices)
             .putBoolean("connectionNotices", settings.connectionNotices)
+            .putBoolean("prayerNotices", settings.prayerNotices)
             .putBoolean("keepReceiving", settings.keepReceiving)
             .putBoolean("askInstalledApks", settings.askInstalledApks)
             .putBoolean("tidyOld", settings.tidyOld)
@@ -194,6 +198,12 @@ class SettingsStore(context: Context) {
     fun saveNames(names: Map<String, String>) {
         prefs.edit().putString("names", namesToJson(names)).apply()
     }
+
+    /** Every setting as a backup file's text (see [backupJson]). */
+    fun backup(version: String, at: java.time.Instant): String = backupJson(prefs, version, at)
+
+    /** Puts a backup's settings in place of these; false, changing nothing, when [text] isn't a backup. */
+    fun restore(text: String): Boolean = restoreBackup(prefs, text)
 
     /** The release whose update card was put off with Later, so it doesn't come back. */
     var updateDismissed: String?

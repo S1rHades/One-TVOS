@@ -1246,11 +1246,14 @@ class Screenshots {
      * 42 minutes. The test can't set the clock, so it sets the time zone instead: one in
      * which it is now 15:39, whatever the hour where the test runs.
      */
-    private fun <T> atTwentyToFour(block: (PrayerTimes) -> T): T {
+    private fun <T> atTwentyToFour(block: (PrayerTimes) -> T): T = atClock(15, 39, block)
+
+    /** The same day's times seen at [hour]:[minute], by the same means. */
+    private fun <T> atClock(hour: Int, minute: Int, block: (PrayerTimes) -> T): T {
         // Far enough from the minute's end that the countdown can't tick over mid-test
         while (java.time.Instant.now().atZone(java.time.ZoneOffset.UTC).second > 40) Thread.sleep(500)
         val utc = java.time.Instant.now().atZone(java.time.ZoneOffset.UTC)
-        var minutes = 15 * 60 + 39 - (utc.hour * 60 + utc.minute)
+        var minutes = hour * 60 + minute - (utc.hour * 60 + utc.minute)
         if (minutes > 12 * 60) minutes -= 24 * 60
         if (minutes < -12 * 60) minutes += 24 * 60
         val sign = if (minutes < 0) "-" else "+"
@@ -1267,6 +1270,7 @@ class Screenshots {
                     iqama = mapOf(Prayer.Fajr to t(6, 20), Prayer.Dhuhr to t(12, 30), Prayer.Asr to t(14, 0), Prayer.Maghrib to t(16, 27), Prayer.Isha to t(18, 20)),
                     forDate = java.time.LocalDate.now(zone.toZoneId()),
                     fetchedAt = java.time.Instant.now().minusSeconds(3 * 3600),
+                    jumua = t(13, 0),
                 ),
             )
         } finally {
@@ -1294,7 +1298,38 @@ class Screenshots {
         compose.onNode(isFocused() and hasText("Refresh")).assertExists()
         // "Iqama" and its time under the next prayer (the column header reads IQAMA)
         compose.onNodeWithText("Iqama ", substring = true).assertIsDisplayed()
+        // The Friday prayer under the five, and the Islamic date in the page's heading
+        compose.onNodeWithText("Friday prayer").assertIsDisplayed()
+        compose.onNodeWithText(" AH", substring = true).assertIsDisplayed()
         captureScreenRoboImage(File(out, "prayer-page.png").path)
+    }
+
+    /** Three minutes after Maghrib: its notice is in the bar, and OK on it opens the prayer page. */
+    @Test
+    fun prayerNoticeInTheBar() {
+        atClock(16, 25) { times ->
+            show(
+                "canyon-river", pins = favorites, prayers = times,
+                settings = LauncherSettings(weather = WeatherMode.Celsius, widgets = listOf(WidgetKind.Clock, WidgetKind.Prayers), mosque = "moscow-cathedral-mosque"),
+            )
+            compose.onNodeWithText("Maghrib · 4:22 PM", substring = true).assertIsDisplayed()
+            compose.onRoot().captureRoboImage(File(out, "prayer-notice.png").path)
+            compose.onNodeWithText("Maghrib · 4:22 PM", substring = true).performSemanticsAction(SemanticsActions.OnClick)
+            settle()
+            compose.onNode(isFocused() and hasText("Refresh")).assertExists()
+        }
+    }
+
+    /** Turned off in Settings → Notifications, a prayer's time puts nothing in the bar. */
+    @Test
+    fun prayerNoticeTurnedOff() {
+        atClock(16, 25) { times ->
+            show(
+                "canyon-river", pins = favorites, prayers = times,
+                settings = LauncherSettings(weather = WeatherMode.Celsius, widgets = listOf(WidgetKind.Clock, WidgetKind.Prayers), mosque = "moscow-cathedral-mosque", prayerNotices = false),
+            )
+            compose.onNodeWithText("All caught up").assertIsDisplayed()
+        }
     }
 
     private val beniSaf = Place("Beni Saf", "Aïn Témouchent", "Algeria", 35.30099, -1.38226)

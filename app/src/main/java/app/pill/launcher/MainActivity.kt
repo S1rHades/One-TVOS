@@ -280,7 +280,8 @@ class MainActivity : ComponentActivity() {
                         val at = java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern(if (android.text.format.DateFormat.is24HourFormat(this@MainActivity)) "HH:mm" else "h:mm a"))
                         prayersError = prayerProblem(error, at)
                         failures++
-                        value = value?.copy(fromCache = true)
+                        // The saved copy again: on a new day it has that day's times from the mosque's calendar
+                        value = prayerSource.cached(mosque) ?: value?.copy(fromCache = true)
                     }
                     if (!prayersOn) break
                     nudges.wait(if (result.isSuccess) prayerSource.untilNextDay().toMillis() else RetryDelaysMs[(failures - 1).coerceAtMost(RetryDelaysMs.lastIndex)], failed = result.isFailure)
@@ -641,6 +642,46 @@ class MainActivity : ComponentActivity() {
             .map { it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
             .firstOrNull { it.resolveActivity(packageManager) != null }
 
+    /** Saves every setting as a file in Files, from where a phone can take it; returns what to say under the row. */
+    private fun backUpSettings(): String {
+        val version = runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull() ?: "0"
+        val share = fileShare(this)
+        // One a day: backing up again the same day replaces that day's file
+        val name = "$BackupPrefix-${java.time.LocalDate.now()}.json"
+        return runCatching {
+            share.dir.mkdirs()
+            java.io.File(share.dir, name).writeText(store.backup(version, Instant.now()))
+            share.refresh()
+            "Saved in Files as $name · send it to your phone from the Files page to keep it"
+        }.getOrElse { "Couldn't save the backup (${it::class.java.simpleName})" }
+    }
+
+    /** The backup that Restore was pressed for once already: a second press on the same one restores it. */
+    private var restoreArmed: String? = null
+
+    /**
+     * Puts the newest backup in Files in place of the settings, on a second press, and starts
+     * the launcher's screen again with them; returns what to say under the row.
+     */
+    private fun restoreSettings(): String? {
+        val newest = fileShare(this).dir.listFiles()
+            ?.filter { it.isFile && it.name.startsWith(BackupPrefix) && it.extension.equals("json", ignoreCase = true) }
+            ?.maxByOrNull { it.lastModified() }
+            ?: return "No backup in Files · send one from your phone on the Files page first"
+        val text = runCatching { newest.readText() }.getOrNull()
+        val info = text?.let { backupInfo(it) } ?: return "${newest.name} isn't a Pill Launcher backup"
+        if (restoreArmed != newest.name) {
+            restoreArmed = newest.name
+            val made = info.at?.atZone(java.time.ZoneId.systemDefault())?.toLocalDate()?.let { " made on $it" }.orEmpty()
+            return "Press again to replace this TV's settings with ${newest.name}$made, from version ${info.version}"
+        }
+        restoreArmed = null
+        if (!store.restore(text)) return "${newest.name} couldn't be read · nothing was changed"
+        // Everything is read from the settings as the screen starts: start it again
+        recreate()
+        return null
+    }
+
     /** One TV & system shortcut from settings; returns what to show under its row. */
     private fun runSystemAction(action: SystemAction): String? {
         fun open(vararg actions: String): String? =
@@ -657,6 +698,8 @@ class MainActivity : ComponentActivity() {
             SystemAction.DateTime -> open(Settings.ACTION_DATE_SETTINGS)
             SystemAction.About -> open(Settings.ACTION_DEVICE_INFO_SETTINGS)
             SystemAction.AllSettings -> open(Settings.ACTION_SETTINGS)
+            SystemAction.Backup -> backUpSettings()
+            SystemAction.Restore -> restoreSettings()
             // The system asks to confirm; afterwards the TV's own home screen takes over
             SystemAction.Uninstall ->
                 if (tryStartActivity(Intent(Intent.ACTION_DELETE, Uri.parse("package:$packageName")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))) null

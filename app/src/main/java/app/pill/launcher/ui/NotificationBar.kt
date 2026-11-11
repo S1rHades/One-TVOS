@@ -532,6 +532,7 @@ private fun NoticeIcon(n: Notice, apps: List<AppEntry>, active: Boolean, size: D
                 glyph,
             )
             NoticeKind.File -> FilesIcon(tint, glyph)
+            NoticeKind.Prayer -> CrescentIcon(if (active) Color.White else PrayerGreen, glyph)
             NoticeKind.App -> Text(n.title.take(1).uppercase(), color = tint, fontSize = 15.sp, fontWeight = FontWeight.Bold)
         }
     }
@@ -631,6 +632,17 @@ private fun CheckIcon(tint: Color, iconSize: Dp) {
             lineTo(s * 0.82f, s * 0.28f)
         }
         drawPath(path, tint, style = Stroke(width = s * 0.12f, cap = StrokeCap.Round, join = StrokeJoin.Round))
+    }
+}
+
+/** A crescent moon, for a prayer's time. */
+@Composable
+private fun CrescentIcon(tint: Color, iconSize: Dp) {
+    Canvas(Modifier.size(iconSize)) {
+        val s = size.minDimension
+        val moon = Path().apply { addOval(androidx.compose.ui.geometry.Rect(center = Offset(s * 0.46f, s * 0.5f), radius = s * 0.4f)) }
+        val bite = Path().apply { addOval(androidx.compose.ui.geometry.Rect(center = Offset(s * 0.62f, s * 0.42f), radius = s * 0.33f)) }
+        drawPath(Path.combine(androidx.compose.ui.graphics.PathOperation.Difference, moon, bite), tint)
     }
 }
 
