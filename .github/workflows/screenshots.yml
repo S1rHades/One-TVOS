@@ -28,15 +28,15 @@ jobs:
         with:
           gradle-version: 8.9
 
-      # Photos from the launcher's own set (picsum.photos ids, Unsplash licence), saved
+      # Photos from the launcher's own bundled set (picsum.photos ids, Unsplash licence), saved
       # under the names Screenshots.kt asks for
-      - name: Download background photos
+      - name: Copy background photos
         run: |
           mkdir -p build/screenshot-photos
           for pair in mountain-lake=128 canyon-river=28 pine-forest=10 aurora-sky=29 misty-valley=11; do
             name=${pair%=*}; id=${pair#*=}
-            curl -fsSL --retry 3 -o "build/screenshot-photos/$name.jpg" \
-              "https://picsum.photos/id/$id/1920/1080" || echo "::warning::could not download $name"
+            cp "app/src/main/assets/photos/$id.jpg" "build/screenshot-photos/$name.jpg" \
+              || echo "::warning::no bundled photo for $name"
           done
 
       - name: Render screenshots
