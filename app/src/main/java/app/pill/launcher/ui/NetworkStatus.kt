@@ -1,5 +1,6 @@
 package app.pill.launcher.ui
 
+import app.pill.launcher.tr
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
@@ -35,11 +36,11 @@ enum class Link { Offline, WiFi, Ethernet, Mobile, Other }
 data class NetworkStatus(val link: Link, val wifiBars: Int, val vpn: Boolean) {
     val label: String
         get() = when (link) {
-            Link.Offline -> "Offline"
-            Link.WiFi -> "Wi-Fi"
-            Link.Ethernet -> "Ethernet"
-            Link.Mobile -> "Mobile data"
-            Link.Other -> "Online"
+            Link.Offline -> tr("Offline")
+            Link.WiFi -> tr("Wi-Fi")
+            Link.Ethernet -> tr("Ethernet")
+            Link.Mobile -> tr("Mobile data")
+            Link.Other -> tr("Online")
         }
 }
 

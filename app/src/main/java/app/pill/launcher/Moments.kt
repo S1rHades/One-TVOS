@@ -66,9 +66,9 @@ fun footballMoments(before: List<Fixtures>, after: List<Fixtures>, now: Instant)
 fun momentText(m: FootballMoment, compact: Boolean): String {
     val name = if (compact) shortCode(m.team.name) else m.team.name
     return when (m.kind) {
-        MomentKind.Goal -> listOfNotNull("Goal", name, m.minute?.let { "$it'" }).let { parts ->
-            if (compact) "Goal" + (m.minute?.let { " · $it'" } ?: "") else parts.first() + " · " + parts.drop(1).joinToString(" ")
+        MomentKind.Goal -> listOfNotNull(tr("Goal"), name, m.minute?.let { "$it'" }).let { parts ->
+            if (compact) tr("Goal") + (m.minute?.let { " · $it'" } ?: "") else parts.first() + " · " + parts.drop(1).joinToString(" ")
         }
-        MomentKind.Win -> "$name win ${m.match.ourScore}–${m.match.opponentScore}"
+        MomentKind.Win -> tr("%1\$s win %2\$s–%3\$s", name, m.match.ourScore, m.match.opponentScore)
     }
 }

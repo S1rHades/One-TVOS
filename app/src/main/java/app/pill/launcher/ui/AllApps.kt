@@ -1,5 +1,7 @@
 package app.pill.launcher.ui
 
+import androidx.compose.foundation.layout.absoluteOffset
+import app.pill.launcher.tr
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -75,7 +77,7 @@ fun CategoryChips(
     modifier: Modifier = Modifier,
 ) {
     ChipRow(
-        labels = categories.map { it?.title ?: "All" },
+        labels = categories.map { it?.title ?: tr("All") },
         selected = categories.indexOf(selected).coerceAtLeast(0),
         onSelect = { onSelect(categories[it]) },
         firstFocus = firstFocus,
@@ -111,7 +113,9 @@ fun ChipRow(
     Box(modifier) {
         Box(
             Modifier
-                .offset(x = x)
+                // Measured from the left edge, so placed from it too, whichever way the row runs
+                .align(androidx.compose.ui.AbsoluteAlignment.TopLeft)
+                .absoluteOffset(x = x)
                 .width(w)
                 .height(38.dp)
                 .graphicsLayer {

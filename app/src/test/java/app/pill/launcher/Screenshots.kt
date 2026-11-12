@@ -207,6 +207,15 @@ class Screenshots {
             }
         }.apply { isDaemon = true; start() }
         out.mkdirs()
+        // English unless a test shows another language
+        Lang.current = Language.English
+        java.util.Locale.setDefault(java.util.Locale.US)
+    }
+
+    @org.junit.After
+    fun backToEnglish() {
+        Lang.current = Language.English
+        java.util.Locale.setDefault(java.util.Locale.US)
     }
 
     @Test
@@ -1332,6 +1341,64 @@ class Screenshots {
         }
     }
 
+    /** The home screen in Arabic: its words, and everything laid out right to left. */
+    @Test
+    fun homeInArabic() {
+        atTwentyToFour { times ->
+            show(
+                "canyon-river", pins = favorites, prayers = times, language = Language.Arabic,
+                settings = LauncherSettings(weather = WeatherMode.Celsius, widgets = listOf(WidgetKind.Clock, WidgetKind.Fennecs, WidgetKind.Prayers), mosque = "moscow-cathedral-mosque"),
+            )
+            compose.onNodeWithText(tr("All caught up")).assertIsDisplayed()
+            compose.onRoot().captureRoboImage(File(out, "home-arabic.png").path)
+        }
+    }
+
+    /** The home screen in French. */
+    @Test
+    fun homeInFrench() {
+        show("mountain-lake", pins = favorites, language = Language.French)
+        compose.onNodeWithText("Tout est à jour").assertIsDisplayed()
+        compose.onRoot().captureRoboImage(File(out, "home-french.png").path)
+    }
+
+    /** Settings → TV & system → Language offers the TV's language and the launcher's three; choosing one saves it. */
+    @Test
+    fun languageSetting() {
+        show("pine-forest", pins = favorites)
+        compose.onNodeWithContentDescription("Settings").performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNodeWithText("TV & system").performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNodeWithText("Language").performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNodeWithText("Same as the TV").assertIsDisplayed()
+        compose.onNodeWithText("Français").assertIsDisplayed()
+        compose.onNodeWithText("العربية").assertIsDisplayed()
+        compose.onNodeWithText("Français").performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        check(currentSettings.language == "fr") { "choosing Français saves it: ${currentSettings.language}" }
+    }
+
+    /**
+     * Right to left, the favourites start on the right: Left goes on along the row, Right
+     * comes back, and Right from the first one stays put (it is the row's start).
+     */
+    @Test
+    fun navigationRightToLeft() {
+        show("misty-valley", pins = favorites, language = Language.Arabic)
+        check(focusedName().contains("Cinema")) { "starts on the first favourite: ${focusedName()}" }
+        press(Key.DirectionLeft)
+        check(focusedName().contains("Live TV")) { "Left goes on to the second favourite: ${focusedName()}" }
+        press(Key.DirectionRight)
+        check(focusedName().contains("Cinema")) { "Right comes back to the first: ${focusedName()}" }
+        press(Key.DirectionRight)
+        check(focusedName().contains("Cinema")) { "Right from the first favourite stays: ${focusedName()}" }
+        // The bar is at the top left, in the launcher's words
+        compose.onNodeWithContentDescription(tr("Settings")).assertIsDisplayed()
+        compose.onNodeWithText(tr("All caught up")).assertIsDisplayed()
+    }
+
     private val beniSaf = Place("Beni Saf", "Aïn Témouchent", "Algeria", 35.30099, -1.38226)
 
     /** Settings → Widgets → Weather location: Automatic, or a town found by name. */
@@ -1436,8 +1503,12 @@ class Screenshots {
         safeMode: String? = null,
         prayers: PrayerTimes? = null,
         prayersError: String? = null,
+        /** The launcher's language: its words, its dates, and for Arabic the direction it is laid out in. */
+        language: Language = Language.English,
     ) {
         check(fixtures.next != null && fixtures.last?.outcome == 'W') { "fixtures didn't parse: $fixtures" }
+        Lang.current = language
+        java.util.Locale.setDefault(Lang.localeFor(language, java.util.Locale.US))
         currentPins = pins
         currentSettings = settings
         footballNow = football
@@ -1447,6 +1518,13 @@ class Screenshots {
             var current by remember { mutableStateOf(settings) }
             var names by remember { mutableStateOf(emptyMap<String, String>()) }
             var kept by remember { mutableStateOf(notices) }
+            // The window's own direction too, as on a TV set to the language: focus moves by it
+            androidx.compose.ui.platform.LocalView.current.rootView.layoutDirection =
+                if (language.rightToLeft) android.view.View.LAYOUT_DIRECTION_RTL else android.view.View.LAYOUT_DIRECTION_LTR
+            androidx.compose.runtime.CompositionLocalProvider(
+                androidx.compose.ui.platform.LocalLayoutDirection provides
+                    if (language.rightToLeft) androidx.compose.ui.unit.LayoutDirection.Rtl else androidx.compose.ui.unit.LayoutDirection.Ltr,
+            ) {
             LauncherScreen(
                 notices = kept,
                 onDismissNotice = { n -> kept = kept.filter { it.id != n.id } },
@@ -1480,6 +1558,7 @@ class Screenshots {
                 onOpenSystemSettings = {},
                 home = home,
             )
+            }
         }
         settle()
     }

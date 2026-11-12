@@ -1,5 +1,6 @@
 package app.pill.launcher.ui
 
+import app.pill.launcher.tr
 import android.provider.Settings
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.runtime.LaunchedEffect
@@ -108,7 +109,7 @@ fun WeatherWidget(weather: Weather, mode: WeatherMode, compact: Boolean, modifie
                     shorter = listOf(w.place.ifBlank { describe(w.code) }),
                 )
                 FitText(
-                    "H ${formatTemp(w.highC, mode)}   L ${formatTemp(w.lowC, mode)}",
+                    tr("H %1\$s   L %2\$s", formatTemp(w.highC, mode), formatTemp(w.lowC, mode)),
                     style = TextStyle(fontFamily = Flex, color = Palette.TextTertiary, fontSize = if (compact) 13.sp else 15.sp),
                     shorter = listOf("${formatTemp(w.highC, mode)} / ${formatTemp(w.lowC, mode)}", ""),
                 )

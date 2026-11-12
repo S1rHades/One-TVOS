@@ -1,5 +1,6 @@
 package app.pill.launcher.ui
 
+import app.pill.launcher.tr
 import android.os.Environment
 import android.os.StatFs
 import android.text.format.DateFormat
@@ -70,7 +71,7 @@ internal fun DaylightCard(weather: Weather?, compact: Boolean, modifier: Modifie
     val format = DateTimeFormatter.ofPattern(if (DateFormat.is24HourFormat(context)) "HH:mm" else "h:mm a", Locale.getDefault())
     WidgetCard(Color(0xFFFFA94D), modifier) {
         Column(Modifier.align(Alignment.Center)) {
-            CardLabel(if (compact) "Daylight" else "Sunrise & sunset")
+            CardLabel(if (compact) tr("Daylight") else tr("Sunrise & sunset"))
             Spacer(Modifier.height(6.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val fraction = times?.let {
@@ -81,7 +82,7 @@ internal fun DaylightCard(weather: Weather?, compact: Boolean, modifier: Modifie
                 Spacer(Modifier.width(if (compact) 10.dp else 14.dp))
                 Column {
                     if (times == null) {
-                        Text(if (weather == null) "Finding your area…" else "No sunrise today", style = lineStyle(15.sp), maxLines = 2)
+                        Text(if (weather == null) tr("Finding your area…") else tr("No sunrise today"), style = lineStyle(15.sp), maxLines = 2)
                     } else {
                         val size = if (compact) 16.sp else 18.sp
                         Text("↑ " + times.sunrise.format(format), style = lineStyle(size, Palette.TextPrimary, 600), maxLines = 1)
@@ -156,13 +157,13 @@ internal fun SystemCard(compact: Boolean, modifier: Modifier) {
                 }
                 Spacer(Modifier.width(7.dp))
                 CardLabel(
-                    if (compact) "System" else "System · Android ${android.os.Build.VERSION.RELEASE}",
+                    if (compact) tr("System") else tr("System · Android %1\$s", android.os.Build.VERSION.RELEASE),
                     color = if (online) Palette.TextTertiary else Color(0xFFFF8787),
                 )
             }
             usage?.let { u ->
-                UsageBar("Storage", u.storageFree, u.storageTotal)
-                UsageBar("Memory", u.memoryFree, u.memoryTotal)
+                UsageBar(tr("Storage"), u.storageFree, u.storageTotal)
+                UsageBar(tr("Memory"), u.memoryFree, u.memoryTotal)
             }
         }
     }
@@ -178,7 +179,7 @@ private fun UsageBar(label: String, free: Long, total: Long) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(label, style = lineStyle(14.sp, Palette.TextSecondary), maxLines = 1)
             Spacer(Modifier.weight(1f))
-            Text(formatBytes(free) + " free", style = lineStyle(14.sp, if (low) Color(0xFFFFC078) else Palette.TextPrimary, 600), maxLines = 1)
+            Text(tr("%1\$s free", formatBytes(free)), style = lineStyle(14.sp, if (low) Color(0xFFFFC078) else Palette.TextPrimary, 600), maxLines = 1)
         }
         Spacer(Modifier.height(3.dp))
         Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(Color(0x33FFFFFF))) {

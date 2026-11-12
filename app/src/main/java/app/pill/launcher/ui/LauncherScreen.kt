@@ -1,5 +1,7 @@
 package app.pill.launcher.ui
 
+import app.pill.launcher.rowStep
+import app.pill.launcher.tr
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -295,7 +297,7 @@ fun LauncherScreen(
             refocus = Refocus(neighbour?.pkg)
         }
         onTogglePin(app)
-        toast = Toast(if (wasPinned) "Removed ${app.label} from Favorites" else "Added ${app.label} to Favorites")
+        toast = Toast(if (wasPinned) tr("Removed %1\$s from Favorites", app.label) else tr("Added %1\$s to Favorites", app.label))
     }
 
     LaunchedEffect(moving, pins) {
@@ -735,7 +737,7 @@ fun LauncherScreen(
                                     football = football,
                                     matchDay = settings.matchDay,
                                     headlines = headlines,
-                                    headlinesStatus = if (news != null && headlines.isEmpty()) "Can't reach the news sources · see Settings" else null,
+                                    headlinesStatus = if (news != null && headlines.isEmpty()) tr("Can't reach the news sources · see Settings") else null,
                                     animate = !idle,
                                     modifier = Modifier
                                         .weight(1f)
@@ -790,7 +792,7 @@ fun LauncherScreen(
                                 onCancelUpdate = onCancelUpdate,
                                 onFiles = {
                                     noticesOpen = false
-                                    if (share != null) filesOpen = true else toast = Toast("Files isn't available on this TV")
+                                    if (share != null) filesOpen = true else toast = Toast(tr("Files isn't available on this TV"))
                                 },
                                 bellFocus = bellFocus,
                                 messageFocus = messageFocus,
@@ -815,17 +817,17 @@ fun LauncherScreen(
                                 val cannot = onMakeDefault()
                                 if (cannot != null) {
                                     // The TV keeps its own home screen: the Home button helper is the way
-                                    toast = Toast(onHomeHelper() ?: "Turn on Pill Launcher here to bring Home back to it")
+                                    toast = Toast(onHomeHelper() ?: tr("Turn on Pill Launcher here to bring Home back to it"))
                                 }
                             }
                             val steps = listOf(
-                                SetupStep("Installed", done = true),
-                                SetupStep("Make it the home screen, so Home and closed apps come back here", done = home.isDefault || home.redirectOn),
-                                SetupStep("Pin your apps: go down to All apps and hold OK on one", done = pins.isNotEmpty()),
-                                SetupStep("Choose the widgets across the top", done = settings.widgetsVisited),
+                                SetupStep(tr("Installed"), done = true),
+                                SetupStep(tr("Make it the home screen, so Home and closed apps come back here"), done = home.isDefault || home.redirectOn),
+                                SetupStep(tr("Pin your apps: go down to All apps and hold OK on one"), done = pins.isNotEmpty()),
+                                SetupStep(tr("Choose the widgets across the top"), done = settings.widgetsVisited),
                                 // Known already from a chosen mosque; not needed with no weather on show
                                 SetupStep(
-                                    "Choose your town, so the weather is yours and not the nearest city's",
+                                    tr("Choose your town, so the weather is yours and not the nearest city's"),
                                     done = settings.weatherPlace != null || prayers?.spot != null ||
                                         settings.activeWidgets().none { it == WidgetKind.Weather || it == WidgetKind.Daylight },
                                 ),
@@ -848,8 +850,8 @@ fun LauncherScreen(
                                 SetupCard(
                                     steps = steps,
                                     nextAction = when (next) {
-                                        steps[1] -> "Set up"
-                                        steps[3], steps[4] -> "Choose"
+                                        steps[1] -> tr("Set up")
+                                        steps[3], steps[4] -> tr("Choose")
                                         else -> null
                                     },
                                     onNext = {
@@ -913,7 +915,7 @@ fun LauncherScreen(
                                         onMove = onMovePin,
                                         onMoveDone = {
                                             moving = null
-                                            toast = Toast("Done")
+                                            toast = Toast(tr("Done"))
                                         },
                                     )
                                 }
@@ -937,8 +939,8 @@ fun LauncherScreen(
                                 },
                         ) {
                         SectionTitle(
-                            "All apps",
-                            hint = apps?.let { if (it.size == 1) "1 app" else "${it.size} apps" },
+                            tr("All apps"),
+                            hint = apps?.let { if (it.size == 1) tr("1 app") else tr("%1\$s apps", it.size) },
                             modifier = Modifier.padding(top = 10.dp, bottom = 6.dp),
                         )
                         if (!apps.isNullOrEmpty()) {
@@ -1053,13 +1055,16 @@ fun LauncherScreen(
                     okHeld = request.okHeld,
                     header = { Text(kind.title, color = Palette.TextPrimary, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, maxLines = 1) },
                     choices = buildList {
-                        add(MenuChoice("Widget settings", widgetSettingsHint(kind)) {
+                        add(MenuChoice(tr("Widget settings"), widgetSettingsHint(kind)) {
                             settingsStart = widgetSettingsPage(kind)
                             panelOpen = true
                         })
-                        if (at > 0) add(MenuChoice("Move left") { onSettingsChange(settings.copy(widgets = settings.widgets.moved(kind, -1))) })
-                        if (at in 0 until settings.widgets.lastIndex) add(MenuChoice("Move right") { onSettingsChange(settings.copy(widgets = settings.widgets.moved(kind, 1))) })
-                        add(MenuChoice("Remove widget", "Settings → Widgets turns it back on", warning = true) {
+                        // Left and right as they are on screen: the row runs the other way where text runs right to left
+                        val toLeft = rowStep(-1)
+                        val toRight = rowStep(1)
+                        if (at >= 0 && at + toLeft in settings.widgets.indices) add(MenuChoice(tr("Move left")) { onSettingsChange(settings.copy(widgets = settings.widgets.moved(kind, toLeft))) })
+                        if (at >= 0 && at + toRight in settings.widgets.indices) add(MenuChoice(tr("Move right")) { onSettingsChange(settings.copy(widgets = settings.widgets.moved(kind, toRight))) })
+                        add(MenuChoice(tr("Remove widget"), tr("Settings → Widgets turns it back on"), warning = true) {
                             onSettingsChange(settings.copy(widgets = settings.widgets - kind))
                         })
                     },
@@ -1079,7 +1084,7 @@ fun LauncherScreen(
                             MenuAction.Move -> {
                                 searchOpen = false
                                 moving = app.pkg
-                                toast = Toast("Left / Right to move ${app.label} · OK when done")
+                                toast = Toast(tr("Left / Right to move %1\$s · OK when done", app.label))
                             }
                             MenuAction.Rename -> renaming = app
                             MenuAction.AppInfo -> onAppInfo(app)
@@ -1098,7 +1103,7 @@ fun LauncherScreen(
                         val given = cleanName(name, own)
                         if ((given ?: own) != app.label) {
                             onRename(app, name)
-                            toast = Toast(if (given == null) "$own has its own name again" else "Renamed $own to $given")
+                            toast = Toast(if (given == null) tr("%1\$s has its own name again", own) else tr("Renamed %1\$s to %2\$s", own, given))
                         }
                     },
                     onDismiss = { renaming = null },
@@ -1131,15 +1136,15 @@ fun LauncherScreen(
                     header = {
                         FilesIcon(Palette.TextPrimary, 30.dp)
                         Spacer(Modifier.width(14.dp))
-                        Text("Delete $name?", color = Palette.TextPrimary, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        Text(tr("Delete %1\$s?", name), color = Palette.TextPrimary, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     },
                     // Keep it first, so the focus starts on the choice that loses nothing
                     choices = listOf(
-                        MenuChoice("Keep it", "Files won't ask about it again") { onDismissNotice(n) },
-                        MenuChoice("Delete", "The app stays installed; only the file goes", warning = true) {
+                        MenuChoice(tr("Keep it"), tr("Files won't ask about it again")) { onDismissNotice(n) },
+                        MenuChoice(tr("Delete"), tr("The app stays installed; only the file goes"), warning = true) {
                             share?.delete(name)
                             onDismissNotice(n)
-                            toast = Toast("Deleted $name")
+                            toast = Toast(tr("Deleted %1\$s", name))
                         },
                     ),
                     onDismiss = { deleteAsk = null },
@@ -1158,11 +1163,11 @@ fun LauncherScreen(
                                 header = {
                                     FilesIcon(Palette.TextPrimary, 30.dp)
                                     Spacer(Modifier.width(14.dp))
-                                    Text("${pending.name} wants to connect", color = Palette.TextPrimary, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, maxLines = 2)
+                                    Text(tr("%1\$s wants to connect", pending.name), color = Palette.TextPrimary, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, maxLines = 2)
                                 },
                                 choices = listOf(
-                                    MenuChoice("Allow", "It can send and save files for 90 days") { files.approve(pending.id) },
-                                    MenuChoice("Block", "Someone typed this TV's code on it", warning = true) { files.block(pending.id) },
+                                    MenuChoice(tr("Allow"), tr("It can send and save files for 90 days")) { files.approve(pending.id) },
+                                    MenuChoice(tr("Block"), tr("Someone typed this TV's code on it"), warning = true) { files.block(pending.id) },
                                 ),
                                 onDismiss = { answered = true },
                             )

@@ -93,8 +93,8 @@ class Updater(private val context: Context) {
                 setRequestProperty("User-Agent", "PillLauncher")
             }
             try {
-                if (c.responseCode != 200) error("GitHub answered ${c.responseCode}")
-                parseRelease(c.inputStream.bufferedReader().readText()) ?: error("The newest release has no APK")
+                if (c.responseCode != 200) error(tr("GitHub answered %1\$s", c.responseCode))
+                parseRelease(c.inputStream.bufferedReader().readText()) ?: error(tr("The newest release has no APK"))
             } finally {
                 c.disconnect()
             }
@@ -135,7 +135,7 @@ class Updater(private val context: Context) {
                 problem = e
             }
         }
-        throw problem ?: IllegalStateException("The download was empty")
+        throw problem ?: IllegalStateException(tr("The download was empty"))
     }
 
     private suspend fun fetch(link: String, file: File, expected: Long, onProgress: (Float) -> Unit) {
@@ -153,7 +153,7 @@ class Updater(private val context: Context) {
                 val code = c.responseCode
                 when {
                     code in 300..399 -> {
-                        val next = c.getHeaderField("Location") ?: error("GitHub gave no download link")
+                        val next = c.getHeaderField("Location") ?: error(tr("GitHub gave no download link"))
                         url = URL(URL(url), next).toString()
                     }
                     code == 200 -> {
@@ -172,16 +172,16 @@ class Updater(private val context: Context) {
                                 }
                             }
                         }
-                        if (total > 0 && read < total) error("The download was cut short")
+                        if (total > 0 && read < total) error(tr("The download was cut short"))
                         return
                     }
-                    else -> error("GitHub answered $code")
+                    else -> error(tr("GitHub answered %1\$s", code))
                 }
             } finally {
                 c.disconnect()
             }
         }
-        error("Too many redirects")
+        error(tr("Too many redirects"))
     }
 
     /**
@@ -234,7 +234,7 @@ class InstallResultReceiver : BroadcastReceiver() {
                 @Suppress("DEPRECATION")
                 val confirm = intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT) ?: return
                 runCatching { context.startActivity(confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-                    .onFailure { installProblems.value = "Android couldn't show the install screen" }
+                    .onFailure { installProblems.value = tr("Android couldn't show the install screen") }
             }
             PackageInstaller.STATUS_SUCCESS -> installProblems.value = null
             PackageInstaller.STATUS_FAILURE_ABORTED, PackageInstaller.STATUS_FAILURE_CONFLICT, PackageInstaller.STATUS_FAILURE_STORAGE ->
@@ -256,22 +256,22 @@ class InstallResultReceiver : BroadcastReceiver() {
 val installProblems = MutableStateFlow<String?>(null)
 
 fun installProblem(status: Int): String = when (status) {
-    PackageInstaller.STATUS_FAILURE_ABORTED -> "The update was cancelled"
-    PackageInstaller.STATUS_FAILURE_CONFLICT -> "This copy was signed differently: uninstall it, then install the new one from GitHub"
-    PackageInstaller.STATUS_FAILURE_STORAGE -> "Not enough space on the TV for the update"
-    PackageInstaller.STATUS_FAILURE_INCOMPATIBLE -> "This TV can't install the update"
-    PackageInstaller.STATUS_FAILURE_BLOCKED -> "The TV blocked the update"
-    else -> "The update couldn't be installed"
+    PackageInstaller.STATUS_FAILURE_ABORTED -> tr("The update was cancelled")
+    PackageInstaller.STATUS_FAILURE_CONFLICT -> tr("This copy was signed differently: uninstall it, then install the new one from GitHub")
+    PackageInstaller.STATUS_FAILURE_STORAGE -> tr("Not enough space on the TV for the update")
+    PackageInstaller.STATUS_FAILURE_INCOMPATIBLE -> tr("This TV can't install the update")
+    PackageInstaller.STATUS_FAILURE_BLOCKED -> tr("The TV blocked the update")
+    else -> tr("The update couldn't be installed")
 }
 
 /** A short, plain reason for a failure, for the update card and Settings. */
 fun updateProblem(e: Throwable): String {
     val name = e.javaClass.simpleName
     return when {
-        e is java.net.UnknownHostException -> "can't reach GitHub"
-        e is java.net.SocketTimeoutException -> "the connection timed out"
-        e is javax.net.ssl.SSLException -> "a secure connection to GitHub failed"
-        e is SecurityException -> "Android didn't allow it"
+        e is java.net.UnknownHostException -> tr("can't reach GitHub")
+        e is java.net.SocketTimeoutException -> tr("the connection timed out")
+        e is javax.net.ssl.SSLException -> tr("a secure connection to GitHub failed")
+        e is SecurityException -> tr("Android didn't allow it")
         else -> (e.message?.takeIf { it.isNotBlank() } ?: name).take(80)
     }
 }

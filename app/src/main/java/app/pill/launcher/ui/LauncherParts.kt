@@ -1,5 +1,6 @@
 package app.pill.launcher.ui
 
+import app.pill.launcher.tr
 import androidx.compose.animation.core.Animatable
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.Dp
@@ -235,7 +236,7 @@ internal fun EmptyFavorites(loading: Boolean) {
             .padding(horizontal = 28.dp, vertical = 22.dp),
     ) {
         Text(
-            if (loading) "Loading apps…" else "Go down to All apps and hold OK on an app to pin it here",
+            if (loading) tr("Loading apps…") else tr("Go down to All apps and hold OK on an app to pin it here"),
             style = TextStyle(fontFamily = Flex, color = Palette.TextSecondary, fontSize = 17.sp, shadow = TextShadow),
         )
     }
@@ -270,12 +271,12 @@ internal fun widgetSettingsPage(kind: WidgetKind): SettingsPage = when (kind) {
 }
 
 internal fun widgetSettingsHint(kind: WidgetKind): String = when (kind) {
-    WidgetKind.Weather -> "Location and unit"
-    WidgetKind.Fennecs -> "Teams and match day"
-    WidgetKind.Headlines -> "Topics"
-    WidgetKind.Prayers -> "Mosque, refresh"
-    WidgetKind.Stack -> "Its widgets and their order"
-    else -> "Turn widgets on, off and reorder them"
+    WidgetKind.Weather -> tr("Location and unit")
+    WidgetKind.Fennecs -> tr("Teams and match day")
+    WidgetKind.Headlines -> tr("Topics")
+    WidgetKind.Prayers -> tr("Mosque, refresh")
+    WidgetKind.Stack -> tr("Its widgets and their order")
+    else -> tr("Turn widgets on, off and reorder them")
 }
 
 /** Room the settings panel takes at the right of the screen, and the margin around the preview. */
@@ -300,10 +301,10 @@ internal fun SafeModeCard(reason: String, onTryNormally: () -> Unit, modifier: M
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            Text("Safe mode: Pill Launcher stopped unexpectedly", color = Palette.TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text("Widgets, notifications and Files are off for now · $reason", color = Palette.TextSecondary, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(tr("Safe mode: Pill Launcher stopped unexpectedly"), color = Palette.TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(tr("Widgets, notifications and Files are off for now · %1\$s", reason), color = Palette.TextSecondary, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Spacer(Modifier.width(12.dp))
-        PillButton("Try normally", primary = true, onClick = onTryNormally)
+        PillButton(tr("Try normally"), primary = true, onClick = onTryNormally)
     }
 }

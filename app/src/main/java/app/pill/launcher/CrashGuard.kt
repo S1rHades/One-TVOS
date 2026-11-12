@@ -40,7 +40,7 @@ class CrashGuard(context: Context) {
 
     /** Why the launcher is starting in safe mode, or null to start normally. */
     fun safeModeReason(now: Long = System.currentTimeMillis()): String? =
-        if (shouldStartSafe(crashes(), now)) prefs.getString("what", null) ?: "It stopped unexpectedly" else null
+        if (shouldStartSafe(crashes(), now)) prefs.getString("what", null) ?: tr("It stopped unexpectedly") else null
 
     private companion object {
         @Volatile var installed = false

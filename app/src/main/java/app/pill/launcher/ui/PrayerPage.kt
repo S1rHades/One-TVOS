@@ -1,5 +1,6 @@
 package app.pill.launcher.ui
 
+import app.pill.launcher.tr
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.runtime.rememberUpdatedState
@@ -91,9 +92,9 @@ fun PrayerPage(
         topLeft = {
             PageButton(
                 when {
-                    refreshing -> "Refreshing…"
-                    justUpdated -> "Updated ✓"
-                    else -> "Refresh"
+                    refreshing -> tr("Refreshing…")
+                    justUpdated -> tr("Updated ✓")
+                    else -> tr("Refresh")
                 },
                 onClick = onRefresh,
                 modifier = Modifier.focusRequester(refreshFocus),
@@ -107,17 +108,17 @@ fun PrayerPage(
             runCatching { refreshFocus.requestFocus() }
         }
         PageTitle(
-            times?.mosque?.ifBlank { null } ?: "Prayer times",
+            times?.mosque?.ifBlank { null } ?: tr("Prayer times"),
             listOfNotNull(
                 hijri,
                 when {
                     times == null -> null
                     // A day the TV couldn't ask MAWAQIT: the day's times as the mosque's calendar had them
-                    times.fromCalendar -> "from the mosque's calendar, saved " + ageText(times.fetchedAt).lowercase()
-                    times.fromCache -> "saved " + ageText(times.fetchedAt).lowercase()
-                    else -> "updated " + ageText(times.fetchedAt).lowercase()
+                    times.fromCalendar -> tr("from the mosque's calendar, saved %1\$s", ageText(times.fetchedAt).lowercase())
+                    times.fromCache -> tr("saved %1\$s", ageText(times.fetchedAt).lowercase())
+                    else -> tr("updated %1\$s", ageText(times.fetchedAt).lowercase())
                 },
-                if (times != null && !today) "yesterday's times" else null,
+                if (times != null && !today) tr("yesterday's times") else null,
                 "MAWAQIT",
                 backHint(),
             ).joinToString(" · "),
@@ -125,14 +126,14 @@ fun PrayerPage(
         )
         Row(Modifier.fillMaxWidth().height(PageBodyHeight), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             PageCard(1, Modifier.weight(1.1f).fillMaxHeight()) {
-                PageLabel(if (next?.tomorrow == true) "Next · tomorrow" else "Next")
+                PageLabel(if (next?.tomorrow == true) tr("Next · tomorrow") else tr("Next"))
                 if (times == null || next == null) {
                     Spacer(Modifier.weight(1f))
                     Text(
                         when {
-                            refreshing -> "Asking MAWAQIT…"
+                            refreshing -> tr("Asking MAWAQIT…")
                             error != null -> error
-                            else -> "No times yet · choose a mosque in Settings → Widgets → Prayer times"
+                            else -> tr("No times yet · choose a mosque in Settings → Widgets → Prayer times")
                         },
                         color = Palette.TextSecondary, fontSize = 16.sp, lineHeight = 22.sp,
                         modifier = Modifier.align(Alignment.CenterHorizontally),
@@ -151,18 +152,18 @@ fun PrayerPage(
                         Text(untilText(next.at, now), color = PrayerGreen, fontSize = 18.sp, fontWeight = FontWeight(600), maxLines = 1, modifier = Modifier.padding(bottom = 5.dp))
                     }
                     times.iqama[next.prayer]?.let { iq ->
-                        Text("Iqama " + iq.format(clock), color = Palette.TextSecondary, fontSize = 15.sp, maxLines = 1, modifier = Modifier.padding(top = 4.dp))
+                        Text(tr("Iqama ") + iq.format(clock), color = Palette.TextSecondary, fontSize = 15.sp, maxLines = 1, modifier = Modifier.padding(top = 4.dp))
                     }
                     Spacer(Modifier.weight(1f))
-                    PageLabel("Today")
+                    PageLabel(tr("Today"))
                     Spacer(Modifier.height(8.dp))
                     DayLine(times, next.prayer.takeIf { !next.tomorrow }, now, Modifier.fillMaxWidth().height(44.dp))
                     Spacer(Modifier.height(8.dp))
                     if (error != null && times.fromCache) {
-                        Text("Showing the saved times · " + error.substringAfter(" · ", "couldn't refresh"), color = Color(0xFFFFC078), fontSize = TypeScale.Caption, maxLines = 1)
+                        Text(tr("Showing the saved times · ") + error.substringAfter(" · ", tr("couldn't refresh")), color = Color(0xFFFFC078), fontSize = TypeScale.Caption, maxLines = 1)
                     } else {
                         Text(
-                            times.shuruq?.let { "Shuruq (sunrise) " + it.format(clock) } ?: "Times from the mosque's own MAWAQIT page",
+                            times.shuruq?.let { tr("Shuruq (sunrise) ") + it.format(clock) } ?: tr("Times from the mosque's own MAWAQIT page"),
                             color = Palette.TextTertiary, fontSize = TypeScale.Caption, maxLines = 1,
                         )
                     }
@@ -170,9 +171,9 @@ fun PrayerPage(
             }
             PageCard(2, Modifier.width(380.dp).fillMaxHeight()) {
                 Row(Modifier.fillMaxWidth()) {
-                    PageLabel("Prayer", Modifier.weight(1f))
-                    PageLabel("Adhan", Modifier.width(AdhanWidth))
-                    if (times?.iqama?.isNotEmpty() == true) PageLabel("Iqama", Modifier.width(IqamaWidth))
+                    PageLabel(tr("Prayer"), Modifier.weight(1f))
+                    PageLabel(tr("Adhan"), Modifier.width(AdhanWidth))
+                    if (times?.iqama?.isNotEmpty() == true) PageLabel(tr("Iqama"), Modifier.width(IqamaWidth))
                 }
                 if (times == null) {
                     for (p in Prayer.entries) TimeRow(p.title, "–", null, current = false)
@@ -183,15 +184,15 @@ fun PrayerPage(
                     // The Friday prayer, where the mosque gives its time: bright on a Friday until it has begun
                     times.jumua?.let { j ->
                         val due = now.dayOfWeek == java.time.DayOfWeek.FRIDAY && now.toLocalTime().isBefore(j)
-                        TimeRow("Friday prayer", j.format(clock), if (times.iqama.isEmpty()) null else "", current = false, bright = due)
+                        TimeRow(tr("Friday prayer"), j.format(clock), if (times.iqama.isEmpty()) null else "", current = false, bright = due)
                     }
                 }
                 Spacer(Modifier.weight(1f))
                 PageFooter(
                     when {
-                        times == null -> "Settings → Widgets → Prayer times chooses the mosque"
-                        !today -> "The new day's times come after midnight, or with Refresh"
-                        else -> "Refreshed once a day, after midnight"
+                        times == null -> tr("Settings → Widgets → Prayer times chooses the mosque")
+                        !today -> tr("The new day's times come after midnight, or with Refresh")
+                        else -> tr("Refreshed once a day, after midnight")
                     },
                 )
             }
@@ -231,13 +232,16 @@ private fun DayLine(times: PrayerTimes, next: Prayer?, now: ZonedDateTime, modif
     fun at(t: ZonedDateTime) = (Duration.between(start, t).seconds / span).coerceIn(0f, 1f)
     val nowAt = at(now)
     val stroke = 3.dp
+    // Fajr is on the right where text runs right to left
+    val rtl = androidx.compose.ui.platform.LocalLayoutDirection.current == androidx.compose.ui.unit.LayoutDirection.Rtl
     Canvas(modifier) {
+        fun x(fraction: Float) = if (rtl) size.width * (1f - fraction) else size.width * fraction
         val y = size.height / 2
         val w = stroke.toPx()
         drawLine(Color.White.copy(alpha = 0.18f), Offset(0f, y), Offset(size.width, y), w, StrokeCap.Round)
-        if (now.isAfter(start)) drawLine(Color.White.copy(alpha = 0.6f), Offset(0f, y), Offset(size.width * nowAt, y), w, StrokeCap.Round)
+        if (now.isAfter(start)) drawLine(Color.White.copy(alpha = 0.6f), Offset(x(0f), y), Offset(x(nowAt), y), w, StrokeCap.Round)
         for ((p, t) in list) {
-            val x = size.width * at(ZonedDateTime.of(now.toLocalDate(), t, now.zone))
+            val x = x(at(ZonedDateTime.of(now.toLocalDate(), t, now.zone)))
             val passed = !ZonedDateTime.of(now.toLocalDate(), t, now.zone).isAfter(now)
             when {
                 p == next -> {
@@ -249,7 +253,7 @@ private fun DayLine(times: PrayerTimes, next: Prayer?, now: ZonedDateTime, modif
             }
         }
         if (now.isAfter(start) && now.isBefore(end)) {
-            drawLine(Color.White, Offset(size.width * nowAt, y - 9.dp.toPx()), Offset(size.width * nowAt, y + 9.dp.toPx()), 2.dp.toPx(), StrokeCap.Round)
+            drawLine(Color.White, Offset(x(nowAt), y - 9.dp.toPx()), Offset(x(nowAt), y + 9.dp.toPx()), 2.dp.toPx(), StrokeCap.Round)
         }
     }
 }

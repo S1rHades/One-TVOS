@@ -29,6 +29,7 @@
 - **A notification bar.** Under the widgets, as wide as them: the newest notification (a new version, a goal, a file from your phone, another app's) with a bell that opens them all. One press installs an update from there.
 - **Files from your phone.** Scan a code on the TV and send photos, videos, apps or documents from your phone's browser, with nothing to install; they open on the TV in one press.
 - **Built for the remote.** Focused apps lift and get a crisp white ring, and every action is one or two presses of the D-pad.
+- **In English, French or Arabic.** The launcher follows the TV's language or one you choose, and in Arabic the whole screen is laid out right to left.
 - **Light on the TV.** One small app, written in Jetpack Compose, with no tracking. Behind another app it stays out of the way: the slideshow waits, the app list is read again only when an app is installed or removed, and file sharing stops unless you ask it to keep going. Only the widgets' data keeps refreshing, so they're up to date the moment you come back.
 
 Ideas shown as mockups and passed over are listed in [docs/PLANNED.md](docs/PLANNED.md).
@@ -187,7 +188,22 @@ Your phone opens a plain page in its browser, with nothing to install: **Send to
 <table>
   <tr>
     <td width="50%"><img src="docs/screenshots/settings.png" alt="The settings card on the right: Home screen, Widgets, Notifications, Files, Home and startup, and TV and system, each with its current choice underneath"><br><sub><b>Settings</b>: each row shows its current choice.</sub></td>
-    <td width="50%"><img src="docs/screenshots/settings-system.png" alt="Settings, TV and system: Updates with its status, then Free up memory, Network and Wi-Fi, Display, Sound, Storage and System update"><br><sub><b>TV & system</b>: the launcher's updates, then the TV's own screens.</sub></td>
+    <td width="50%"><img src="docs/screenshots/settings-system.png" alt="Settings, TV and system: Updates with its status and Language, then Free up memory, Network and Wi-Fi, Display, Sound, Storage and System update"><br><sub><b>TV & system</b>: the launcher's updates, then the TV's own screens.</sub></td>
+  </tr>
+</table>
+
+### Languages
+
+Pill Launcher speaks **English**, **French** and **Arabic**. It follows the TV's language when it is one of the three, and English otherwise; **Settings → TV & system → Language** chooses one whatever the TV is set to. The screen starts again in the new language at once.
+
+Everything the launcher itself says changes: the greeting, the widgets, the pages, Settings and its own notifications, with dates and month names in the language's own form (Arabic as written in Algeria, with Western digits). In Arabic the whole screen runs right to left: the bar moves to the top left, the favourites start from the right, and **Left** / **Right** move along a row the way it now reads. A football score keeps its order ("2–1"). Arabic letters stand taller than Latin ones, so a card that runs out of room leaves out its last line (on the football card, the last result) rather than cutting it in half.
+
+What comes from elsewhere stays as it comes: app names, headlines, team and competition names, the mosque's name, and other apps' notifications. The page a phone opens to send files is in English.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/home-arabic.png" alt="The home screen in Arabic, laid out right to left: the greeting at the top right and the bar at the top left; the clock, the football card and the prayer card with Maghrib next, each in Arabic; the notification bar; and the favourites starting with Cinema on the right"><br><sub><b>Arabic</b>: right to left.</sub></td>
+    <td width="50%"><img src="docs/screenshots/home-french.png" alt="The home screen in French: the greeting, the clock with the day and date in French, the weather for Lisbon, the football card reading Prochain, Qualif. CAN and Dernier 2–1 v Niger, and Tout est à jour in the notification bar"><br><sub><b>French</b>.</sub></td>
   </tr>
 </table>
 
@@ -237,7 +253,7 @@ On TVs that ignore that command, turning off the stock launcher works too (turn 
 
 The `latest` release is rebuilt automatically every time `main` changes, so installing it again always gets you the newest version.
 
-Every version also keeps its own release, named after it (**Pill Launcher 3.9.1**, tag `v3.9.1`, file `pill-launcher-3.9.1.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v3.9.1/pill-launcher-3.9.1.apk`. The newest is titled **Pill Launcher 3.9.1 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
+Every version also keeps its own release, named after it (**Pill Launcher 4.0**, tag `v4.0`, file `pill-launcher-4.0.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v4.0/pill-launcher-4.0.apk`. The newest is titled **Pill Launcher 4.0 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
 
 ### Backing up your settings
 
@@ -300,6 +316,7 @@ If the launcher won't open, use the TV's own **Settings → Apps → Pill Launch
 | See another prayer's time on the prayer card | With it focused, **Left** / **Right** (it goes back to the next prayer after 10 seconds) |
 | Open the prayer page, and refresh the times | Go up to the prayer card, then **OK**; **Refresh** at the top left |
 | Free up memory, or open the TV's network, display, sound or update screens | **Settings → TV & system** |
+| Change the launcher's language (English, French, Arabic) | **Settings → TV & system → Language** |
 | Back up the launcher's settings to a file, or restore them from one | **Settings → TV & system → Back up settings** / **Restore settings** (OK twice) |
 | Uninstall Pill Launcher (OK twice, then confirm) | **Settings → TV & system → Uninstall Pill Launcher** |
 | Close a page or settings | **Back** (pages say so the first three times) |
@@ -424,7 +441,9 @@ gradle assembleDebug                                   # app/build/outputs/apk/d
 gradle :app:testDebugUnitTest --tests '*Screenshots*'  # re-render docs/screenshots
 ```
 
-**Builds are automated.** `.github/workflows/build.yml` runs every test and then builds the APK for every pull request and push, so a failing test stops a release; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v3.9.1`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
+**Text and translations.** The code is written in English: anything shown on screen goes through `tr("…")` (with `%1$s`, `%2$s` for values), and `Translations.kt` gives the French and the Arabic for each English text. A test (`everyTextIsTranslated`) reads the source and fails the build when a text has no translation or a translation has the wrong places for its values, so a new text can't ship in English only. Titles that enums carry (widget names, settings pages) translate when read. Rows that run with the reading direction use `rowStep()` for Left / Right, so they work right to left.
+
+**Builds are automated.** `.github/workflows/build.yml` runs every test and then builds the APK for every pull request and push, so a failing test stops a release; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v4.0`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
 
 <details>
 <summary><b>Architecture</b></summary>
@@ -436,6 +455,8 @@ app/src/main/java/app/pill/launcher/
   AppCache.kt            the app list as last seen, saved so a cold start shows the apps at once
   Refresh.kt             ends the data loops' waits early when the TV wakes or the internet returns
   LauncherSettings.kt    settings and pinned apps in SharedPreferences
+  Lang.kt                the languages, the one on screen, and tr(): English text in the code, shown in that language
+  Translations.kt        French and Arabic for every text, by its English
   Weather.kt             location and forecast lookup, condition names and units
   Widgets.kt             the widget kinds, the four-widget limit, toggling and reordering
   Football.kt            followed teams' fixtures and tables from TheSportsDB or the mirror

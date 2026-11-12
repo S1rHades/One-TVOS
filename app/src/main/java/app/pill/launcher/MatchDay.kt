@@ -5,7 +5,12 @@ import java.time.Instant
 import java.time.ZoneId
 
 /** Which followed teams get the match-day card and the kick-off banner. */
-enum class MatchDayMode(val title: String) { All("All teams"), AlgeriaOnly("Algeria only"), Off("Off") }
+enum class MatchDayMode(private val titleEn: String) {
+    All("All teams"), AlgeriaOnly("Algeria only"), Off("Off");
+
+    /** In the language on screen. */
+    val title: String get() = tr(titleEn)
+}
 
 /** How close a team's next match is: on today, about to start (10 minutes), or being played. */
 enum class MatchPhase { None, Today, Soon, Live }
@@ -51,11 +56,11 @@ fun dueBanner(all: List<Fixtures>, mode: MatchDayMode, now: Instant, shown: Set<
 
 /** "Les Fennecs kick off in 10 minutes", "Arsenal kick off in 1 minute", "... are kicking off". */
 fun bannerTitle(team: Team, match: Match, now: Instant): String {
-    val who = if (team.isAlgeria) "Les Fennecs" else team.name
+    val who = if (team.isAlgeria) tr("Les Fennecs") else team.name
     val minutes = match.kickoff?.let { Math.ceil(Duration.between(now, it).seconds / 60.0).toLong() } ?: 0L
     return when {
-        minutes <= 0 -> "$who are kicking off"
-        minutes == 1L -> "$who kick off in 1 minute"
-        else -> "$who kick off in $minutes minutes"
+        minutes <= 0 -> tr("%1\$s are kicking off", who)
+        minutes == 1L -> tr("%1\$s kick off in 1 minute", who)
+        else -> tr("%1\$s kick off in %2\$s minutes", who, minutes)
     }
 }

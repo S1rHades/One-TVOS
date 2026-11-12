@@ -22,7 +22,7 @@ enum class NewsSource(val title: String, val feed: String) {
  * belongs to a topic when its section or words say so. [keywords] are matched as whole
  * words (a trailing * allows any ending), ignoring case.
  */
-enum class NewsTopic(val title: String, val sections: Set<String>, keywords: List<String>) {
+enum class NewsTopic(private val titleEn: String, val sections: Set<String>, keywords: List<String>) {
     Algeria("Algeria", emptySet(), listOf("algeria*", "algiers", "tebboune", "fennecs", "oran", "constantine", "kabylie")),
     Russia("Russia", setOf("russia"), listOf("russia*", "moscow", "kremlin", "putin", "lavrov", "peskov", "medvedev", "ruble*", "rouble*", "duma")),
     AfricaMiddleEast(
@@ -45,6 +45,9 @@ enum class NewsTopic(val title: String, val sections: Set<String>, keywords: Lis
         ),
     ),
     ;
+
+    /** In the language on screen. */
+    val title: String get() = tr(titleEn)
 
     private val pattern = Regex(
         keywords.joinToString("|", prefix = "\\b(?:", postfix = ")") { word ->
@@ -117,18 +120,18 @@ class NewsFeed(context: Context) {
         val lists = mutableMapOf<NewsSource, List<Headline>>()
         val errors = mutableMapOf<NewsSource, String>()
         for (source in sources) {
-            val result = runCatching { parseRss(httpGet(source.feed, NewsUserAgent), source).also { check(it.isNotEmpty()) { "Empty feed" } } }
+            val result = runCatching { parseRss(httpGet(source.feed, NewsUserAgent), source).also { check(it.isNotEmpty()) { tr("Empty feed") } } }
                 .recoverCatching { direct ->
                     if (source != NewsSource.AlJazeera) throw direct
                     runCatching { headlinesFromJson(httpGet(MirrorBase + "news/aljazeera.json"), source) }
-                        .getOrElse { mirror -> throw IOException("Direct: ${describeError(direct)}; GitHub copy: ${describeError(mirror)}") }
+                        .getOrElse { mirror -> throw IOException(tr("Direct: %1\$s; GitHub copy: %2\$s", describeError(direct), describeError(mirror))) }
                 }
             result.onSuccess {
                 lists[source] = it
                 prefs.edit().putString(source.name, headlinesToJson(it)).putLong("at", System.currentTimeMillis()).apply()
             }
             result.onFailure { error ->
-                errors[source] = if (source == NewsSource.RT) "not available on this network (${describeError(error)})" else error.message ?: describeError(error)
+                errors[source] = if (source == NewsSource.RT) tr("not available on this network (%1\$s)", describeError(error)) else error.message ?: describeError(error)
                 saved[source]?.let { lists[source] = it }
             }
         }

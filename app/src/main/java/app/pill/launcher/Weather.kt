@@ -69,18 +69,18 @@ fun skyFor(code: Int): Sky = when (code) {
 }
 
 fun describe(code: Int): String = when (code) {
-    0 -> "Clear"
-    1 -> "Mostly clear"
-    2 -> "Partly cloudy"
-    3 -> "Cloudy"
-    45, 48 -> "Fog"
-    51, 53, 55, 56, 57 -> "Drizzle"
-    61, 63, 66, 80, 81 -> "Rain"
-    65, 67, 82 -> "Heavy rain"
-    71, 73, 77, 85 -> "Snow"
-    75, 86 -> "Heavy snow"
-    95, 96, 99 -> "Thunderstorms"
-    else -> "Cloudy"
+    0 -> tr("Clear")
+    1 -> tr("Mostly clear")
+    2 -> tr("Partly cloudy")
+    3 -> tr("Cloudy")
+    45, 48 -> tr("Fog")
+    51, 53, 55, 56, 57 -> tr("Drizzle")
+    61, 63, 66, 80, 81 -> tr("Rain")
+    65, 67, 82 -> tr("Heavy rain")
+    71, 73, 77, 85 -> tr("Snow")
+    75, 86 -> tr("Heavy snow")
+    95, 96, 99 -> tr("Thunderstorms")
+    else -> tr("Cloudy")
 }
 
 /** Whole degrees in the chosen unit, e.g. "24°". */
@@ -245,7 +245,7 @@ class WeatherSource(context: Context) {
         val (service, body) = runCatching { OpenMeteo to httpGet(openMeteoUrl(lat, lon)) }.getOrElse { first ->
             runCatching { MetNorway to httpGet(metNorwayUrl(lat, lon), MetUserAgent) }.getOrElse { second ->
                 // Name both failures so the message in Settings says what each service did
-                throw IOException("Open-Meteo: ${shortName(first)}, MET Norway: ${shortName(second)}")
+                throw IOException(tr("Open-Meteo: %1\$s, MET Norway: %2\$s", shortName(first), shortName(second)))
             }
         }
         val weather = when (service) {
@@ -345,7 +345,7 @@ fun parseOpenMeteo(body: String, place: String, lat: Double, lon: Double, fetche
             uvIndex = currentDouble("uv_index"),
             hours = hours,
             days = days,
-            source = "Open-Meteo",
+            source = tr("Open-Meteo"),
             fetchedAt = fetchedAt,
         ),
     )
@@ -380,7 +380,7 @@ fun parseMetNorway(body: String, place: String, lat: Double, lon: Double, fetche
             rainMm = (if (hourly) oneHour else sixHours ?: oneHour)?.optJSONObject("details")?.optDouble("precipitation_amount")?.takeUnless { it.isNaN() },
         )
     }
-    check(steps.isNotEmpty()) { "No forecast steps" }
+    check(steps.isNotEmpty()) { tr("No forecast steps") }
     val first = steps.first()
     val today = steps.filter { Duration.between(first.at, it.at) < Duration.ofHours(24) }
     val symbol = first.symbol ?: "cloudy"
@@ -417,7 +417,7 @@ fun parseMetNorway(body: String, place: String, lat: Double, lon: Double, fetche
             uvIndex = null,
             hours = hours,
             days = days,
-            source = "MET Norway",
+            source = tr("MET Norway"),
             fetchedAt = fetchedAt,
         ),
     )

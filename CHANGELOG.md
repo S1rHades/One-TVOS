@@ -3,6 +3,17 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 4.0 (November 2026)
+
+Pill Launcher in French and Arabic:
+
+- **Three languages**: everything the launcher says is now in **English**, **French** or **Arabic**: the greeting, the widgets, every page, Settings and its own notifications, about 700 texts in all. It follows the TV's language when it is one of the three, and **Settings → TV & system → Language** chooses one whatever the TV is set to.
+- **Arabic runs right to left**: the whole screen is mirrored, with the bar at the top left and the favourites starting from the right. **Left** / **Right** move along a row the way it reads (the football card's teams, the prayer times, the forecast's days, moving a favourite or a widget), the forecast's week and the prayer page's day line run from the right, and a score keeps its order ("2–1"). A card too full for its Arabic text leaves out its last line (the football card's last result) rather than cutting it in half.
+- **Dates in the language**: day and month names follow the language (Arabic as written in Algeria), always with Western digits.
+- **What stays as it comes**: app names, headlines, team names, the mosque's name and other apps' notifications are not translated, and the page a phone opens to send files is still in English.
+- **Forecast fix**: "rain likely" for tomorrow went by the English word for the sky; it now goes by the forecast's own code, so it is right in every language.
+- **For later changes**: text in the code stays in English and is translated when shown; a test fails the build if any text lacks a French or an Arabic translation.
+
 ## 3.9.1 (November 2026)
 
 - **Nothing to see**: the three largest source files are split into smaller ones (the settings pages, the widget cards and the home screen's smaller pieces each get files of their own), so later changes touch less at a time. The launcher behaves exactly as before.

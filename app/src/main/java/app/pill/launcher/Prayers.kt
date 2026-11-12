@@ -13,8 +13,11 @@ import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
 /** The five daily prayers, in order. */
-enum class Prayer(val title: String) {
+enum class Prayer(private val titleEn: String) {
     Fajr("Fajr"), Dhuhr("Dhuhr"), Asr("Asr"), Maghrib("Maghrib"), Isha("Isha");
+
+    /** In the language on screen. */
+    val title: String get() = tr(titleEn)
 
 }
 
@@ -71,7 +74,7 @@ fun cleanMosqueSlug(text: String): String {
 }
 
 /** A name to show from the mosque's address when the answer has none: "grande-mosquee-de-paris" → "Grande Mosquee De Paris". */
-fun mosqueName(slug: String): String = if (slug.isNotEmpty() && slug.all { it.isDigit() }) "Mosque $slug" else
+fun mosqueName(slug: String): String = if (slug.isNotEmpty() && slug.all { it.isDigit() }) tr("Mosque %1\$s", slug) else
     slug.split('-', '_').filter { it.isNotBlank() }.joinToString(" ") { w -> w.replaceFirstChar { it.titlecase() } }
 
 /** The API's address with no trailing slash, or the default when blank or not a web address. */
@@ -103,9 +106,9 @@ fun untilText(at: ZonedDateTime, now: ZonedDateTime): String {
     val d = Duration.between(now, at)
     val minutes = d.toMinutes()
     return when {
-        minutes < 1 -> "now"
-        minutes < 60 -> "in $minutes min"
-        else -> "in ${minutes / 60} h ${"%02d".format(minutes % 60)} min"
+        minutes < 1 -> tr("now")
+        minutes < 60 -> tr("in %1\$s min", minutes)
+        else -> tr("in %1\$s h %2\$s min", minutes / 60, "%02d".format(minutes % 60))
     }
 }
 
@@ -114,9 +117,9 @@ fun whenText(at: ZonedDateTime, now: ZonedDateTime): String {
     if (!at.isBefore(now)) return untilText(at, now)
     val minutes = Duration.between(at, now).toMinutes()
     return when {
-        minutes < 1 -> "now"
-        minutes < 60 -> "$minutes min ago"
-        else -> "${minutes / 60} h ${"%02d".format(minutes % 60)} min ago"
+        minutes < 1 -> tr("now")
+        minutes < 60 -> tr("%1\$s min ago", minutes)
+        else -> tr("%1\$s h %2\$s min ago", minutes / 60, "%02d".format(minutes % 60))
     }
 }
 
@@ -144,7 +147,7 @@ fun parsePrayerTimes(body: String, fetchedAt: Instant, forDate: LocalDate, fallb
     val times = HashMap<Prayer, LocalTime>()
     var shuruq: LocalTime? = null
     val calendar = json.optJSONArray("calendar")
-    when (val raw = if (fromCalendar) dayIn(calendar, forDate) ?: error("The saved calendar has no times for $forDate") else json.opt("times")) {
+    when (val raw = if (fromCalendar) dayIn(calendar, forDate) ?: error(tr("The saved calendar has no times for %1\$s", forDate)) else json.opt("times")) {
         is JSONObject -> {
             readNamed(raw, times)
             shuruq = sunriseIn(raw)
@@ -163,7 +166,7 @@ fun parsePrayerTimes(body: String, fetchedAt: Instant, forDate: LocalDate, fallb
         else -> readNamed(json, times)
     }
     if (shuruq == null && !fromCalendar) shuruq = sunriseIn(json)
-    check(times.isNotEmpty()) { "No prayer times in the answer" }
+    check(times.isNotEmpty()) { tr("No prayer times in the answer") }
     val iqama = HashMap<Prayer, LocalTime>()
     val todays = (if (fromCalendar) null else json.opt("iqama")) ?: dayIn(json.optJSONArray("iqamaCalendar"), forDate)
     when (todays) {
@@ -270,7 +273,7 @@ class PrayerSource(
      * said, for Settings; all "not found" means there is no such mosque.
      */
     fun fetch(api: String, slug: String): Result<PrayerTimes> = runCatching {
-        require(slug.isNotBlank()) { "Choose a mosque in Settings" }
+        require(slug.isNotBlank()) { tr("Choose a mosque in Settings") }
         val base = cleanPrayerApi(api)
         val now = Instant.now()
         val today = now.atZone(zone).toLocalDate()
@@ -326,7 +329,7 @@ private const val SiteUserAgent = "Mozilla/5.0 (Linux; Android 11; Android TV) P
  * error when the page has none (a page that isn't a mosque's).
  */
 fun confDataIn(html: String): String {
-    val at = Regex("""\bconfData\s*=\s*\{""").find(html) ?: error("No mosque data on the page")
+    val at = Regex("""\bconfData\s*=\s*\{""").find(html) ?: error(tr("No mosque data on the page"))
     val start = at.range.last
     var depth = 0
     var inString = false
@@ -343,7 +346,7 @@ fun confDataIn(html: String): String {
         }
         i++
     }
-    error("The mosque data on the page is cut short")
+    error(tr("The mosque data on the page is cut short"))
 }
 
 /**
@@ -352,9 +355,9 @@ fun confDataIn(html: String): String {
  * MAWAQIT couldn't be reached.
  */
 fun prayerProblem(error: Throwable, at: String): String = when (error) {
-    is NoSuchMosque -> "MAWAQIT has no mosque “${error.slug}”. Type its ID (the number at the bottom left of its MAWAQIT screen) or the end of its mawaqit.net address · checked $at"
+    is NoSuchMosque -> tr("MAWAQIT has no mosque “%1\$s”. Type its ID (the number at the bottom left of its MAWAQIT screen) or the end of its mawaqit.net address · checked %2\$s", error.slug, at)
     is IllegalArgumentException -> error.message.orEmpty()
-    else -> "Can't get the times (" + (error.message?.takeIf { ": " in it } ?: shortReason(error)) + ") · checked $at"
+    else -> tr("Can't get the times (") + (error.message?.takeIf { ": " in it } ?: shortReason(error)) + tr(") · checked %1\$s", at)
 }
 
 private const val PrayerUserAgent = "PillLauncher/3.4 github.com/S1rHades/One-TVOS"

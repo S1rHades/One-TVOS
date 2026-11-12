@@ -1,5 +1,7 @@
 package app.pill.launcher.ui
 
+import app.pill.launcher.tr
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -32,7 +34,7 @@ import kotlin.math.roundToInt
 // Settings → Notifications, Files and TV & system (with Updates): the pages and the system shortcuts.
 
 /** Shortcuts on the TV & system page: one action here, the rest open the TV's own screens. */
-enum class SystemAction(val title: String, val subtitle: String) {
+enum class SystemAction(private val titleEn: String, private val subtitleEn: String) {
     FreeMemory("Free up memory", "Close apps running in the background"),
     Network("Network & Wi-Fi", "Connection, Wi-Fi networks, VPN"),
     Display("Display", "Resolution, picture, screen saver"),
@@ -45,6 +47,11 @@ enum class SystemAction(val title: String, val subtitle: String) {
     Backup("Back up settings", "Saves your favourites, names, widgets, teams, mosque and switches as a file in Files"),
     Restore("Restore settings", "From the newest backup in Files; send one from your phone first"),
     Uninstall("Uninstall Pill Launcher", "Removes the launcher and its settings; the TV's own home screen takes over"),
+    ;
+
+    /** In the language on screen. */
+    val title: String get() = tr(titleEn)
+    val subtitle: String get() = tr(subtitleEn)
 }
 
 @Composable
@@ -63,11 +70,11 @@ internal fun SystemPage(onAction: (SystemAction) -> String?, firstModifier: Modi
     }
     // Two presses, so a stray OK doesn't start it; the TV then asks to confirm as well
     var armed by remember { mutableStateOf(false) }
-    Group("Pill Launcher") {
+    Group(tr("Pill Launcher")) {
         SettingRow(
             title = SystemAction.Uninstall.title,
             subtitle = notes[SystemAction.Uninstall]
-                ?: if (armed) "Press OK again to uninstall" else SystemAction.Uninstall.subtitle,
+                ?: if (armed) tr("Press OK again to uninstall") else SystemAction.Uninstall.subtitle,
             onClick = {
                 if (!armed) {
                     armed = true
@@ -98,11 +105,11 @@ internal fun NotificationsPage(
     var accessNote by remember { mutableStateOf<String?>(null) }
     Group(null) {
         SettingRow(
-            title = "Other apps' notifications",
+            title = tr("Other apps' notifications"),
             subtitle = accessNote ?: when {
-                !access -> "Needs Notification access for Pill Launcher · OK to allow it"
-                settings.appNotices -> "In the bar under the widgets"
-                else -> "Kept out of the bar"
+                !access -> tr("Needs Notification access for Pill Launcher · OK to allow it")
+                settings.appNotices -> tr("In the bar under the widgets")
+                else -> tr("Kept out of the bar")
             },
             onClick = {
                 if (!access) accessNote = onAccess() else onChange(settings.copy(appNotices = !settings.appNotices))
@@ -111,40 +118,40 @@ internal fun NotificationsPage(
         ) { focused -> if (access) Switch(checked = settings.appNotices, focused = focused) else Chevron(focused) }
         if (access && settings.appNotices) {
             SettingRow(
-                title = "Hide private messages",
-                subtitle = if (settings.hidePrivate) "Messages an app marks private show as \"New notification\"" else "Messages show their text",
+                title = tr("Hide private messages"),
+                subtitle = if (settings.hidePrivate) tr("Messages an app marks private show as \"New notification\"") else tr("Messages show their text"),
                 onClick = { onChange(settings.copy(hidePrivate = !settings.hidePrivate)) },
             ) { focused -> Switch(checked = settings.hidePrivate, focused = focused) }
         }
         SettingRow(
-            title = "Football",
-            subtitle = "Kick-off reminders, goals and wins for the teams you follow",
+            title = tr("Football"),
+            subtitle = tr("Kick-off reminders, goals and wins for the teams you follow"),
             onClick = { onChange(settings.copy(footballNotices = !settings.footballNotices)) },
         ) { focused -> Switch(checked = settings.footballNotices, focused = focused) }
         SettingRow(
-            title = "Connection",
-            subtitle = "When the internet drops, and how long it was gone",
+            title = tr("Connection"),
+            subtitle = tr("When the internet drops, and how long it was gone"),
             onClick = { onChange(settings.copy(connectionNotices = !settings.connectionNotices)) },
         ) { focused -> Switch(checked = settings.connectionNotices, focused = focused) }
         SettingRow(
-            title = "Prayer times",
-            subtitle = "Each prayer as its time comes, for a quarter of an hour, while the prayer times widget is on",
+            title = tr("Prayer times"),
+            subtitle = tr("Each prayer as its time comes, for a quarter of an hour, while the prayer times widget is on"),
             onClick = { onChange(settings.copy(prayerNotices = !settings.prayerNotices)) },
         ) { focused -> Switch(checked = settings.prayerNotices, focused = focused) }
     }
     if (access && settings.appNotices && apps.isNotEmpty()) {
-        Group("Apps") {
+        Group(tr("Apps")) {
             for ((pkg, name) in apps) {
                 val muted = pkg in settings.mutedApps
                 SettingRow(
                     title = name,
-                    subtitle = if (muted) "Muted" else "Shows in the bar",
+                    subtitle = if (muted) tr("Muted") else tr("Shows in the bar"),
                     onClick = { onChange(settings.copy(mutedApps = if (muted) settings.mutedApps - pkg else settings.mutedApps + pkg)) },
                 ) { focused -> Switch(checked = !muted, focused = focused) }
             }
         }
     }
-    Note("Updates and files from your phone always show. Hold OK on a notification in the bar to dismiss it.")
+    Note(tr("Updates and files from your phone always show. Hold OK on a notification in the bar to dismiss it."))
 }
 
 /**
@@ -155,19 +162,19 @@ internal fun NotificationsPage(
 internal fun FilesSettingsPage(settings: LauncherSettings, onChange: (LauncherSettings) -> Unit, share: FileShare?, firstModifier: Modifier) {
     Group(null) {
         SettingRow(
-            title = "Keep receiving",
-            subtitle = if (settings.keepReceiving) "15 minutes after you leave the launcher for another app" else "Only while the launcher is on screen",
+            title = tr("Keep receiving"),
+            subtitle = if (settings.keepReceiving) tr("15 minutes after you leave the launcher for another app") else tr("Only while the launcher is on screen"),
             onClick = { onChange(settings.copy(keepReceiving = !settings.keepReceiving)) },
             modifier = firstModifier,
         ) { focused -> Switch(checked = settings.keepReceiving, focused = focused) }
         SettingRow(
-            title = "Offer to delete installed APKs",
-            subtitle = "Once an APK's app is installed, the notification bar asks. Nothing is deleted without you",
+            title = tr("Offer to delete installed APKs"),
+            subtitle = tr("Once an APK's app is installed, the notification bar asks. Nothing is deleted without you"),
             onClick = { onChange(settings.copy(askInstalledApks = !settings.askInstalledApks)) },
         ) { focused -> Switch(checked = settings.askInstalledApks, focused = focused) }
         SettingRow(
-            title = "Remove files after 30 days",
-            subtitle = "The notification bar says so the day before",
+            title = tr("Remove files after 30 days"),
+            subtitle = tr("The notification bar says so the day before"),
             onClick = { onChange(settings.copy(tidyOld = !settings.tidyOld)) },
         ) { focused -> Switch(checked = settings.tidyOld, focused = focused) }
     }
@@ -175,27 +182,27 @@ internal fun FilesSettingsPage(settings: LauncherSettings, onChange: (LauncherSe
     val state by share.state.collectAsState()
     Group(null) {
         Advanced(
-            summary = "Trusted devices · " + when (state.devices.size) {
-                0 -> "no phone paired yet"
-                1 -> "1 phone"
-                else -> "${state.devices.size} phones"
+            summary = tr("Trusted devices · ") + when (state.devices.size) {
+                0 -> tr("no phone paired yet")
+                1 -> tr("1 phone")
+                else -> tr("%1\$s phones", state.devices.size)
             },
         ) {
         if (state.devices.isEmpty()) {
-            Note("No phone is paired yet. Scan the code on the Files page to pair one.")
+            Note(tr("No phone is paired yet. Scan the code on the Files page to pair one."))
         }
         for (d in state.devices) {
             key(d.id) {
                 SettingRow(
                     title = d.name,
-                    subtitle = "Paired ${pairedDay(d.pairedAt)} · OK removes it",
+                    subtitle = tr("Paired %1\$s · OK removes it", pairedDay(d.pairedAt)),
                     onClick = { share.forget(d.id) },
                 ) { focused -> Mark("✕", focused) }
             }
         }
         SettingRow(
-            title = "Sign out every phone",
-            subtitle = "Code now ${state.code}. Signing out makes a new one",
+            title = tr("Sign out every phone"),
+            subtitle = tr("Code now %1\$s. Signing out makes a new one", state.code),
             onClick = { share.signOutAll() },
         ) { focused -> Chevron(focused) }
         }
@@ -209,15 +216,15 @@ private fun pairedDay(ms: Long): String =
 /** One line on where updates stand, for the category list and the check row. */
 internal fun updateSummary(update: UpdateState, version: String): String {
     val release = update.release
-    val v = if (version.isNotEmpty()) "Version $version" else "This version"
+    val v = if (version.isNotEmpty()) tr("Version %1\$s", version) else tr("This version")
     return when (update.phase) {
-        UpdatePhase.Checking -> "Checking GitHub…"
-        UpdatePhase.Downloading -> "Downloading ${release?.version} · ${(update.progress * 100).roundToInt()}%"
-        UpdatePhase.Installing -> "Installing ${release?.version}"
-        UpdatePhase.Available -> "${release?.version} is ready to install"
-        UpdatePhase.Failed -> update.message ?: "Couldn't check for updates"
-        UpdatePhase.UpToDate -> "$v · up to date" + (update.checkedAt?.let { " · checked ${ageText(it).lowercase()}" } ?: "")
-        UpdatePhase.Idle -> "$v · not checked yet"
+        UpdatePhase.Checking -> tr("Checking GitHub…")
+        UpdatePhase.Downloading -> tr("Downloading %1\$s · %2\$s%%", release?.version, (update.progress * 100).roundToInt())
+        UpdatePhase.Installing -> tr("Installing %1\$s", release?.version)
+        UpdatePhase.Available -> tr("%1\$s is ready to install", release?.version)
+        UpdatePhase.Failed -> update.message ?: tr("Couldn't check for updates")
+        UpdatePhase.UpToDate -> tr("%1\$s · up to date", v) + (update.checkedAt?.let { tr(" · checked %1\$s", ageText(it).lowercase()) } ?: "")
+        UpdatePhase.Idle -> tr("%1\$s · not checked yet", v)
     }
 }
 
@@ -240,9 +247,9 @@ internal fun UpdatesPage(
     val release = update.release
     Group(null) {
         SettingRow(
-            title = "Check for updates",
+            title = tr("Check for updates"),
             subtitle = updateSummary(update, version).takeIf { release == null || update.phase == UpdatePhase.Checking }
-                ?: "Version $version · ${release?.version} is out",
+                ?: tr("Version %1\$s · %2\$s is out", version, release?.version),
             onClick = onCheck,
             enabled = update.phase != UpdatePhase.Downloading && update.phase != UpdatePhase.Installing,
             modifier = firstModifier,
@@ -250,15 +257,15 @@ internal fun UpdatesPage(
         if (release != null) {
             SettingRow(
                 title = when (update.phase) {
-                    UpdatePhase.Downloading -> "Downloading ${release.version}"
-                    UpdatePhase.Installing -> "Installing ${release.version}"
-                    UpdatePhase.Failed -> "Try ${release.version} again"
-                    else -> "Update to ${release.version}"
+                    UpdatePhase.Downloading -> tr("Downloading %1\$s", release.version)
+                    UpdatePhase.Installing -> tr("Installing %1\$s", release.version)
+                    UpdatePhase.Failed -> tr("Try %1\$s again", release.version)
+                    else -> tr("Update to %1\$s", release.version)
                 },
                 subtitle = when (update.phase) {
-                    UpdatePhase.Downloading -> "OK cancels"
-                    UpdatePhase.Installing -> "Confirm on the screen Android shows"
-                    else -> update.message ?: "About ${(release.sizeBytes / 1_000_000).coerceAtLeast(1)} MB · settings and favourites stay"
+                    UpdatePhase.Downloading -> tr("OK cancels")
+                    UpdatePhase.Installing -> tr("Confirm on the screen Android shows")
+                    else -> update.message ?: tr("About %1\$s MB · settings and favourites stay", (release.sizeBytes / 1_000_000).coerceAtLeast(1))
                 },
                 onClick = { if (update.phase == UpdatePhase.Downloading) onCancel() else onStart() },
                 enabled = update.phase != UpdatePhase.Installing,
@@ -275,14 +282,14 @@ internal fun UpdatesPage(
             }
         }
         SettingRow(
-            title = "Check automatically",
-            subtitle = if (settings.checkUpdates) "Every few hours, and a card on the home screen when one is out" else "Only when you check here",
+            title = tr("Check automatically"),
+            subtitle = if (settings.checkUpdates) tr("Every few hours, and a card on the home screen when one is out") else tr("Only when you check here"),
             onClick = { onChange(settings.copy(checkUpdates = !settings.checkUpdates)) },
         ) { focused -> Switch(checked = settings.checkUpdates, focused = focused) }
     }
     // Rows that take focus, so Down scrolls through everything (plain text can't be reached)
     if (release != null && release.notes.isNotEmpty()) {
-        Group("What's new in ${release.version}") {
+        Group(tr("What's new in %1\$s", release.version)) {
             for (line in release.notes) {
                 SettingRow(title = line, subtitle = null, onClick = {}, small = true) { }
             }
@@ -290,10 +297,33 @@ internal fun UpdatesPage(
     }
     Group(null) {
         SettingRow(
-            title = "About updates",
-            subtitle = "From Pill Launcher's releases on GitHub, signed with the same key, so settings and favourites stay. Android asks you to confirm each install, and the first time to allow Pill Launcher to install apps.",
+            title = tr("About updates"),
+            subtitle = tr("From Pill Launcher's releases on GitHub, signed with the same key, so settings and favourites stay. Android asks you to confirm each install, and the first time to allow Pill Launcher to install apps."),
             onClick = {},
             subtitleLines = 4,
         ) { }
     }
+}
+
+/** Settings → TV & system → Language: the TV's own language where the launcher speaks it, or one of the launcher's three. */
+@Composable
+internal fun LanguagePage(settings: LauncherSettings, onChange: (LauncherSettings) -> Unit, firstModifier: Modifier) {
+    // The TV's language itself, not the one this screen was started in
+    val system = remember { app.pill.launcher.Language.of(android.content.res.Resources.getSystem().configuration.locales[0]) }
+    Group(null) {
+        SettingRow(
+            title = tr("Same as the TV"),
+            subtitle = system.ownName,
+            onClick = { onChange(settings.copy(language = "")) },
+            modifier = firstModifier,
+        ) { focused -> if (settings.language.isEmpty()) Check(focused) else Box(Modifier) }
+        for (language in app.pill.launcher.Language.entries) {
+            SettingRow(
+                title = language.ownName,
+                subtitle = null,
+                onClick = { onChange(settings.copy(language = language.tag)) },
+            ) { focused -> if (settings.language == language.tag) Check(focused) else Box(Modifier) }
+        }
+    }
+    Note(tr("The launcher's own words change. Headlines, team names and other apps' notifications stay in the language they come in."))
 }

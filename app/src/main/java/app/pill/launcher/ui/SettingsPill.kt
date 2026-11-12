@@ -1,5 +1,6 @@
 package app.pill.launcher.ui
 
+import app.pill.launcher.tr
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -70,7 +71,7 @@ fun SettingsPill(
     modifier: Modifier = Modifier,
     onActive: (Boolean) -> Unit = {},
 ) {
-    RoundButton("Settings", onClick, modifier, focusRequester, onActive) { tint, active ->
+    RoundButton(tr("Settings"), onClick, modifier, focusRequester, onActive) { tint, active ->
         val turn by animateFloatAsState(if (active) 45f else 0f, tween(450), label = "gearTurn")
         GearIcon(tint = tint, iconSize = 26.dp, modifier = Modifier.rotate(turn))
     }
@@ -123,14 +124,14 @@ fun QuickActions(
             ) {
                 // Status only, so not a focus stop
                 Box(
-                    Modifier.size(ButtonSize).semantics { contentDescription = "VPN on" },
+                    Modifier.size(ButtonSize).semantics { contentDescription = tr("VPN on") },
                     contentAlignment = Alignment.Center,
                 ) {
                     KeyIcon(tint = VpnGreen, iconSize = 24.dp)
                 }
             }
             RoundButton(
-                description = "Network: " + network.label + if (network.vpn) ", VPN on" else "",
+                description = tr("Network: ") + network.label + if (network.vpn) tr(", VPN on") else "",
                 onClick = onNetwork,
                 modifier = Modifier.at(0),
                 focusRequester = null,
@@ -151,7 +152,7 @@ private val OfflineRed = Color(0xFFFF8787)
 /** Round glass button with a magnifier, opening search. */
 @Composable
 fun SearchPill(onClick: () -> Unit, modifier: Modifier = Modifier, onActive: (Boolean) -> Unit = {}) {
-    RoundButton("Search", onClick, modifier, focusRequester = null, onActive = onActive) { tint, active ->
+    RoundButton(tr("Search"), onClick, modifier, focusRequester = null, onActive = onActive) { tint, active ->
         val tilt by animateFloatAsState(if (active) -12f else 0f, tween(450), label = "searchTilt")
         SearchIcon(tint = tint, iconSize = 24.dp, modifier = Modifier.rotate(tilt))
     }

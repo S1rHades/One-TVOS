@@ -42,7 +42,12 @@ fun withNames(apps: List<AppEntry>, names: Map<String, String>): List<AppEntry> 
 }.sortedBy { it.label.lowercase() }
 
 /** The kinds the All apps chips filter by. */
-enum class AppCategory(val title: String) { Video("Video"), Music("Music"), Games("Games"), Other("Other") }
+enum class AppCategory(private val titleEn: String) {
+    Video("Video"), Music("Music"), Games("Games"), Other("Other");
+
+    /** In the language on screen. */
+    val title: String get() = tr(titleEn)
+}
 
 // Words that say what an app is when it appears in its name, and brands found in names or packages
 private val VideoWords = setOf("video", "videos", "tv", "cinema", "movie", "movies", "film", "films", "kids", "iptv")

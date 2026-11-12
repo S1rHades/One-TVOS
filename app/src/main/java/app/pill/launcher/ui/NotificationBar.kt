@@ -1,5 +1,6 @@
 package app.pill.launcher.ui
 
+import app.pill.launcher.tr
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -240,12 +241,12 @@ fun NotificationBar(
                     }
                 }
                 if (open && notices.isNotEmpty()) {
-                    SmallPill("Clear all", onClick = onClearAll)
+                    SmallPill(tr("Clear all"), onClick = onClearAll)
                     Spacer(Modifier.width(10.dp))
                 }
                 Box(Modifier.padding(horizontal = 8.dp).size(width = 1.dp, height = 22.dp).background(Color(0x40FFFFFF)))
                 BarButton(
-                    label = if (unread > 0) "Notifications, $unread new" else "Notifications",
+                    label = if (unread > 0) tr("Notifications, %1\$s new", unread) else tr("Notifications"),
                     current = open,
                     onClick = { onOpenChange(!open) },
                     modifier = Modifier.focusRequester(bellFocus),
@@ -283,7 +284,7 @@ fun NotificationBar(
                 ) {
                     if (notices.isEmpty()) {
                         Text(
-                            "Nothing new. Updates, goals, files from your phone and other apps' notifications show here.",
+                            tr("Nothing new. Updates, goals, files from your phone and other apps' notifications show here."),
                             color = Palette.TextSecondary,
                             fontSize = 15.sp,
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
@@ -296,7 +297,7 @@ fun NotificationBar(
                             color = Palette.TextTertiary,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
-                            letterSpacing = 1.3.sp,
+                            letterSpacing = tracking(1.3f),
                             maxLines = 1,
                             modifier = Modifier.padding(start = 14.dp, top = 8.dp, bottom = 2.dp),
                         )
@@ -340,13 +341,13 @@ private val UnreadRed = Color(0xFFFF6B5B)
 private fun ListHeader(count: Int, unread: Int) {
     Text(
         buildAnnotatedString {
-            withStyle(SpanStyle(color = Palette.TextPrimary, fontWeight = FontWeight.SemiBold)) { append("Notifications") }
+            withStyle(SpanStyle(color = Palette.TextPrimary, fontWeight = FontWeight.SemiBold)) { append(tr("Notifications")) }
             withStyle(SpanStyle(color = Palette.TextTertiary)) {
                 append(
                     when {
                         count == 0 -> ""
-                        unread > 0 -> " · $unread new · hold OK on one to dismiss"
-                        else -> " · hold OK on one to dismiss"
+                        unread > 0 -> tr(" · %1\$s new · hold OK on one to dismiss", unread)
+                        else -> tr(" · hold OK on one to dismiss")
                     },
                 )
             }
@@ -426,7 +427,7 @@ private fun CaughtUp(onOpen: () -> Unit, focus: FocusRequester) {
                 .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("All caught up", color = fg, fontSize = 16.sp, maxLines = 1)
+            Text(tr("All caught up"), color = fg, fontSize = 16.sp, maxLines = 1)
         }
     }
 }
@@ -479,15 +480,15 @@ private fun NoticeRow(
             when (update.phase) {
                 UpdatePhase.Available, UpdatePhase.Failed -> {
                     Spacer(Modifier.width(10.dp))
-                    PillButton(if (update.phase == UpdatePhase.Failed) "Try again" else "Update", primary = true, onClick = onOpen)
+                    PillButton(if (update.phase == UpdatePhase.Failed) tr("Try again") else tr("Update"), primary = true, onClick = onOpen)
                     Spacer(Modifier.width(8.dp))
-                    PillButton("Later", primary = false, onClick = onLater)
+                    PillButton(tr("Later"), primary = false, onClick = onLater)
                 }
                 UpdatePhase.Downloading -> {
                     Spacer(Modifier.width(12.dp))
                     ProgressLine(update.progress, Modifier.width(120.dp))
                     Spacer(Modifier.width(12.dp))
-                    PillButton("Cancel", primary = false, onClick = onCancel)
+                    PillButton(tr("Cancel"), primary = false, onClick = onCancel)
                 }
                 else -> Unit
             }

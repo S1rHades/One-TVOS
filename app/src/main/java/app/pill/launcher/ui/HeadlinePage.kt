@@ -1,5 +1,6 @@
 package app.pill.launcher.ui
 
+import app.pill.launcher.tr
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
@@ -67,8 +68,8 @@ fun HeadlinePage(picked: List<PickedHeadline>, start: Int, onDismiss: () -> Unit
             runCatching { first.requestFocus() }
         }
         PageTitle(
-            "Headlines",
-            listOfNotNull(if (picked.size == 1) "1 story" else "${picked.size} stories", "Up / Down for more", backHint()).joinToString(" · "),
+            tr("Headlines"),
+            listOfNotNull(if (picked.size == 1) tr("1 story") else tr("%1\$s stories", picked.size), tr("Up / Down for more"), backHint()).joinToString(" · "),
             Modifier.reveal(0),
         )
         Row(Modifier.fillMaxWidth().height(PageBodyHeight), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -98,7 +99,7 @@ fun HeadlinePage(picked: List<PickedHeadline>, start: Int, onDismiss: () -> Unit
                     val h = item.headline
                     Column(Modifier.fillMaxSize().padding(horizontal = 6.dp, vertical = 4.dp)) {
                         PageLabel(
-                            listOfNotNull(item.topic?.title ?: "Top stories", h.source.title, h.published?.let { ageText(it) }).joinToString(" · "),
+                            listOfNotNull(item.topic?.title ?: tr("Top stories"), h.source.title, h.published?.let { ageText(it) }).joinToString(" · "),
                             color = StoryRed,
                         )
                         Spacer(Modifier.height(12.dp))
@@ -108,7 +109,7 @@ fun HeadlinePage(picked: List<PickedHeadline>, start: Int, onDismiss: () -> Unit
                             Text(h.summary, color = Palette.TextSecondary, fontSize = 18.sp, lineHeight = 26.sp, maxLines = 6, overflow = TextOverflow.Ellipsis)
                         }
                         Spacer(Modifier.weight(1f))
-                        PageFooter("${i + 1} of ${picked.size}")
+                        PageFooter(tr("%1\$s of %2\$s", i + 1, picked.size))
                     }
                 }
             }
