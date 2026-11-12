@@ -1,5 +1,6 @@
 package app.pill.launcher.ui
 
+import app.pill.launcher.tr
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.MutableTransitionState
@@ -108,9 +109,9 @@ fun RenameDialog(app: AppEntry, onRename: (String) -> Unit, onDismiss: () -> Uni
                         Image(app.icon, contentDescription = null, modifier = Modifier.size(44.dp).clip(Squircle))
                         Spacer(Modifier.width(14.dp))
                         Column(Modifier.weight(1f)) {
-                            Text("Rename", color = Palette.TextPrimary, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+                            Text(tr("Rename"), color = Palette.TextPrimary, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
                             Text(
-                                "Only in Pill Launcher" + (app.originalLabel?.let { " · its own name: $it" } ?: ""),
+                                tr("Only in Pill Launcher") + (app.originalLabel?.let { tr(" · its own name: %1\$s", it) } ?: ""),
                                 color = Palette.TextSecondary, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
                             )
                         }
@@ -124,9 +125,9 @@ fun RenameDialog(app: AppEntry, onRename: (String) -> Unit, onDismiss: () -> Uni
                     )
                     Spacer(Modifier.height(16.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        PillButton("Save", primary = true, onClick = { save(value.text) }, enabled = value.text.isNotBlank())
+                        PillButton(tr("Save"), primary = true, onClick = { save(value.text) }, enabled = value.text.isNotBlank())
                         if (app.originalLabel != null) {
-                            PillButton("Use its own name", primary = false, onClick = { save("") })
+                            PillButton(tr("Use its own name"), primary = false, onClick = { save("") })
                         }
                         Spacer(Modifier.weight(1f))
                         Text("${value.text.length}/$MaxNameLength", color = Palette.TextTertiary, fontSize = 13.sp)
@@ -160,7 +161,7 @@ private fun NameField(value: TextFieldValue, onChange: (TextFieldValue) -> Unit,
                     .border(2.dp, border, FieldShape)
                     .padding(horizontal = 18.dp, vertical = 13.dp),
             ) {
-                if (value.text.isEmpty()) Text("Name", color = Palette.TextTertiary, fontSize = 22.sp)
+                if (value.text.isEmpty()) Text(tr("Name"), color = Palette.TextTertiary, fontSize = 22.sp)
                 inner()
             }
         },

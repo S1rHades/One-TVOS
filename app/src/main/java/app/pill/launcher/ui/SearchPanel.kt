@@ -1,5 +1,6 @@
 package app.pill.launcher.ui
 
+import app.pill.launcher.tr
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.animateColorAsState
@@ -143,8 +144,8 @@ fun SearchPanel(
                     Spacer(Modifier.height(14.dp))
 
                     when {
-                        query.isBlank() -> Hint("Pick letters above, or OK on the search field for the keyboard")
-                        matches.isEmpty() -> Hint("No apps match “${query.trim()}”")
+                        query.isBlank() -> Hint(tr("Pick letters above, or OK on the search field for the keyboard"))
+                        matches.isEmpty() -> Hint(tr("No apps match “%1\$s”", query.trim()))
                         else -> LazyRow(
                             contentPadding = PaddingValues(horizontal = 4.dp),
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -208,7 +209,7 @@ private fun SearchField(value: String, onChange: (String) -> Unit, modifier: Mod
                 SearchIcon(tint = Palette.TextSecondary, iconSize = 24.dp)
                 Spacer(Modifier.width(14.dp))
                 Box(Modifier.weight(1f)) {
-                    if (value.isEmpty()) Text("Search apps", color = Palette.TextTertiary, fontSize = 24.sp)
+                    if (value.isEmpty()) Text(tr("Search apps"), color = Palette.TextTertiary, fontSize = 24.sp)
                     inner()
                 }
             }
@@ -238,7 +239,7 @@ private fun SystemSearchRow(onClick: () -> Unit) {
     ) {
         SearchIcon(tint = fg, iconSize = 20.dp)
         Spacer(Modifier.width(12.dp))
-        Text("Search the TV, films and shows", color = fg, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+        Text(tr("Search the TV, films and shows"), color = fg, fontSize = 17.sp, fontWeight = FontWeight.Medium)
     }
 }
 
@@ -254,6 +255,16 @@ private val KeyShape = RoundedCornerShape(12.dp)
  */
 @Composable
 private fun LetterStrip(next: Set<Char>?, onKey: (String) -> Unit, firstFocus: FocusRequester) {
+    // Latin letters run from A on the left in every language
+    androidx.compose.runtime.CompositionLocalProvider(
+        androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr,
+    ) {
+        LetterKeys(next, onKey, firstFocus)
+    }
+}
+
+@Composable
+private fun LetterKeys(next: Set<Char>?, onKey: (String) -> Unit, firstFocus: FocusRequester) {
     val list = rememberLazyListState(initialFirstVisibleItemIndex = 0)
     LazyRow(
         state = list,
@@ -297,7 +308,7 @@ private fun LetterKey(key: String, possible: Boolean, onClick: () -> Unit, modif
             )
             .clip(KeyShape)
             .background(bg)
-            .semantics { contentDescription = if (key == DeleteKey) "Delete" else key }
+            .semantics { contentDescription = if (key == DeleteKey) tr("Delete") else key }
             .onFocusChanged { focused = it.isFocused }
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick),
         contentAlignment = Alignment.Center,

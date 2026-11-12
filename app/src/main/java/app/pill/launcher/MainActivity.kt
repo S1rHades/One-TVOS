@@ -119,6 +119,24 @@ class MainActivity : ComponentActivity() {
     /** Set after TheSportsDB's search fails once, so later searches use the GitHub list alone. */
     @Volatile private var directSearchFailed = false
 
+    /**
+     * The language, before anything is drawn: the one chosen in Settings, else the TV's when
+     * the launcher speaks it, else English. Everything this screen shows (text, dates, the
+     * direction it is laid out in) then follows it.
+     */
+    override fun attachBaseContext(base: Context) {
+        val system = base.resources.configuration.locales[0]
+        val chosen = Language.ofTag(base.getSharedPreferences("launcher", Context.MODE_PRIVATE).getString("language", null))
+        val language = chosen ?: Language.of(system)
+        Lang.current = language
+        val locale = Lang.localeFor(language, system)
+        java.util.Locale.setDefault(locale)
+        val config = android.content.res.Configuration(base.resources.configuration)
+        config.setLocale(locale)
+        config.setLayoutDirection(locale)
+        super.attachBaseContext(base.createConfigurationContext(config))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         store = SettingsStore(this)
@@ -331,7 +349,7 @@ class MainActivity : ComponentActivity() {
                         update = if (isNewer(r.version, version)) UpdateState(UpdatePhase.Available, r, checkedAt = now)
                         else UpdateState(UpdatePhase.UpToDate, checkedAt = now)
                     }
-                    .onFailure { update = update.copy(phase = if (update.release != null) UpdatePhase.Available else UpdatePhase.Failed, message = "Can't reach GitHub right now", checkedAt = now) }
+                    .onFailure { update = update.copy(phase = if (update.release != null) UpdatePhase.Available else UpdatePhase.Failed, message = tr("Can't reach GitHub right now"), checkedAt = now) }
             }
             LaunchedEffect(settings.checkUpdates) {
                 if (!settings.checkUpdates) return@LaunchedEffect
@@ -392,10 +410,10 @@ class MainActivity : ComponentActivity() {
                     postNotice(installedApkNotice(name, now))
                 }
                 if (done.old.isNotEmpty()) {
-                    postNotice(Notice("old:${now.toEpochMilli()}", NoticeKind.File, "Removed ${filesLabel(done.old)}", "Kept for 30 days", now))
+                    postNotice(Notice("old:${now.toEpochMilli()}", NoticeKind.File, tr("Removed %1\$s", filesLabel(done.old)), tr("Kept for 30 days"), now))
                 }
                 for ((name, noticedAt) in done.tomorrow) {
-                    postNotice(Notice("expiring:$name", NoticeKind.File, "$name goes tomorrow", "Files keeps things for 30 days · save it on a phone to keep it", Instant.ofEpochMilli(noticedAt), target = name))
+                    postNotice(Notice("expiring:$name", NoticeKind.File, tr("%1\$s goes tomorrow", name), tr("Files keeps things for 30 days · save it on a phone to keep it"), Instant.ofEpochMilli(noticedAt), target = name))
                 }
             }
 
@@ -418,8 +436,11 @@ class MainActivity : ComponentActivity() {
                 pins = if (settings.favoritesByUse) orderByUse(pins, uses) else pins,
                 settings = if (safe != null) settings.copy(widgets = emptyList()) else settings,
                 onSettingsChange = {
+                    val languageChanged = it.language != settings.language
                     settings = it
                     store.save(it)
+                    // A new language: the screen starts again in it
+                    if (languageChanged) recreate()
                 },
                 onOpen = {
                     uses = store.addUse(it.pkg)
@@ -476,8 +497,8 @@ class MainActivity : ComponentActivity() {
                     if (!updater.canInstall()) {
                         val opened = updater.askToInstall()
                         update = update.copy(
-                            message = if (opened) "Allow Pill Launcher to install apps, then choose Update again"
-                            else "Allow it in the TV's Settings → Apps → Special app access → Install unknown apps",
+                            message = if (opened) tr("Allow Pill Launcher to install apps, then choose Update again")
+                            else tr("Allow it in the TV's Settings → Apps → Special app access → Install unknown apps"),
                         )
                         return@start
                     }
@@ -496,14 +517,14 @@ class MainActivity : ComponentActivity() {
                             update = update.copy(phase = UpdatePhase.Available, progress = 0f)
                             throw e
                         } catch (e: Exception) {
-                            update = update.copy(phase = UpdatePhase.Failed, message = "Couldn't download it: " + updateProblem(e))
+                            update = update.copy(phase = UpdatePhase.Failed, message = tr("Couldn't download it: ") + updateProblem(e))
                             return@launch
                         }
                         update = update.copy(phase = UpdatePhase.Installing, progress = 1f)
                         // Android's installer in the background, else its own install screen
                         val started = runCatching { updater.install(apk) }
                         if (started.isFailure && !updater.installWithSystemScreen(apk)) {
-                            update = update.copy(phase = UpdatePhase.Failed, message = "Couldn't start the install: " + updateProblem(started.exceptionOrNull()!!))
+                            update = update.copy(phase = UpdatePhase.Failed, message = tr("Couldn't start the install: ") + updateProblem(started.exceptionOrNull()!!))
                         }
                     }
                 },
@@ -559,19 +580,19 @@ class MainActivity : ComponentActivity() {
     private fun openFile(file: java.io.File, updater: Updater): String? {
         if (fileKind(file.name) == FileKind.App) {
             if (!updater.canInstall()) {
-                return if (updater.askToInstall()) "Allow Pill Launcher to install apps, then choose Install again"
-                else "Allow it in the TV's Settings → Apps → Special app access → Install unknown apps"
+                return if (updater.askToInstall()) tr("Allow Pill Launcher to install apps, then choose Install again")
+                else tr("Allow it in the TV's Settings → Apps → Special app access → Install unknown apps")
             }
-            return if (updater.installWithSystemScreen(file)) null else "This TV can't install apps from files"
+            return if (updater.installWithSystemScreen(file)) null else tr("This TV can't install apps from files")
         }
         val ext = file.extension.lowercase()
         val type = android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext) ?: "*/*"
         val uri = runCatching { androidx.core.content.FileProvider.getUriForFile(this, "$packageName.updates", file) }.getOrNull()
-            ?: return "The TV can't open this file"
+            ?: return tr("The TV can't open this file")
         val opened = tryStartActivity(
             Intent(Intent.ACTION_VIEW).setDataAndType(uri, type).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK),
         )
-        return if (opened) null else "No app on this TV opens .$ext files"
+        return if (opened) null else tr("No app on this TV opens .%1\$s files", ext)
     }
 
     // singleTask: pressing Home while the launcher exists arrives here
@@ -605,7 +626,7 @@ class MainActivity : ComponentActivity() {
         return androidx.core.content.pm.PackageInfoCompat.getLongVersionCode(installed) >= androidx.core.content.pm.PackageInfoCompat.getLongVersionCode(archive)
     }
 
-    private fun filesLabel(names: List<String>): String = if (names.size == 1) names[0] else "${names.size} files"
+    private fun filesLabel(names: List<String>): String = if (names.size == 1) names[0] else tr("%1\$s files", names.size)
 
     override fun onResume() {
         super.onResume()
@@ -652,8 +673,8 @@ class MainActivity : ComponentActivity() {
             share.dir.mkdirs()
             java.io.File(share.dir, name).writeText(store.backup(version, Instant.now()))
             share.refresh()
-            "Saved in Files as $name · send it to your phone from the Files page to keep it"
-        }.getOrElse { "Couldn't save the backup (${it::class.java.simpleName})" }
+            tr("Saved in Files as %1\$s · send it to your phone from the Files page to keep it", name)
+        }.getOrElse { tr("Couldn't save the backup (%1\$s)", it::class.java.simpleName) }
     }
 
     /** The backup that Restore was pressed for once already: a second press on the same one restores it. */
@@ -667,16 +688,16 @@ class MainActivity : ComponentActivity() {
         val newest = fileShare(this).dir.listFiles()
             ?.filter { it.isFile && it.name.startsWith(BackupPrefix) && it.extension.equals("json", ignoreCase = true) }
             ?.maxByOrNull { it.lastModified() }
-            ?: return "No backup in Files · send one from your phone on the Files page first"
+            ?: return tr("No backup in Files · send one from your phone on the Files page first")
         val text = runCatching { newest.readText() }.getOrNull()
-        val info = text?.let { backupInfo(it) } ?: return "${newest.name} isn't a Pill Launcher backup"
+        val info = text?.let { backupInfo(it) } ?: return tr("%1\$s isn't a Pill Launcher backup", newest.name)
         if (restoreArmed != newest.name) {
             restoreArmed = newest.name
-            val made = info.at?.atZone(java.time.ZoneId.systemDefault())?.toLocalDate()?.let { " made on $it" }.orEmpty()
-            return "Press again to replace this TV's settings with ${newest.name}$made, from version ${info.version}"
+            val made = info.at?.atZone(java.time.ZoneId.systemDefault())?.toLocalDate()?.let { tr(" made on %1\$s", it) }.orEmpty()
+            return tr("Press again to replace this TV's settings with %1\$s%2\$s, from version %3\$s", newest.name, made, info.version)
         }
         restoreArmed = null
-        if (!store.restore(text)) return "${newest.name} couldn't be read · nothing was changed"
+        if (!store.restore(text)) return tr("%1\$s couldn't be read · nothing was changed", newest.name)
         // Everything is read from the settings as the screen starts: start it again
         recreate()
         return null
@@ -686,7 +707,7 @@ class MainActivity : ComponentActivity() {
     private fun runSystemAction(action: SystemAction): String? {
         fun open(vararg actions: String): String? =
             if (actions.any { tryStartActivity(Intent(it).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }) null
-            else "This TV doesn't have that screen"
+            else tr("This TV doesn't have that screen")
         return when (action) {
             SystemAction.FreeMemory -> freeMemory()
             SystemAction.Network -> open(Settings.ACTION_WIFI_SETTINGS, Settings.ACTION_WIRELESS_SETTINGS)
@@ -703,7 +724,7 @@ class MainActivity : ComponentActivity() {
             // The system asks to confirm; afterwards the TV's own home screen takes over
             SystemAction.Uninstall ->
                 if (tryStartActivity(Intent(Intent.ACTION_DELETE, Uri.parse("package:$packageName")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))) null
-                else "This TV can't uninstall apps from here. Use Settings → Apps instead"
+                else tr("This TV can't uninstall apps from here. Use Settings → Apps instead")
         }
     }
 
@@ -713,7 +734,7 @@ class MainActivity : ComponentActivity() {
      * an app stop its own, so there this mostly reports what is free.
      */
     private fun freeMemory(): String {
-        val am = getSystemService(ActivityManager::class.java) ?: return "Not available on this TV"
+        val am = getSystemService(ActivityManager::class.java) ?: return tr("Not available on this TV")
         fun available() = ActivityManager.MemoryInfo().also { am.getMemoryInfo(it) }.availMem
         val before = available()
         packageManager.getInstalledApplications(0)
@@ -722,7 +743,7 @@ class MainActivity : ComponentActivity() {
         val after = available()
         val freed = (after - before).coerceAtLeast(0) / 1_000_000
         val free = after / 1_000_000
-        return if (freed >= 10) "Freed $freed MB · $free MB now free" else "$free MB free · nothing more to close"
+        return if (freed >= 10) tr("Freed %1\$s MB · %2\$s MB now free", freed, free) else tr("%1\$s MB free · nothing more to close", free)
     }
 
     /** Starts [intent]; false if no app handles it or it isn't open to us. */

@@ -1,5 +1,6 @@
 package app.pill.launcher.ui
 
+import app.pill.launcher.tr
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.StrokeCap
@@ -51,18 +52,18 @@ fun HomePrompt(onSetUp: () -> Unit, onDismiss: () -> Unit, modifier: Modifier = 
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f, fill = false)) {
-            Text("Closing an app takes you to the TV's own home screen", color = Palette.TextPrimary, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+            Text(tr("Closing an app takes you to the TV's own home screen"), color = Palette.TextPrimary, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
             Text(
-                "Make Pill Launcher your home screen, so Home and closed apps come back here.",
+                tr("Make Pill Launcher your home screen, so Home and closed apps come back here."),
                 color = Palette.TextSecondary,
                 fontSize = 14.sp,
                 maxLines = 2,
             )
         }
         Spacer(Modifier.width(18.dp))
-        PillButton("Set up", primary = true, onClick = onSetUp)
+        PillButton(tr("Set up"), primary = true, onClick = onSetUp)
         Spacer(Modifier.width(8.dp))
-        PillButton("Not now", primary = false, onClick = onDismiss)
+        PillButton(tr("Not now"), primary = false, onClick = onDismiss)
     }
 }
 
@@ -113,14 +114,14 @@ fun SetupCard(
         Spacer(Modifier.width(16.dp))
         Column(Modifier.weight(1f, fill = false)) {
             Text(
-                if (next == null) "You're set" else "Getting started · $done of ${steps.size} done",
+                if (next == null) tr("You're set") else tr("Getting started · %1\$s of %2\$s done", done, steps.size),
                 color = Palette.TextPrimary,
                 fontSize = 17.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
             )
             Text(
-                next?.title ?: "Pill Launcher is ready. Settings has the rest whenever you want it.",
+                next?.title ?: tr("Pill Launcher is ready. Settings has the rest whenever you want it."),
                 color = Palette.TextSecondary,
                 fontSize = 14.sp,
                 maxLines = 2,
@@ -132,7 +133,7 @@ fun SetupCard(
                 PillButton(nextAction, primary = true, onClick = onNext)
                 Spacer(Modifier.width(8.dp))
             }
-            PillButton("Not now", primary = false, onClick = onDismiss)
+            PillButton(tr("Not now"), primary = false, onClick = onDismiss)
         }
     }
 }

@@ -1,5 +1,6 @@
 package app.pill.launcher.ui
 
+import app.pill.launcher.rowStep
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateContentSize
@@ -122,8 +123,9 @@ fun FavoritesRow(
         val tileModifier = Modifier
             .focusRequester(focusFor(app))
             .focusProperties {
-                if (first) left = FocusRequester.Cancel
-                if (last) right = FocusRequester.Cancel
+                // The row's ends: its start is on the right where text runs right to left
+                if (first) start = FocusRequester.Cancel
+                if (last) end = FocusRequester.Cancel
             }
         val focused = { gained: Boolean -> if (gained) onFocus(app) }
         val isMoving = app.pkg == moving
@@ -135,8 +137,8 @@ fun FavoritesRow(
                 // While moving, the arrows move the tile and nothing else; OK or Back puts it down
                 val down = event.type == KeyEventType.KeyDown
                 when (event.key) {
-                    Key.DirectionLeft -> { if (down) onMove(app, -1); true }
-                    Key.DirectionRight -> { if (down) onMove(app, 1); true }
+                    Key.DirectionLeft -> { if (down) onMove(app, rowStep(-1)); true }
+                    Key.DirectionRight -> { if (down) onMove(app, rowStep(1)); true }
                     Key.DirectionUp, Key.DirectionDown -> true
                     Key.DirectionCenter, Key.Enter, Key.NumPadEnter, Key.Back, Key.Escape, Key.ButtonA, Key.ButtonB -> {
                         if (!down) onMoveDone()

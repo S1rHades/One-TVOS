@@ -29,7 +29,12 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlin.concurrent.schedule
 
 /** What a file is, for its card and the chips on the Files page. */
-enum class FileKind(val title: String) { Photo("Photos"), Video("Videos"), App("Apps"), Document("Documents") }
+enum class FileKind(private val titleEn: String) {
+    Photo("Photos"), Video("Videos"), App("Apps"), Document("Documents");
+
+    /** In the language on screen. */
+    val title: String get() = tr(titleEn)
+}
 
 private val PhotoTypes = setOf("jpg", "jpeg", "png", "webp", "gif", "bmp", "heic", "heif")
 private val VideoTypes = setOf("mp4", "mkv", "webm", "avi", "mov", "m4v", "ts", "3gp")
@@ -115,12 +120,12 @@ fun uniqueFileName(name: String, taken: (String) -> Boolean): String {
 fun senderOf(userAgent: String?): String {
     val ua = userAgent.orEmpty()
     return when {
-        "iPhone" in ua -> "an iPhone"
-        "iPad" in ua -> "an iPad"
-        "Android" in ua && "Mobile" in ua -> "an Android phone"
-        "Android" in ua -> "an Android tablet"
-        listOf("Windows", "Macintosh", "CrOS", "Linux", "X11").any { it in ua } -> "a computer"
-        else -> "a phone"
+        "iPhone" in ua -> tr("an iPhone")
+        "iPad" in ua -> tr("an iPad")
+        "Android" in ua && "Mobile" in ua -> tr("an Android phone")
+        "Android" in ua -> tr("an Android tablet")
+        listOf("Windows", "Macintosh", "CrOS", "Linux", "X11").any { it in ua } -> tr("a computer")
+        else -> tr("a phone")
     }
 }
 
@@ -232,17 +237,17 @@ class FileShare(
             stop()
         }
         if (here == null) {
-            state.value = state.value.copy(running = false, address = null, problem = "Connect the TV to your home network to share files")
+            state.value = state.value.copy(running = false, address = null, problem = tr("Connect the TV to your home network to share files"))
             return
         }
         val bind = listenOn(here) ?: return run {
-            state.value = state.value.copy(running = false, problem = "Connect the TV to your home network to share files")
+            state.value = state.value.copy(running = false, problem = tr("Connect the TV to your home network to share files"))
         }
         val bound = (FirstPort until FirstPort + 8).firstNotNullOfOrNull { port ->
             runCatching { ServerSocket(port, 16, bind) }.getOrNull()
         }
         if (bound == null) {
-            state.value = state.value.copy(running = false, problem = "Another app is using the ports file sharing needs")
+            state.value = state.value.copy(running = false, problem = tr("Another app is using the ports file sharing needs"))
             return
         }
         socket = bound
@@ -421,24 +426,24 @@ class FileShare(
         val input = BufferedInputStream(client.getInputStream())
         val out = client.getOutputStream()
         val remote = client.inetAddress
-        if (!isHomeNetwork(remote)) return respond(out, 403, "text/plain", "Only devices on the home network can share files")
+        if (!isHomeNetwork(remote)) return respond(out, 403, "text/plain", tr("Only devices on the home network can share files"))
         // A connection the browser opened ahead of time and never used, or closed: just close it.
         // Answering it ("Bad request") would leave a stale reply for the browser's next use of it.
         val request = runCatching { readRequest(input) }.getOrNull() ?: return
-        val asked = if (request.path == "/" && request.params.containsKey("p")) "the scanned code" else "${request.method} ${request.path}"
+        val asked = if (request.path == "/" && request.params.containsKey("p")) tr("the scanned code") else "${request.method} ${request.path}"
         // Whatever goes wrong, the phone gets an answer: a connection closed with none makes Chrome
         // send the request again and again, then give up with ERR_TOO_MANY_RETRIES
         // Noted as the answer's first line goes out, so the TV shows it before the phone has it.
         // The browser's own icon request says nothing about how the visit went
         val answer = StatusOut(out) { status ->
-            if (request.path != "/favicon.ico") visit(remote, asked, if (status < 400) "answered" else "turned away ($status)")
+            if (request.path != "/favicon.ico") visit(remote, asked, if (status < 400) tr("answered") else tr("turned away (%1\$s)", status))
         }
         try {
             serve(request, remote, answer)
         } catch (e: Throwable) {
             // Throwable: an Error (a method this Android version lacks, say) mustn't close the connection silently either
             visit(remote, asked, "failed: " + (e.message?.let { "${e::class.java.simpleName}: $it" } ?: e::class.java.simpleName))
-            if (answer.status == null) respond(out, 500, "text/plain", "The TV couldn't answer (${e::class.java.simpleName}). Try again, or open its Files page")
+            if (answer.status == null) respond(out, 500, "text/plain", tr("The TV couldn't answer (%1\$s). Try again, or open its Files page", e::class.java.simpleName))
         }
     }
 
@@ -464,9 +469,9 @@ class FileShare(
         // Only requests made to the TV's own address: another website can't borrow the phone's browser
         val s = state.value
         val host = request.headers["host"].orEmpty()
-        if (host != "${s.address}:${s.port}") return respond(out, 403, "text/plain", "Open the TV's address directly")
+        if (host != "${s.address}:${s.port}") return respond(out, 403, "text/plain", tr("Open the TV's address directly"))
         val changes = request.method != "GET"
-        if (changes && request.headers["x-pill"] != "1") return respond(out, 403, "text/plain", "Use the TV's page to do that")
+        if (changes && request.headers["x-pill"] != "1") return respond(out, 403, "text/plain", tr("Use the TV's page to do that"))
         val who = remote.hostAddress.orEmpty()
         when {
             request.method == "GET" && request.path == "/" -> {
@@ -483,15 +488,15 @@ class FileShare(
             request.method == "POST" && request.path == "/api/pair" -> askWithCode(request, who, out)
             request.method == "GET" && request.path == "/api/pair" -> collect(request, out)
             else -> {
-                val device = deviceFor(request) ?: return respond(out, 401, "text/plain", "Pair this phone with the TV first")
+                val device = deviceFor(request) ?: return respond(out, 401, "text/plain", tr("Pair this phone with the TV first"))
                 when {
                     request.method == "GET" && request.path == "/api/files" -> {
-                        if (request.headers["x-pill"] != "1") return respond(out, 403, "text/plain", "Use the TV's page to do that")
+                        if (request.headers["x-pill"] != "1") return respond(out, 403, "text/plain", tr("Use the TV's page to do that"))
                         respond(out, 200, "application/json", filesJson())
                     }
                     request.method == "PUT" && request.path == "/api/upload" -> receive(request, device, out)
                     request.method == "GET" && request.path == "/api/file" -> send(file(request.params["name"].orEmpty()), out)
-                    else -> respond(out, 404, "text/plain", "Not found")
+                    else -> respond(out, 404, "text/plain", tr("Not found"))
                 }
             }
         }
@@ -500,10 +505,10 @@ class FileShare(
     private fun askWithCode(request: Request, who: String, out: OutputStream) {
         val now = System.currentTimeMillis()
         val (wrong, since) = wrongCodes[who] ?: (0 to now)
-        if (wrong >= MaxWrongCodes && now - since < BlockMs) return respond(out, 429, "text/plain", "Too many wrong codes. Try again in 10 minutes")
+        if (wrong >= MaxWrongCodes && now - since < BlockMs) return respond(out, 429, "text/plain", tr("Too many wrong codes. Try again in 10 minutes"))
         if (request.params["code"] != state.value.code) {
             wrongCodes[who] = (if (now - since >= BlockMs) 1 else wrong + 1) to (if (now - since >= BlockMs) now else since)
-            return respond(out, 403, "text/plain", "That code didn't work")
+            return respond(out, 403, "text/plain", tr("That code didn't work"))
         }
         wrongCodes.remove(who)
         val asked = askToPair(deviceName(request.headers["user-agent"]))
@@ -513,9 +518,9 @@ class FileShare(
     private fun collect(request: Request, out: OutputStream) {
         val id = request.params["wait"].orEmpty()
         approved.remove(id)?.let { token -> return respond(out, 200, "application/json", "{}", listOf(cookieHeader(token))) }
-        if (id in blocked) return respond(out, 403, "text/plain", "The TV didn't allow this phone")
+        if (id in blocked) return respond(out, 403, "text/plain", tr("The TV didn't allow this phone"))
         if (state.value.pending?.id == id) return respond(out, 202, "application/json", "{}")
-        respond(out, 403, "text/plain", "Ask again")
+        respond(out, 403, "text/plain", tr("Ask again"))
     }
 
     private fun filesJson(): String {
@@ -527,9 +532,9 @@ class FileShare(
     }
 
     private fun receive(request: Request, device: TrustedDevice, out: OutputStream) {
-        val length = request.headers["content-length"]?.toLongOrNull() ?: return respond(out, 411, "text/plain", "Send one file at a time, with its length")
-        if (length > dir.usableSpace - SpareBytes) return respond(out, 507, "text/plain", "Not enough space on the TV for this file")
-        if (!uploads.tryAcquire(60, TimeUnit.SECONDS)) return respond(out, 503, "text/plain", "The TV is busy with other files. Try again")
+        val length = request.headers["content-length"]?.toLongOrNull() ?: return respond(out, 411, "text/plain", tr("Send one file at a time, with its length"))
+        if (length > dir.usableSpace - SpareBytes) return respond(out, 507, "text/plain", tr("Not enough space on the TV for this file"))
+        if (!uploads.tryAcquire(60, TimeUnit.SECONDS)) return respond(out, 503, "text/plain", tr("The TV is busy with other files. Try again"))
         try {
             receiveFile(request, device, length, out)
         } finally {
@@ -569,13 +574,13 @@ class FileShare(
         if (read < length) {
             part.delete()
             publishTransfers()
-            return respond(out, 400, "text/plain", "The file didn't arrive in full")
+            return respond(out, 400, "text/plain", tr("The file didn't arrive in full"))
         }
         val target = File(dir, name)
         if (!part.renameTo(target)) {
             part.delete()
             publishTransfers()
-            return respond(out, 500, "text/plain", "The TV couldn't save the file")
+            return respond(out, 500, "text/plain", tr("The TV couldn't save the file"))
         }
         writeSenders(readSenders() + (name to from))
         refresh()
@@ -585,16 +590,16 @@ class FileShare(
     }
 
     private fun sendLink(token: String, out: OutputStream) {
-        val (name, until) = links[token] ?: return respond(out, 404, "text/plain", "This link has ended. Choose Send to phone again")
+        val (name, until) = links[token] ?: return respond(out, 404, "text/plain", tr("This link has ended. Choose Send to phone again"))
         if (System.currentTimeMillis() > until) {
             links.remove(token)
-            return respond(out, 404, "text/plain", "This link has ended. Choose Send to phone again")
+            return respond(out, 404, "text/plain", tr("This link has ended. Choose Send to phone again"))
         }
         send(file(name), out)
     }
 
     private fun send(file: File?, out: OutputStream) {
-        if (file == null) return respond(out, 404, "text/plain", "No such file on the TV")
+        if (file == null) return respond(out, 404, "text/plain", tr("No such file on the TV"))
         val encoded = URLEncoder.encode(file.name, "UTF-8").replace("+", "%20")
         val head = "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: ${file.length()}\r\n" +
             "Content-Disposition: attachment; filename*=UTF-8''$encoded\r\nConnection: close\r\n\r\n"
@@ -719,7 +724,7 @@ private var shared: FileShare? = null
 fun fileShare(context: android.content.Context): FileShare = synchronized(FileShare::class.java) {
     val app = context.applicationContext
     shared ?: FileShare(
-        dir = app.getExternalFilesDir("Files") ?: File(app.filesDir, "Files"),
+        dir = app.getExternalFilesDir(tr("Files")) ?: File(app.filesDir, tr("Files")),
         page = { app.assets.open("share/index.html").bufferedReader().use { it.readText() } },
         devicesFile = File(app.filesDir, "share-devices.json"),
     ).also { shared = it }

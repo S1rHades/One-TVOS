@@ -20,10 +20,10 @@ fun mbps(bytes: Long, nanos: Long): Double = if (nanos <= 0) 0.0 else bytes * 8.
 
 /** What a download speed is good for, in plain words. */
 fun speedVerdict(downMbps: Double): String = when {
-    downMbps >= 25 -> "Good for 4K streaming"
-    downMbps >= 10 -> "Good for HD streaming"
-    downMbps >= 4 -> "Fine for standard video"
-    else -> "Slow: video may stop to load"
+    downMbps >= 25 -> tr("Good for 4K streaming")
+    downMbps >= 10 -> tr("Good for HD streaming")
+    downMbps >= 4 -> tr("Fine for standard video")
+    else -> tr("Slow: video may stop to load")
 }
 
 /**
@@ -52,7 +52,7 @@ class SpeedTest(context: Context) {
         val down = runCatching { download { onProgress(SpeedPhase.Download, it) } }.getOrNull()
         onProgress(SpeedPhase.Upload, 0.0)
         val up = runCatching { upload { onProgress(SpeedPhase.Upload, it) } }.getOrNull()
-        if (ping == null && down == null && up == null) error("Can't reach the test server")
+        if (ping == null && down == null && up == null) error(tr("Can't reach the test server"))
         val result = SpeedResult(ping, down, up, Instant.now())
         prefs.edit()
             .putLong("at", result.at.toEpochMilli())

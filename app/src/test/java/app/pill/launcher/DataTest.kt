@@ -16,6 +16,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import androidx.compose.ui.graphics.toArgb
+import java.io.File
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDateTime
@@ -1118,5 +1119,95 @@ class DataTest {
         assertFalse(store.restore("""{"app":"pill-launcher","backup":1,"settings":{"idle":{"t":"i","v":"soon"}}}"""))
         assertFalse(store.restore("holiday.jpg"))
         assertEquals(mine, store.load())
+    }
+
+    /** Every English text the code shows through tr(...), read from the source itself. */
+    private fun textsInTheCode(): Set<String> {
+        val root = File("src/main/java/app/pill/launcher")
+        check(root.isDirectory) { "run from the app module: ${root.absolutePath}" }
+        val call = Regex("""(?<![A-Za-z0-9_])tr\("((?:[^"\\]|\\.)*)"""")
+        val escape = Regex("""\\(u[0-9a-fA-F]{4}|.)""")
+        val found = HashSet<String>()
+        root.walkTopDown().filter { it.extension == "kt" && it.name != "Translations.kt" && it.name != "Lang.kt" }.forEach { file ->
+            for (m in call.findAll(file.readText())) {
+                found += escape.replace(m.groupValues[1]) { e ->
+                    val c = e.groupValues[1]
+                    when {
+                        c.startsWith("u") -> c.substring(1).toInt(16).toChar().toString()
+                        c == "n" -> "\n"
+                        c == "t" -> "\t"
+                        else -> c
+                    }
+                }
+            }
+        }
+        return found
+    }
+
+    /**
+     * Everything the launcher says has a French and an Arabic translation, with the same
+     * numbered places for values: the texts in the code, and the titles the enums carry.
+     */
+    @Test
+    fun everyTextIsTranslated() {
+        val texts = textsInTheCode() +
+            WidgetKind.entries.flatMap { listOf(it.title, it.description) } + Prayer.entries.map { it.title } +
+            AppCategory.entries.map { it.title } + FileKind.entries.map { it.title } + MatchDayMode.entries.map { it.title } +
+            NewsTopic.entries.map { it.title } + app.pill.launcher.ui.NavItem.entries.map { it.label } +
+            app.pill.launcher.ui.SettingsPage.entries.map { it.title } +
+            app.pill.launcher.ui.SystemAction.entries.flatMap { listOf(it.title, it.subtitle) }
+        assertTrue("found the texts (${texts.size})", texts.size > 600)
+        val places = Regex("%\\d\\\$s|%%")
+        fun check(name: String, map: Map<String, String>) {
+            val missing = texts.filter { it !in map }
+            assertTrue("$name is missing ${missing.size}: ${missing.take(8)}", missing.isEmpty())
+            for ((english, translated) in map) {
+                assertEquals("$name places in “$english”", places.findAll(english).map { it.value }.sorted().toList(), places.findAll(translated).map { it.value }.sorted().toList())
+                assertEquals("$name spaces round “$english”", english.length - english.trim(' ').length, translated.length - translated.trim(' ').length)
+            }
+        }
+        check("French", FrenchText)
+        check("Arabic", ArabicText)
+    }
+
+    /** The language on screen: words, values in their places, the reading direction, and a slip in a translation that can't crash. */
+    @Test
+    fun languages() {
+        try {
+            assertEquals("Refresh", tr("Refresh"))
+            assertEquals("Getting started · 2 of 5 done", tr("Getting started · %1\$s of %2\$s done", 2, 5))
+            assertEquals(1, rowStep(1))
+            assertEquals("2–1", ltr("2–1"))
+            Lang.current = Language.French
+            assertEquals("Actualiser", tr("Refresh"))
+            assertEquals("Premiers pas · 2 sur 5", tr("Getting started · %1\$s of %2\$s done", 2, 5))
+            assertEquals("Heures de prière", WidgetKind.Prayers.title)
+            assertEquals("not translated stays as written", "Zzz %1\$s".format("x"), tr("Zzz %1\$s", "x"))
+            assertEquals(1, rowStep(1))
+            Lang.current = Language.Arabic
+            assertEquals("تحديث", tr("Refresh"))
+            assertEquals("المغرب", Prayer.Maghrib.title)
+            assertEquals("البدء · 2 من 5", tr("Getting started · %1\$s of %2\$s done", 2, 5))
+            // Right is the row's start: one step right goes back along it
+            assertEquals(-1, rowStep(1))
+            // A score keeps its order inside right-to-left text
+            assertEquals("\u20662–1\u2069", ltr("2–1"))
+        } finally {
+            Lang.current = Language.English
+        }
+        // The launcher's language for the TV's, and one chosen in Settings
+        assertEquals(Language.French, Language.of(java.util.Locale.CANADA_FRENCH))
+        assertEquals(Language.Arabic, Language.of(java.util.Locale("ar", "DZ")))
+        assertEquals(Language.English, Language.of(java.util.Locale.GERMANY))
+        assertEquals(Language.Arabic, Language.ofTag("ar"))
+        assertNull(Language.ofTag(""))
+        // Dates in the TV's own region when it is in that language; Arabic as written in Algeria otherwise; Western digits always
+        assertEquals("fr-CA-u-nu-latn", Lang.localeFor(Language.French, java.util.Locale.CANADA_FRENCH).toLanguageTag())
+        assertEquals("ar-DZ-u-nu-latn", Lang.localeFor(Language.Arabic, java.util.Locale.US).toLanguageTag())
+        assertEquals("ar-EG-u-nu-latn", Lang.localeFor(Language.Arabic, java.util.Locale("ar", "EG")).toLanguageTag())
+        // The setting is saved with the rest
+        val store = SettingsStore(ApplicationProvider.getApplicationContext<android.content.Context>())
+        store.save(LauncherSettings(language = "ar"))
+        assertEquals("ar", store.load().language)
     }
 }

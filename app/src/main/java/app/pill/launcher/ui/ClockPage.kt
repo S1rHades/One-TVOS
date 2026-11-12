@@ -1,5 +1,6 @@
 package app.pill.launcher.ui
 
+import app.pill.launcher.tr
 import android.icu.util.ULocale
 import android.text.format.DateFormat
 import androidx.compose.foundation.background
@@ -96,7 +97,7 @@ fun ClockPage(place: String?, onDismiss: () -> Unit) {
                 }
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "Week ${today.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR)} · day ${today.dayOfYear} of ${today.lengthOfYear()}",
+                    tr("Week %1\$s · day %2\$s of %3\$s", today.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR), today.dayOfYear, today.lengthOfYear()),
                     color = Palette.TextTertiary, fontSize = 15.sp, maxLines = 1,
                 )
             }
@@ -104,7 +105,7 @@ fun ClockPage(place: String?, onDismiss: () -> Unit) {
             MonthGrid(today, locale)
         }
 
-        PageLabel("World clocks", Modifier.padding(top = 20.dp, bottom = 8.dp))
+        PageLabel(tr("World clocks"), Modifier.padding(top = 20.dp, bottom = 8.dp))
         Row(Modifier.fillMaxWidth()) {
             for ((city, id) in WorldClocks) {
                 val there = now.withZoneSameInstant(ZoneId.of(id))
@@ -178,16 +179,16 @@ fun offsetText(here: ZonedDateTime, there: ZonedDateTime): String {
     val minutes = (there.offset.totalSeconds - here.offset.totalSeconds) / 60
     val day = when (there.toLocalDate().compareTo(here.toLocalDate())) {
         0 -> null
-        in 1..Int.MAX_VALUE -> "tomorrow"
-        else -> "yesterday"
+        in 1..Int.MAX_VALUE -> tr("tomorrow")
+        else -> tr("yesterday")
     }
-    val diff = if (minutes == 0) "Same time" else {
+    val diff = if (minutes == 0) tr("Same time") else {
         val sign = if (minutes > 0) "+" else "−"
         val h = Math.abs(minutes) / 60
         val m = Math.abs(minutes) % 60
-        sign + listOfNotNull(if (h > 0) "$h h" else null, if (m > 0) "$m min" else null).joinToString(" ")
+        sign + listOfNotNull(if (h > 0) tr("%1\$s h", h) else null, if (m > 0) tr("%1\$s min", m) else null).joinToString(" ")
     }
-    return listOfNotNull(diff, day).joinToString(", ")
+    return listOfNotNull(diff, day).joinToString(tr(", "))
 }
 
 /** "UTC+3" for the TV's time zone. */

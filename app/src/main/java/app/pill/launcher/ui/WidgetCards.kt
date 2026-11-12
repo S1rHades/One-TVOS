@@ -1,5 +1,8 @@
 package app.pill.launcher.ui
 
+import app.pill.launcher.Lang
+import app.pill.launcher.rowStep
+import app.pill.launcher.tr
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.isSpecified
@@ -331,13 +334,27 @@ internal fun CardLabel(text: String, modifier: Modifier = Modifier, color: Color
         text.uppercase(),
         shorter = shorter.map { it.uppercase() },
         modifier = modifier.padding(end = LocalLabelEndRoom.current),
-        style = TextStyle(fontFamily = Flex, color = color, fontSize = 12.sp, fontWeight = FontWeight(650), letterSpacing = 1.3.sp),
+        style = TextStyle(fontFamily = Flex, color = color, fontSize = 12.sp, fontWeight = FontWeight(650), letterSpacing = tracking(1.3f)),
         maxLines = 1,
     )
 }
 
 internal fun lineStyle(size: TextUnit, color: Color = Palette.TextSecondary, weight: Int = 500) =
     TextStyle(fontFamily = Flex, color = color, fontSize = size, fontWeight = FontWeight(weight))
+
+/** Letter spacing for a label in capitals: none where the language's letters join (Arabic), which spacing would pull apart. */
+internal fun tracking(sp: Float): TextUnit = if (Lang.current.rightToLeft) 0.sp else sp.sp
+
+/**
+ * A line a card can do without: drawn only when the room left in the card holds all of it.
+ * Arabic text stands taller than Latin, so a card full in Arabic leaves its last line out
+ * rather than cutting it in half at the card's edge.
+ */
+internal fun Modifier.onlyIfRoom(): Modifier = layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity))
+    if (constraints.hasBoundedHeight && placeable.height > constraints.maxHeight) layout(0, 0) {}
+    else layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+}
 
 // ---- Clock -------------------------------------------------------------------------
 
@@ -361,7 +378,7 @@ private fun ClockCard(compact: Boolean, modifier: Modifier, onClick: (() -> Unit
     }
     val clock = buildAnnotatedString {
         append(now.format(hourMinute))
-        withStyle(SpanStyle(fontFamily = Flex, fontSize = if (compact) 17.sp else 20.sp, color = Palette.TextSecondary, fontWeight = FontWeight(560), letterSpacing = 0.5.sp)) {
+        withStyle(SpanStyle(fontFamily = Flex, fontSize = if (compact) 17.sp else 20.sp, color = Palette.TextSecondary, fontWeight = FontWeight(560), letterSpacing = tracking(0.5f))) {
             if (!is24h) append(now.format(amPm))
         }
     }
@@ -388,13 +405,13 @@ private fun WeatherCard(weather: Weather?, error: String?, mode: WeatherMode, co
     WidgetCard(LocalWallpaperTint.current.value, modifier, onClick = onClick) {
         if (weather == null) {
             Column(Modifier.align(Alignment.Center)) {
-                CardLabel("Weather")
+                CardLabel(tr("Weather"))
                 Spacer(Modifier.height(6.dp))
                 FitText(
-                    if (error != null) "Can't reach the weather service" else "Finding your area…",
+                    if (error != null) tr("Can't reach the weather service") else tr("Finding your area…"),
                     style = lineStyle(16.sp),
                     maxLines = 2,
-                    shorter = if (error != null) listOf("No weather right now", "Offline") else listOf("Finding…"),
+                    shorter = if (error != null) listOf(tr("No weather right now"), tr("Offline")) else listOf(tr("Finding…")),
                 )
             }
         } else {
@@ -423,14 +440,14 @@ private fun HeadlinesCard(picked: List<PickedHeadline>, status: String?, compact
     WidgetCard(Color(0xFFFF8787), modifier, onClick = item?.let { onClick?.let { open -> { open(index) } } }) {
         if (item == null) {
             Column(Modifier.align(Alignment.CenterStart)) {
-                CardLabel("Headlines")
+                CardLabel(tr("Headlines"))
                 Spacer(Modifier.height(6.dp))
-                FitText(status ?: "Loading headlines…", style = lineStyle(15.sp), maxLines = 2, shorter = listOf(if (status == null) "Loading…" else "No headlines"))
+                FitText(status ?: tr("Loading headlines…"), style = lineStyle(15.sp), maxLines = 2, shorter = listOf(if (status == null) tr("Loading…") else tr("No headlines")))
             }
         } else {
             Crossfade(item, animationSpec = tween(500), label = "headline", modifier = Modifier.align(Alignment.CenterStart)) { shown ->
                 Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    val topic = shown.topic?.let { if (compact && it == NewsTopic.World) "World" else it.title } ?: "Top stories"
+                    val topic = shown.topic?.let { if (compact && it == NewsTopic.World) tr("World") else it.title } ?: tr("Top stories")
                     CardLabel("$topic · ${shown.headline.source.title}", color = Color(0xFFFFC9C9), shorter = listOf(topic))
                     FitText(
                         shown.headline.title,
@@ -441,7 +458,7 @@ private fun HeadlinesCard(picked: List<PickedHeadline>, status: String?, compact
                         listOfNotNull(
                             if (compact) shown.headline.source.title else null,
                             shown.headline.published?.let { ageText(it) },
-                            if (!compact && picked.size > 1) "${picked.indexOf(shown) + 1} of ${picked.size}" else null,
+                            if (!compact && picked.size > 1) tr("%1\$s of %2\$s", picked.indexOf(shown) + 1, picked.size) else null,
                         ).joinToString(" · "),
                         style = lineStyle(12.sp, Palette.TextTertiary),
                         shorter = listOfNotNull(shown.headline.published?.let { ageText(it) }, ""),
@@ -475,11 +492,11 @@ private fun HeadlinesCard(picked: List<PickedHeadline>, status: String?, compact
 fun ageText(at: Instant, now: Instant = Instant.now()): String {
     val d = Duration.between(at, now)
     return when {
-        d.toMinutes() < 1 -> "Just now"
-        d.toMinutes() < 60 -> "${d.toMinutes()} min ago"
-        d.toHours() < 24 -> "${d.toHours()} h ago"
-        d.toDays() == 1L -> "Yesterday"
-        else -> "${d.toDays()} days ago"
+        d.toMinutes() < 1 -> tr("Just now")
+        d.toMinutes() < 60 -> tr("%1\$s min ago", d.toMinutes())
+        d.toHours() < 24 -> tr("%1\$s h ago", d.toHours())
+        d.toDays() == 1L -> tr("Yesterday")
+        else -> tr("%1\$s days ago", d.toDays())
     }
 }
 
@@ -501,8 +518,8 @@ private fun PrayerCard(times: PrayerTimes?, error: String?, hasMosque: Boolean, 
         val day = times ?: return@keys false
         val list = day.list.map { it.first }
         val by = when (event.key) {
-            Key.DirectionLeft -> -1
-            Key.DirectionRight -> 1
+            Key.DirectionLeft -> rowStep(-1)
+            Key.DirectionRight -> rowStep(1)
             else -> return@keys false
         }
         // From the picked one, else the next; after Isha (next is tomorrow's Fajr), Left goes back to Isha

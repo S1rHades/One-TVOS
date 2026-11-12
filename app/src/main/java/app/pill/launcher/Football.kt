@@ -143,8 +143,8 @@ class FootballSource(context: Context) {
             }.recoverCatching { mirror ->
                 // Name both failures, so the line in Settings says what each did
                 val first = directResult?.exceptionOrNull()?.let(::describeError) ?: "skipped"
-                val second = if (mirror is java.io.FileNotFoundException || mirror.message?.contains("404") == true) "no copy for this team" else describeError(mirror)
-                throw IOException("TheSportsDB: $first; GitHub copy: $second")
+                val second = if (mirror is java.io.FileNotFoundException || mirror.message?.contains("404") == true) tr("no copy for this team") else describeError(mirror)
+                throw IOException(tr("TheSportsDB: %1\$s; GitHub copy: %2\$s", first, second))
             }
             result.fold(
                 onSuccess = { (pair, viaMirror) ->
@@ -207,11 +207,11 @@ private fun match(e: JSONObject, teamId: String): Match {
     fun text(key: String) = e.optString(key).takeIf { it.isNotBlank() && it != "null" }
     return Match(
         id = text("idEvent") ?: (text("strEvent") + text("dateEvent")),
-        home = side("Home"),
-        away = side("Away"),
+        home = side(tr("Home")),
+        away = side(tr("Away")),
         homeScore = score("intHomeScore"),
         awayScore = score("intAwayScore"),
-        competition = text("strLeague") ?: "Match",
+        competition = text("strLeague") ?: tr("Match"),
         leagueId = text("idLeague"),
         season = text("strSeason"),
         kickoff = kickoff(e),
@@ -303,12 +303,12 @@ private fun fold(text: String): String =
 fun shortCompetition(name: String): String {
     val n = name.lowercase()
     return when {
-        "friendl" in n -> "Friendly"
-        ("african cup of nations" in n || "africa cup of nations" in n) && "qualif" in n -> "AFCON qualifier"
+        "friendl" in n -> tr("Friendly")
+        ("african cup of nations" in n || "africa cup of nations" in n) && "qualif" in n -> tr("AFCON qualifier")
         "african cup of nations" in n || "africa cup of nations" in n -> "AFCON"
-        "world cup" in n && "qualif" in n -> "World Cup qualifier"
-        "world cup" in n -> "World Cup"
-        "arab cup" in n -> "Arab Cup"
+        "world cup" in n && "qualif" in n -> tr("World Cup qualifier")
+        "world cup" in n -> tr("World Cup")
+        "arab cup" in n -> tr("Arab Cup")
         "african nations championship" in n -> "CHAN"
         n.startsWith("english ") -> name.substring(8)
         else -> name

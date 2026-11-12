@@ -1,5 +1,6 @@
 package app.pill.launcher.ui
 
+import app.pill.launcher.tr
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -91,11 +92,11 @@ fun AppMenu(
             Text(app.label, color = Palette.TextPrimary, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
         },
         choices = buildList {
-            add(MenuChoice(if (pinned) "Remove from Favorites" else "Add to Favorites") { onAction(MenuAction.TogglePin) })
-            if (pinned && movable) add(MenuChoice("Move", "Left / Right along Favorites") { onAction(MenuAction.Move) })
-            add(MenuChoice("Rename…", app.originalLabel?.let { "Its own name: $it" }) { onAction(MenuAction.Rename) })
-            add(MenuChoice("App info", "In the TV's settings") { onAction(MenuAction.AppInfo) })
-            if (app.removable) add(MenuChoice("Uninstall", warning = true) { onAction(MenuAction.Uninstall) })
+            add(MenuChoice(if (pinned) tr("Remove from Favorites") else tr("Add to Favorites")) { onAction(MenuAction.TogglePin) })
+            if (pinned && movable) add(MenuChoice(tr("Move"), tr("Left / Right along Favorites")) { onAction(MenuAction.Move) })
+            add(MenuChoice(tr("Rename…"), app.originalLabel?.let { tr("Its own name: %1\$s", it) }) { onAction(MenuAction.Rename) })
+            add(MenuChoice(tr("App info"), tr("In the TV's settings")) { onAction(MenuAction.AppInfo) })
+            if (app.removable) add(MenuChoice(tr("Uninstall"), warning = true) { onAction(MenuAction.Uninstall) })
         },
         onDismiss = onDismiss,
     )

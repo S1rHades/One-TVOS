@@ -25,7 +25,7 @@ class PhotoFeed(context: Context) {
     fun fetch(): Result<List<Photo>> = runCatching {
         val json = httpGet(FeedBase + "photos.json")
         parsePhotoFeed(json).also {
-            check(it.isNotEmpty()) { "The photo list is empty" }
+            check(it.isNotEmpty()) { tr("The photo list is empty") }
             prefs.edit().putString("feed", json).apply()
         }
     }
@@ -41,7 +41,7 @@ fun parsePhotoFeed(json: String): List<Photo> {
         val caption = listOf(placeOf(p.optString("title")), p.optString("artist"))
             .filter { it.isNotBlank() }
             .joinToString(" · ")
-        Photo(FeedBase + p.getString("file"), "$credit · Wikimedia Commons".removePrefix(" · "), caption.ifEmpty { null })
+        Photo(FeedBase + p.getString("file"), tr("%1\$s · Wikimedia Commons", credit).removePrefix(" · "), caption.ifEmpty { null })
     }
 }
 

@@ -59,7 +59,7 @@ fun Activity.requestDefaultHome(): String? {
     // With no default chosen yet, pressing Home shows a chooser; show it now
     val resolved = packageManager.resolveActivity(homeIntent, PackageManager.MATCH_DEFAULT_ONLY)
     if (resolved?.activityInfo?.packageName == "android" && tryStart { startActivity(homeIntent) }) return null
-    return "This TV doesn't let apps change the home screen. Turn on the Home button helper below instead."
+    return tr("This TV doesn't let apps change the home screen. Turn on the Home button helper below instead.")
 }
 
 /** Opens "Display over other apps" for this app (app info on TVs without that screen). */
@@ -67,12 +67,12 @@ fun Activity.requestOverlayPermission(): String? {
     val app = Uri.parse("package:$packageName")
     if (tryStart { startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, app)) }) return null
     if (tryStart { startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, app)) }) return null
-    return "Couldn't open the permission screen on this TV."
+    return tr("Couldn't open the permission screen on this TV.")
 }
 
 fun Activity.openAccessibilitySettings(): String? =
     if (tryStart { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }) null
-    else "Couldn't open Accessibility settings on this TV."
+    else tr("Couldn't open Accessibility settings on this TV.")
 
 private inline fun tryStart(block: () -> Unit): Boolean = try {
     block()

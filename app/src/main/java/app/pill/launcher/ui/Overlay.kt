@@ -1,5 +1,6 @@
 package app.pill.launcher.ui
 
+import app.pill.launcher.tr
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
@@ -135,7 +136,7 @@ fun OverlayPage(
 fun PageLabel(text: String, modifier: Modifier = Modifier, color: Color = Palette.TextTertiary) {
     Text(
         text.uppercase(),
-        style = TextStyle(fontFamily = Flex, color = color, fontSize = 12.sp, fontWeight = FontWeight(650), letterSpacing = 1.3.sp),
+        style = TextStyle(fontFamily = Flex, color = color, fontSize = 12.sp, fontWeight = FontWeight(650), letterSpacing = tracking(1.3f)),
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
         modifier = modifier,
@@ -156,4 +157,4 @@ val LocalBackHint = staticCompositionLocalOf { true }
 
 /** "Back to close" while the hint is still shown, else null (for listOfNotNull). */
 @Composable
-fun backHint(): String? = if (LocalBackHint.current) "Back to close" else null
+fun backHint(): String? = if (LocalBackHint.current) tr("Back to close") else null

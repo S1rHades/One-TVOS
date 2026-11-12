@@ -1,5 +1,6 @@
 package app.pill.launcher.ui
 
+import app.pill.launcher.tr
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -76,20 +77,20 @@ internal fun FootballPage(
     firstModifier: Modifier,
 ) {
     val teams = settings.teams
-    Group("Following · ${teams.size} of $MaxTeams · Left / Right moves") {
+    Group(tr("Following · %1\$s of %2\$s · Left / Right moves", teams.size, MaxTeams)) {
         for ((i, team) in teams.withIndex()) {
             key(team.id) {
                 val f = football.firstOrNull { it.team.id == team.id }
                 val status = when {
-                    f == null -> "Loads with the next refresh"
-                    f.error != null && f.fetchedAt == Instant.EPOCH -> "Can't get fixtures: ${f.error}"
-                    f.error != null -> "Offline · showing the saved copy"
-                    f.viaMirror -> "Updated from the GitHub copy"
-                    else -> "Updated from TheSportsDB"
+                    f == null -> tr("Loads with the next refresh")
+                    f.error != null && f.fetchedAt == Instant.EPOCH -> tr("Can't get fixtures: %1\$s", f.error)
+                    f.error != null -> tr("Offline · showing the saved copy")
+                    f.viaMirror -> tr("Updated from the GitHub copy")
+                    else -> tr("Updated from TheSportsDB")
                 }
                 SettingRow(
                     title = team.name,
-                    subtitle = if (team.isAlgeria) "Always first · $status" else "$status · OK removes",
+                    subtitle = if (team.isAlgeria) tr("Always first · %1\$s", status) else tr("%1\$s · OK removes", status),
                     modifier = if (i == 0) firstModifier else Modifier,
                     onClick = { if (!team.isAlgeria) onChange(settings.copy(teams = teams - team)) },
                     onStep = if (team.isAlgeria) null else { by ->
@@ -113,13 +114,13 @@ internal fun FootballPage(
         delay(450) // wait for typing to pause
         hits = searchTeams(query)
     }
-    Group("Add a team") {
-        TeamSearchField(query, { query = it }, hint = "Search teams")
+    Group(tr("Add a team")) {
+        TeamSearchField(query, { query = it }, hint = tr("Search teams"))
         val found = hits
         when {
-            query.isBlank() -> Note("A club or a country, e.g. MC Alger, Arsenal, Morocco")
-            found == null -> Note("Searching…")
-            found.isEmpty() -> Note("No teams found for “${query.trim()}”")
+            query.isBlank() -> Note(tr("A club or a country, e.g. MC Alger, Arsenal, Morocco"))
+            found == null -> Note(tr("Searching…"))
+            found.isEmpty() -> Note(tr("No teams found for “%1\$s”", query.trim()))
             else -> for (hit in found) {
                 key(hit.team.id) {
                     val following = teams.any { it.id == hit.team.id }
@@ -130,10 +131,10 @@ internal fun FootballPage(
                             hit.team.league,
                             hit.team.country,
                             when {
-                                following -> "following"
-                                full -> "remove a team first"
-                                hit.mirrored -> "works on any network"
-                                else -> "needs a direct connection to TheSportsDB"
+                                following -> tr("following")
+                                full -> tr("remove a team first")
+                                hit.mirrored -> tr("works on any network")
+                                else -> tr("needs a direct connection to TheSportsDB")
                             },
                         ).joinToString(" · "),
                         dimmed = following || full,
@@ -148,8 +149,8 @@ internal fun FootballPage(
         val modes = MatchDayMode.entries
         val current = modes.indexOf(settings.matchDay)
         SettingRow(
-            title = "Match day",
-            subtitle = if (settings.matchDay == MatchDayMode.Off) "No countdown or kick-off banner" else "A countdown on the card that day, and a banner 10 minutes before kick-off",
+            title = tr("Match day"),
+            subtitle = if (settings.matchDay == MatchDayMode.Off) tr("No countdown or kick-off banner") else tr("A countdown on the card that day, and a banner 10 minutes before kick-off"),
             onClick = { onChange(settings.copy(matchDay = modes[(current + 1) % modes.size])) },
             onStep = { by ->
                 val next = (current + by).coerceIn(0, modes.lastIndex)
@@ -162,37 +163,37 @@ internal fun FootballPage(
 /** What the headlines widget picks stories about, and how each source is doing. */
 @Composable
 internal fun NewsPage(settings: LauncherSettings, onChange: (LauncherSettings) -> Unit, news: News?, firstModifier: Modifier) {
-    Group("Topics") {
+    Group(tr("Topics")) {
         for ((i, topic) in NewsTopic.entries.withIndex()) {
             val on = topic in settings.newsTopics
             SettingRow(
                 title = topic.title,
                 subtitle = when (topic) {
-                    NewsTopic.Algeria -> "Stories that mention Algeria"
-                    NewsTopic.Russia -> "Russia, the Kremlin, RT's Russia section"
-                    NewsTopic.World -> "Diplomacy, elections, conflicts, the UN"
-                    NewsTopic.AfricaMiddleEast -> "North Africa, the Sahel, the Gulf, the Levant"
-                    NewsTopic.Economy -> "Markets, trade, energy, currencies"
-                    NewsTopic.Sport -> "Football and other sport"
-                } + if (on && settings.newsTopics.size == 1) " · keep at least one" else "",
+                    NewsTopic.Algeria -> tr("Stories that mention Algeria")
+                    NewsTopic.Russia -> tr("Russia, the Kremlin, RT's Russia section")
+                    NewsTopic.World -> tr("Diplomacy, elections, conflicts, the UN")
+                    NewsTopic.AfricaMiddleEast -> tr("North Africa, the Sahel, the Gulf, the Levant")
+                    NewsTopic.Economy -> tr("Markets, trade, energy, currencies")
+                    NewsTopic.Sport -> tr("Football and other sport")
+                } + if (on && settings.newsTopics.size == 1) tr(" · keep at least one") else "",
                 modifier = if (i == 0) firstModifier else Modifier,
                 // At least one topic stays on; with none the card would only show top stories
                 onClick = { if (!on) onChange(settings.copy(newsTopics = settings.newsTopics + topic)) else if (settings.newsTopics.size > 1) onChange(settings.copy(newsTopics = settings.newsTopics - topic)) },
             ) { focused -> Switch(checked = on, focused = focused) }
         }
     }
-    Group("Sources") {
+    Group(tr("Sources")) {
         for (source in NewsSource.entries) {
             val count = news?.headlines?.get(source)?.size
             val error = news?.errors?.get(source)
             SettingRow(
-                title = source.title + " English",
+                title = source.title + tr(" English"),
                 subtitle = when {
-                    news == null -> "Loading…"
-                    error != null && count != null -> "Offline · showing $count saved stories"
-                    error != null -> if (source == NewsSource.RT) "Not available on this network" else "Can't load: $error"
-                    else -> "$count stories"
-                } + if (source == NewsSource.RT) " · read directly only, never through the GitHub copy" else "",
+                    news == null -> tr("Loading…")
+                    error != null && count != null -> tr("Offline · showing %1\$s saved stories", count)
+                    error != null -> if (source == NewsSource.RT) tr("Not available on this network") else tr("Can't load: %1\$s", error)
+                    else -> tr("%1\$s stories", count)
+                } + if (source == NewsSource.RT) tr(" · read directly only, never through the GitHub copy") else "",
                 onClick = {},
             ) { focused -> if (error == null && count != null) Check(focused) else Mark("–", focused) }
         }
@@ -216,11 +217,11 @@ internal fun WeatherPlacePage(
     firstModifier: Modifier,
 ) {
     val chosen = settings.weatherPlace
-    Group("Weather for") {
+    Group(tr("Weather for")) {
         SettingRow(
-            title = "Automatic",
-            subtitle = (if (nearMosque) "Around your mosque" else "From the TV's internet address, which may be the nearest city") +
-                (if (chosen == null) weather?.place?.takeIf { it.isNotBlank() }?.let { " · now $it" } ?: "" else ""),
+            title = tr("Automatic"),
+            subtitle = (if (nearMosque) tr("Around your mosque") else tr("From the TV's internet address, which may be the nearest city")) +
+                (if (chosen == null) weather?.place?.takeIf { it.isNotBlank() }?.let { tr(" · now %1\$s", it) } ?: "" else ""),
             onClick = { onChange(settings.copy(weatherPlace = null)) },
             modifier = firstModifier,
         ) { focused -> if (chosen == null) Check(focused) else Box(Modifier) }
@@ -228,7 +229,7 @@ internal fun WeatherPlacePage(
             SettingRow(
                 title = chosen.name,
                 subtitle = listOf(chosen.region, chosen.country).filter { it.isNotBlank() }.distinct().joinToString(", ")
-                    .ifEmpty { "Coordinates" } + " · the forecast for this exact place",
+                    .ifEmpty { tr("Coordinates") } + tr(" · the forecast for this exact place"),
                 onClick = {},
             ) { focused -> Check(focused) }
         }
@@ -246,21 +247,21 @@ internal fun WeatherPlacePage(
         delay(450) // wait for typing to pause
         found = searchPlaces(query)
     }
-    Group("Choose a town") {
-        TeamSearchField(query, { query = it }, hint = "Town or village, e.g. Beni Saf")
+    Group(tr("Choose a town")) {
+        TeamSearchField(query, { query = it }, hint = tr("Town or village, e.g. Beni Saf"))
         val result = found
         val places = result?.getOrNull()
         when {
-            query.isBlank() -> Note("Any town or village, or a latitude and longitude such as 35.30, -1.38")
-            result == null -> Note("Searching…")
-            result.isFailure -> Note("Can't reach the place search: ${result.exceptionOrNull()?.let { describe(it) }}")
-            places.isNullOrEmpty() -> Note("No places found for “${query.trim()}”. Try its name without accents, or its coordinates")
+            query.isBlank() -> Note(tr("Any town or village, or a latitude and longitude such as 35.30, -1.38"))
+            result == null -> Note(tr("Searching…"))
+            result.isFailure -> Note(tr("Can't reach the place search: %1\$s", result.exceptionOrNull()?.let { describe(it) }))
+            places.isNullOrEmpty() -> Note(tr("No places found for “%1\$s”. Try its name without accents, or its coordinates", query.trim()))
             else -> for (p in places) {
                 key(p.key) {
                     val current = chosen?.key == p.key
                     SettingRow(
                         title = p.name,
-                        subtitle = listOf(p.region, p.country).filter { it.isNotBlank() }.distinct().joinToString(", ").ifEmpty { "Coordinates" } +
+                        subtitle = listOf(p.region, p.country).filter { it.isNotBlank() }.distinct().joinToString(", ").ifEmpty { tr("Coordinates") } +
                             String.format(java.util.Locale.ROOT, " · %.2f, %.2f", p.lat, p.lon),
                         onClick = {
                             onChange(settings.copy(weatherPlace = p))
@@ -288,12 +289,12 @@ internal fun PrayersPage(
     onRefresh: () -> Unit,
     firstModifier: Modifier,
 ) {
-    Group("Mosque") {
+    Group(tr("Mosque")) {
         var mosque by remember(settings.mosque) { mutableStateOf(settings.mosque) }
         Box(Modifier.padding(horizontal = 18.dp, vertical = 6.dp)) {
             TextRow(
                 value = mosque,
-                hint = "Mosque ID or address, e.g. 1234",
+                hint = tr("Mosque ID or address, e.g. 1234"),
                 onChange = { mosque = it },
                 onDone = { onChange(settings.copy(mosque = cleanMosqueSlug(mosque))) },
                 // With no mosque yet the page opens on the field; once there is one, on Refresh now (focusing
@@ -304,9 +305,9 @@ internal fun PrayersPage(
         // Which mosque the ID found, by name, so the right one is recognised rather than trusted
         when {
             settings.mosque.isBlank() -> Unit
-            refreshing -> Text("Looking up ${settings.mosque}…", color = Palette.TextSecondary, fontSize = 15.sp, modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp))
+            refreshing -> Text(tr("Looking up %1\$s…", settings.mosque), color = Palette.TextSecondary, fontSize = 15.sp, modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp))
             prayers != null && prayers.mosque.isNotBlank() -> Text(
-                "✓ Found: " + prayers.mosque,
+                tr("✓ Found: ") + prayers.mosque,
                 color = PrayerGreen,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
@@ -315,18 +316,18 @@ internal fun PrayersPage(
                 modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp),
             )
         }
-        Note("Type the mosque's ID: the number at the bottom left of its MAWAQIT screen. Or the end of its mawaqit.net address, such as obada-benisaf. MAWAQIT doesn't let other apps search its mosques.")
+        Note(tr("Type the mosque's ID: the number at the bottom left of its MAWAQIT screen. Or the end of its mawaqit.net address, such as obada-benisaf. MAWAQIT doesn't let other apps search its mosques."))
         val status = when {
-            settings.mosque.isBlank() -> "Type the mosque, then Done"
-            refreshing -> "Asking MAWAQIT…"
+            settings.mosque.isBlank() -> tr("Type the mosque, then Done")
+            refreshing -> tr("Asking MAWAQIT…")
             prayers == null && error != null -> error
-            prayers == null -> "Loads with the next refresh"
-            error != null -> "Showing times saved " + ageText(prayers.fetchedAt).lowercase() + " · " + error
-            prayers.fromCache -> "Saved " + ageText(prayers.fetchedAt).lowercase() + " · refreshes after midnight"
-            else -> "Updated " + ageText(prayers.fetchedAt).lowercase() + " · refreshes after midnight"
+            prayers == null -> tr("Loads with the next refresh")
+            error != null -> tr("Showing times saved ") + ageText(prayers.fetchedAt).lowercase() + " · " + error
+            prayers.fromCache -> tr("Saved ") + ageText(prayers.fetchedAt).lowercase() + tr(" · refreshes after midnight")
+            else -> tr("Updated ") + ageText(prayers.fetchedAt).lowercase() + tr(" · refreshes after midnight")
         }
         SettingRow(
-            title = "Refresh now",
+            title = tr("Refresh now"),
             subtitle = (prayers?.mosque?.ifBlank { null }?.let { "$it · " } ?: "") + status,
             // Even while it's asking: a slow answer shouldn't make the row feel dead, and a press starts afresh
             onClick = onRefresh,
@@ -337,12 +338,12 @@ internal fun PrayersPage(
     // Mosques that worked before, by name: one press to go back to one
     val recent = settings.recentMosques.filter { it.first != settings.mosque }
     if (recent.isNotEmpty()) {
-        Group("Recent") {
+        Group(tr("Recent")) {
             for ((slug, name) in recent) {
                 key(slug) {
                     SettingRow(
                         title = name,
-                        subtitle = if (slug.all { it.isDigit() }) "ID $slug" else slug,
+                        subtitle = if (slug.all { it.isDigit() }) tr("ID %1\$s", slug) else slug,
                         onClick = { onChange(settings.copy(mosque = slug)) },
                     ) { focused -> Chevron(focused) }
                 }
@@ -352,7 +353,7 @@ internal fun PrayersPage(
     // Hardly anyone needs the API address: it stays folded unless it was changed
     Group(null) {
         Advanced(
-            summary = if (settings.prayerApi == DefaultPrayerApi) "API address · the community MAWAQIT API" else "API address · your own copy",
+            summary = if (settings.prayerApi == DefaultPrayerApi) tr("API address · the community MAWAQIT API") else tr("API address · your own copy"),
             startOpen = settings.prayerApi != DefaultPrayerApi,
         ) {
             var api by remember(settings.prayerApi) { mutableStateOf(settings.prayerApi) }
@@ -365,8 +366,8 @@ internal fun PrayersPage(
                 )
             }
             Note(
-                if (settings.prayerApi == DefaultPrayerApi) "The community MAWAQIT API, used when the mosque's own page can't be read. Change it only if you run your own copy."
-                else "Your own copy of the API. Clear the field for the community one.",
+                if (settings.prayerApi == DefaultPrayerApi) tr("The community MAWAQIT API, used when the mosque's own page can't be read. Change it only if you run your own copy.")
+                else tr("Your own copy of the API. Clear the field for the community one."),
             )
         }
     }
@@ -396,9 +397,9 @@ internal fun StackPage(
     val inStack = settings.stack
     val others = WidgetKind.entries.filter { it != WidgetKind.Stack && it !in inStack }
     val label = when {
-        moving != null -> "Moving ${moving.title} · Left / Right, then OK"
-        inStack.isEmpty() -> "Empty · OK adds a widget"
-        else -> "${inStack.size} take turns · hold OK to move one"
+        moving != null -> tr("Moving %1\$s · Left / Right, then OK", moving.title)
+        inStack.isEmpty() -> tr("Empty · OK adds a widget")
+        else -> tr("%1\$s take turns · hold OK to move one", inStack.size)
     }
     Group(label) {
         for (kind in inStack + others) {
@@ -409,9 +410,9 @@ internal fun StackPage(
                 SettingRow(
                     title = kind.title,
                     subtitle = when {
-                        moving == kind -> "Position ${position + 1} of ${inStack.size}"
-                        on -> "Position ${position + 1} of ${inStack.size}" + if (inStack.size > 1) " · hold OK to move" else ""
-                        onHome -> "On the home screen by itself · OK moves it into the stack"
+                        moving == kind -> tr("Position %1\$s of %2\$s", position + 1, inStack.size)
+                        on -> tr("Position %1\$s of %2\$s", position + 1, inStack.size) + if (inStack.size > 1) tr(" · hold OK to move") else ""
+                        onHome -> tr("On the home screen by itself · OK moves it into the stack")
                         else -> kind.description
                     },
                     moving = moving == kind,
@@ -456,7 +457,7 @@ internal fun StackPage(
             }
         }
     }
-    Note("The stack shows one widget at a time and slides up to the next every $StackTurnSec seconds. On the home screen, Up / Down flips through it by hand.")
+    Note(tr("The stack shows one widget at a time and slides up to the next every %1\$s seconds. On the home screen, Up / Down flips through it by hand.", StackTurnSec))
 }
 
 private const val HoldToMoveMs = 550L

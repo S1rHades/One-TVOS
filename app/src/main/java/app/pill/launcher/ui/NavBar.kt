@@ -1,5 +1,6 @@
 package app.pill.launcher.ui
 
+import app.pill.launcher.tr
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.VectorConverter
@@ -58,7 +59,12 @@ import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 
 /** The places the bar leads to, left to right. All apps is below Favorites, so it needs no button. */
-enum class NavItem(val label: String) { Home("Home"), Search("Search"), Internet("Internet"), Settings("Settings") }
+enum class NavItem(private val labelEn: String) {
+    Home("Home"), Search("Search"), Internet("Internet"), Settings("Settings");
+
+    /** In the language on screen. */
+    val label: String get() = tr(labelEn)
+}
 
 private val ItemSize = 40.dp
 private val ItemGap = 4.dp
@@ -224,7 +230,7 @@ fun NavBar(
                             .padding(start = if (item.ordinal == 0 || item == NavItem.Internet) 0.dp else ItemGap)
                             .size(ItemSize)
                             .clip50()
-                            .semantics { contentDescription = if (item == NavItem.Internet) "Internet: " + network.label else item.label }
+                            .semantics { contentDescription = if (item == NavItem.Internet) tr("Internet: ") + network.label else item.label }
                             .onFocusChanged { if (it.isFocused) focused = item.ordinal else if (focused == item.ordinal) focused = -1 }
                             .then(if (item == NavItem.Settings && settingsFocus != null) Modifier.focusRequester(settingsFocus) else Modifier)
                             .then(if (ready) Modifier else Modifier.focusProperties { canFocus = false })
@@ -280,10 +286,10 @@ private fun HomeIcon(tint: Color, iconSize: Dp) {
 
 /** "Good evening" and so on, by the hour. */
 fun greetingFor(hour: Int): String = when (hour) {
-    in 5..11 -> "Good morning"
-    in 12..17 -> "Good afternoon"
-    in 18..22 -> "Good evening"
-    else -> "Good night"
+    in 5..11 -> tr("Good morning")
+    in 12..17 -> tr("Good afternoon")
+    in 18..22 -> tr("Good evening")
+    else -> tr("Good night")
 }
 
 /** The greeting above the widgets. The clock and weather cards already say the date and place. */

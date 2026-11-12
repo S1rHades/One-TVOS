@@ -1,5 +1,6 @@
 package app.pill.launcher.ui
 
+import app.pill.launcher.tr
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -129,7 +130,7 @@ fun InternetPage(onOpenNetworkSettings: () -> Unit, onDismiss: () -> Unit) {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                error = e.message ?: "The test didn't finish"
+                error = e.message ?: tr("The test didn't finish")
             } finally {
                 phase = null
             }
@@ -144,7 +145,7 @@ fun InternetPage(onOpenNetworkSettings: () -> Unit, onDismiss: () -> Unit) {
         nav = NavItem.Internet,
         // The TV's own network settings, at the top left level with the bar
         topLeft = {
-            PageButton("Network settings", onClick = onOpenNetworkSettings, modifier = Modifier.focusRequester(networkFocus)) { tint ->
+            PageButton(tr("Network settings"), onClick = onOpenNetworkSettings, modifier = Modifier.focusRequester(networkFocus)) { tint ->
                 WifiIcon(NetworkStatus(Link.WiFi, 4, false), tint, 18.dp)
             }
         },
@@ -153,10 +154,10 @@ fun InternetPage(onOpenNetworkSettings: () -> Unit, onDismiss: () -> Unit) {
             delay(60)
             runCatching { networkFocus.requestFocus() }
         }
-        PageTitle("Internet", listOfNotNull("Test your connection", backHint()).joinToString(" · "), Modifier.reveal(0))
+        PageTitle(tr("Internet"), listOfNotNull(tr("Test your connection"), backHint()).joinToString(" · "), Modifier.reveal(0))
         Row(Modifier.fillMaxWidth().height(PageBodyHeight), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             PageCard(1, Modifier.weight(1.1f).fillMaxHeight()) {
-                PageLabel(if (phase == SpeedPhase.Upload) "Upload" else "Download")
+                PageLabel(if (phase == SpeedPhase.Upload) tr("Upload") else tr("Download"))
                 Box(Modifier.fillMaxWidth().height(200.dp).padding(top = 12.dp), contentAlignment = Alignment.Center) {
                     Dial(if (phase == SpeedPhase.Upload) up else down, Modifier.size(width = 280.dp, height = 180.dp))
                     Column(Modifier.padding(top = 50.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -165,17 +166,17 @@ fun InternetPage(onOpenNetworkSettings: () -> Unit, onDismiss: () -> Unit) {
                             style = TextStyle(fontFamily = FlexDisplay, color = Palette.TextPrimary, fontSize = 60.sp, fontWeight = FontWeight(260)),
                             maxLines = 1,
                         )
-                        Text("Mbps", color = Palette.TextSecondary, fontSize = 15.sp)
+                        Text(tr("Mbps"), color = Palette.TextSecondary, fontSize = 15.sp)
                     }
                 }
                 Text(
                     when {
-                        phase == SpeedPhase.Ping -> "Checking the connection…"
-                        phase == SpeedPhase.Download -> "Testing download…"
-                        phase == SpeedPhase.Upload -> "Testing upload…"
+                        phase == SpeedPhase.Ping -> tr("Checking the connection…")
+                        phase == SpeedPhase.Download -> tr("Testing download…")
+                        phase == SpeedPhase.Upload -> tr("Testing upload…")
                         error != null -> error!!
-                        result != null -> "Tested just now"
-                        else -> "Choose Start test to begin"
+                        result != null -> tr("Tested just now")
+                        else -> tr("Choose Start test to begin")
                     },
                     color = Palette.TextSecondary, fontSize = 14.sp, maxLines = 1,
                     modifier = Modifier.align(Alignment.CenterHorizontally),
@@ -205,36 +206,36 @@ fun InternetPage(onOpenNetworkSettings: () -> Unit, onDismiss: () -> Unit) {
                 Spacer(Modifier.weight(1f))
                 PageButton(
                     label = when {
-                        running -> "Testing…"
-                        result != null || error != null -> "Test again"
-                        else -> "Start test"
+                        running -> tr("Testing…")
+                        result != null || error != null -> tr("Test again")
+                        else -> tr("Start test")
                     },
                     onClick = { start() },
                     modifier = Modifier.align(Alignment.CenterHorizontally).width(170.dp).focusRequester(startFocus),
                 )
             }
             PageCard(2, Modifier.width(380.dp).fillMaxHeight()) {
-                PageLabel("Results")
-                ResultRow("Ping", ping?.let { "$it" } ?: "–", "ms")
-                ResultRow("Download", result?.downMbps?.let { String.format(Locale.ROOT, "%.1f", it) } ?: "–", "Mbps")
-                ResultRow("Upload", result?.upMbps?.let { String.format(Locale.ROOT, "%.1f", it) } ?: "–", "Mbps")
+                PageLabel(tr("Results"))
+                ResultRow(tr("Ping"), ping?.let { "$it" } ?: "–", "ms")
+                ResultRow(tr("Download"), result?.downMbps?.let { String.format(Locale.ROOT, "%.1f", it) } ?: "–", tr("Mbps"))
+                ResultRow(tr("Upload"), result?.upMbps?.let { String.format(Locale.ROOT, "%.1f", it) } ?: "–", tr("Mbps"))
                 Spacer(Modifier.height(12.dp))
                 SpeedGraph(samples, Modifier.fillMaxWidth().height(64.dp))
                 Spacer(Modifier.weight(1f))
                 Text(
                     network.label + when (network.link) {
-                        Link.WiFi -> " · signal " + listOf("very weak", "weak", "fair", "good", "excellent")[network.wifiBars.coerceIn(0, 4)]
+                        Link.WiFi -> tr(" · signal ") + listOf(tr("very weak"), tr("weak"), tr("fair"), tr("good"), tr("excellent"))[network.wifiBars.coerceIn(0, 4)]
                         else -> ""
-                    } + if (network.vpn) " · VPN on" else "",
+                    } + if (network.vpn) tr(" · VPN on") else "",
                     color = Palette.TextSecondary, fontSize = 14.sp, maxLines = 1,
                 )
                 last?.takeIf { it != result }?.let { l ->
                     Text(
-                        "Last test: " + ageText(l.at).lowercase() + (l.downMbps?.let { ", " + String.format(Locale.ROOT, "%.0f", it) + " Mbps" } ?: ""),
+                        tr("Last test: ") + ageText(l.at).lowercase() + (l.downMbps?.let { ", " + String.format(Locale.ROOT, "%.0f", it) + tr(" Mbps") } ?: ""),
                         color = Palette.TextTertiary, fontSize = 13.sp, maxLines = 1,
                     )
                 }
-                Text("Measured with Cloudflare's speed test", color = Palette.TextTertiary, fontSize = 12.sp, maxLines = 1, modifier = Modifier.padding(top = 2.dp))
+                Text(tr("Measured with Cloudflare's speed test"), color = Palette.TextTertiary, fontSize = 12.sp, maxLines = 1, modifier = Modifier.padding(top = 2.dp))
             }
         }
     }

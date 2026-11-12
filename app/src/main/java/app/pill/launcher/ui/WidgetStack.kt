@@ -1,5 +1,6 @@
 package app.pill.launcher.ui
 
+import app.pill.launcher.tr
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -131,16 +132,16 @@ internal fun StackCard(stack: List<WidgetKind>, preview: WidgetKind?, content: W
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
                 shown?.let { slots[it]?.action?.invoke() }
             }
-            .semantics { contentDescription = "Widget stack" + (shown?.let { ": ${it.title}" } ?: "") }
+            .semantics { contentDescription = tr("Widget stack") + (shown?.let { ": ${it.title}" } ?: "") }
             .clip(WidgetCardShape),
     ) {
         if (shown == null) {
             WidgetCard(accent = NeutralTint, modifier = Modifier.fillMaxSize()) {
                 FitText(
-                    "Choose its widgets in Settings → Widgets → Widget stack",
+                    tr("Choose its widgets in Settings → Widgets → Widget stack"),
                     style = lineStyle(15.sp, Palette.TextPrimary),
                     maxLines = 3,
-                    shorter = listOf("Choose its widgets in Settings", "No widgets yet"),
+                    shorter = listOf(tr("Choose its widgets in Settings"), tr("No widgets yet")),
                     modifier = Modifier.align(Alignment.CenterStart),
                 )
             }

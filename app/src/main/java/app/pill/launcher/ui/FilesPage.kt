@@ -1,5 +1,7 @@
 package app.pill.launcher.ui
 
+import app.pill.launcher.rowStep
+import app.pill.launcher.tr
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -141,7 +143,7 @@ fun FilesPage(
         width = 880.dp,
         framed = false,
     ) { _ ->
-        PageTitle("Files", "From phones and computers on your home network")
+        PageTitle(tr("Files"), tr("From phones and computers on your home network"))
         Row(Modifier.fillMaxWidth().height(PageBodyHeight + 30.dp)) {
             PageCard(step = 1, modifier = Modifier.width(290.dp).fillMaxHeight()) {
                 ReceivePanel(state = state, keepReceiving = keepReceiving, onKeepReceiving = onKeepReceiving, keepFocus = keepFocus)
@@ -157,10 +159,10 @@ fun FilesPage(
                     ) {
                         FilesIcon(Palette.TextSecondary, 40.dp)
                         Spacer(Modifier.height(14.dp))
-                        Text("Nothing on the TV yet", color = Palette.TextPrimary, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                        Text(tr("Nothing on the TV yet"), color = Palette.TextPrimary, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.height(6.dp))
                         Text(
-                            "Scan the code with your phone's camera, then choose Send to TV. Photos, videos, apps and documents all work.",
+                            tr("Scan the code with your phone's camera, then choose Send to TV. Photos, videos, apps and documents all work."),
                             color = Palette.TextSecondary,
                             fontSize = 15.sp,
                             textAlign = TextAlign.Center,
@@ -168,7 +170,7 @@ fun FilesPage(
                     }
                 } else {
                     ChipRow(
-                        labels = listOf("All ${state.files.size}") + kinds.map { it.title },
+                        labels = listOf(tr("All %1\$s", state.files.size)) + kinds.map { it.title },
                         selected = if (filter == null) 0 else kinds.indexOf(filter) + 1,
                         onSelect = { filter = if (it == 0) null else kinds[it - 1] },
                         firstFocus = chipFocus,
@@ -200,7 +202,7 @@ fun FilesPage(
                                 repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
                             }
                         }
-                        PageFooter("OK opens a file · Hold OK to install, send to a phone or delete")
+                        PageFooter(tr("OK opens a file · Hold OK to install, send to a phone or delete"))
                     }
                 }
             }
@@ -223,9 +225,9 @@ fun FilesPage(
                 Text(f.name, color = Palette.TextPrimary, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             },
             choices = buildList {
-                add(MenuChoice(if (f.kind == FileKind.App) "Install" else "Open", if (f.kind == FileKind.App) "Android asks to confirm" else null) { open(f) })
-                add(MenuChoice("Send to phone", "Scan a code to save it on your phone") { sending = f })
-                add(MenuChoice("Delete", warning = true) { share.delete(f.name) })
+                add(MenuChoice(if (f.kind == FileKind.App) tr("Install") else tr("Open"), if (f.kind == FileKind.App) tr("Android asks to confirm") else null) { open(f) })
+                add(MenuChoice(tr("Send to phone"), tr("Scan a code to save it on your phone")) { sending = f })
+                add(MenuChoice(tr("Delete"), warning = true) { share.delete(f.name) })
             },
             onDismiss = { menuFor = null },
         )
@@ -254,7 +256,7 @@ private fun PageMessage(message: String?, modifier: Modifier) {
 
 @Composable
 private fun ColumnScope.ReceivePanel(state: app.pill.launcher.ShareState, keepReceiving: Boolean, onKeepReceiving: (Boolean) -> Unit, keepFocus: FocusRequester) {
-    PageLabel("Receive")
+    PageLabel(tr("Receive"))
     Spacer(Modifier.height(12.dp))
     val link = state.link
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -268,7 +270,7 @@ private fun ColumnScope.ReceivePanel(state: app.pill.launcher.ShareState, keepRe
     }
     Spacer(Modifier.height(12.dp))
     Text(
-        if (state.running && link != null) "Scan with your phone" else (state.problem ?: "Starting…"),
+        if (state.running && link != null) tr("Scan with your phone") else (state.problem ?: tr("Starting…")),
         color = Palette.TextPrimary,
         fontSize = 17.sp,
         fontWeight = FontWeight.SemiBold,
@@ -277,7 +279,7 @@ private fun ColumnScope.ReceivePanel(state: app.pill.launcher.ShareState, keepRe
     )
     if (state.running && state.address != null) {
         Text(
-            "or open ${state.address}:${state.port} · code ${state.code}",
+            tr("or open %1\$s:%2\$s · code %3\$s", state.address, state.port, state.code),
             color = Palette.TextSecondary,
             fontSize = 13.sp,
             textAlign = TextAlign.Center,
@@ -289,8 +291,8 @@ private fun ColumnScope.ReceivePanel(state: app.pill.launcher.ShareState, keepRe
     // The last phone that reached the TV, and how that went: whether a scan gets here at all
     Text(
         state.lastVisit?.let { v ->
-            "Last phone: " + ageText(java.time.Instant.ofEpochMilli(v.at)).lowercase() + " from ${v.from} · ${v.asked} · ${v.outcome}"
-        } ?: if (state.running) "No phone has reached the TV yet" else "",
+            tr("Last phone: ") + ageText(java.time.Instant.ofEpochMilli(v.at)).lowercase() + tr(" from %1\$s · %2\$s · %3\$s", v.from, v.asked, v.outcome)
+        } ?: if (state.running) tr("No phone has reached the TV yet") else "",
         color = if (state.lastVisit?.outcome?.startsWith("failed") == true) Color(0xFFFFC078) else Palette.TextTertiary,
         fontSize = 12.sp,
         textAlign = TextAlign.Center,
@@ -302,7 +304,7 @@ private fun ColumnScope.ReceivePanel(state: app.pill.launcher.ShareState, keepRe
     // Android 17 keeps Chrome off the home network until it is allowed
     if (state.running && state.lastVisit == null) {
         Text(
-            "Phone says the site can't be reached? On the phone: Settings → Apps → Chrome → Permissions → Nearby devices → Allow. It must be on this Wi-Fi, without a VPN.",
+            tr("Phone says the site can't be reached? On the phone: Settings → Apps → Chrome → Permissions → Nearby devices → Allow. It must be on this Wi-Fi, without a VPN."),
             color = Palette.TextTertiary,
             fontSize = 12.sp,
             lineHeight = 16.sp,
@@ -320,18 +322,18 @@ private fun ColumnScope.ReceivePanel(state: app.pill.launcher.ShareState, keepRe
             Spacer(Modifier.height(6.dp))
             ProgressLine(t.read.toFloat() / t.total.coerceAtLeast(1), Modifier.fillMaxWidth())
             Spacer(Modifier.height(5.dp))
-            Text("${fileSize(t.read)} of ${fileSize(t.total)} · from ${t.from}", color = Palette.TextTertiary, fontSize = 12.sp, maxLines = 1)
+            Text(tr("%1\$s of %2\$s · from %3\$s", fileSize(t.read), fileSize(t.total), t.from), color = Palette.TextTertiary, fontSize = 12.sp, maxLines = 1)
         }
     }
     Spacer(Modifier.weight(1f))
     if (state.totalBytes > 0) {
-        Text("${fileSize(state.freeBytes)} free on the TV", color = Palette.TextTertiary, fontSize = 12.sp)
+        Text(tr("%1\$s free on the TV", fileSize(state.freeBytes)), color = Palette.TextTertiary, fontSize = 12.sp)
         Spacer(Modifier.height(5.dp))
         ProgressLine(1f - state.freeBytes.toFloat() / state.totalBytes, Modifier.fillMaxWidth())
         Spacer(Modifier.height(12.dp))
     }
     PageButton(
-        if (keepReceiving) "Keep receiving: 15 min" else "Keep receiving: Off",
+        if (keepReceiving) tr("Keep receiving: 15 min") else tr("Keep receiving: Off"),
         onClick = { onKeepReceiving(!keepReceiving) },
         modifier = Modifier.fillMaxWidth().focusRequester(keepFocus),
     )
@@ -385,8 +387,8 @@ private fun fileDay(ms: Long): String {
     val day = Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()).toLocalDate()
     val today = java.time.LocalDate.now()
     return when (day) {
-        today -> "Today"
-        today.minusDays(1) -> "Yesterday"
+        today -> tr("Today")
+        today.minusDays(1) -> tr("Yesterday")
         else -> DateTimeFormatter.ofPattern("MMM d", Locale.getDefault()).format(day)
     }
 }
@@ -458,14 +460,14 @@ private fun SendToPhone(file: SharedFile, link: String?, onDismiss: () -> Unit) 
                 if (link != null) {
                     QrCode(link, Modifier.size(170.dp))
                     Spacer(Modifier.height(16.dp))
-                    Text("Scan to save ${file.name}", color = Palette.TextPrimary, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
+                    Text(tr("Scan to save %1\$s", file.name), color = Palette.TextPrimary, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
                     Spacer(Modifier.height(4.dp))
-                    Text("Your phone must be on the same network", color = Palette.TextSecondary, fontSize = 14.sp, textAlign = TextAlign.Center)
+                    Text(tr("Your phone must be on the same network"), color = Palette.TextSecondary, fontSize = 14.sp, textAlign = TextAlign.Center)
                 } else {
-                    Text("Sharing isn't running. Connect the TV to your home network first.", color = Palette.TextPrimary, fontSize = 16.sp, textAlign = TextAlign.Center)
+                    Text(tr("Sharing isn't running. Connect the TV to your home network first."), color = Palette.TextPrimary, fontSize = 16.sp, textAlign = TextAlign.Center)
                 }
                 Spacer(Modifier.height(18.dp))
-                PageButton("Done", onClick = onDismiss, modifier = Modifier.focusRequester(close))
+                PageButton(tr("Done"), onClick = onDismiss, modifier = Modifier.focusRequester(close))
             }
         }
     }
@@ -488,8 +490,9 @@ private fun PhotoViewer(photos: List<SharedFile>, start: Int, fileFor: (SharedFi
                 .onPreviewKeyEvent { e ->
                     if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                     when (e.key) {
-                        Key.DirectionRight -> { if (at < photos.lastIndex) at++; true }
-                        Key.DirectionLeft -> { if (at > 0) at--; true }
+                        // The next photo is to the right where text runs left to right, to the left where it runs right to left
+                        Key.DirectionRight -> { at = (at + rowStep(1)).coerceIn(0, photos.lastIndex); true }
+                        Key.DirectionLeft -> { at = (at + rowStep(-1)).coerceIn(0, photos.lastIndex); true }
                         else -> false
                     }
                 }
@@ -509,7 +512,7 @@ private fun PhotoViewer(photos: List<SharedFile>, start: Int, fileFor: (SharedFi
                     exit = fadeOut() + slideOutVertically { it },
                 ) {
                     Text(
-                        "${at + 1} of ${photos.size}",
+                        tr("%1\$s of %2\$s", at + 1, photos.size),
                         color = Palette.TextSecondary,
                         fontSize = 14.sp,
                         modifier = Modifier.background(Color(0x99000000), RoundedCornerShape(50)).padding(horizontal = 12.dp, vertical = 5.dp),

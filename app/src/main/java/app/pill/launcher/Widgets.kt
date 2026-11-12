@@ -1,7 +1,7 @@
 package app.pill.launcher
 
 /** The cards that can sit in the header, in their default order. */
-enum class WidgetKind(val title: String, val description: String) {
+enum class WidgetKind(private val titleEn: String, private val descriptionEn: String) {
     Clock("Clock", "Time and date"),
     Weather("Weather", "Conditions for your town, or your approximate area"),
     // Stored by name: this one keeps its pre-2.5 name, so saved layouts carry over
@@ -11,6 +11,11 @@ enum class WidgetKind(val title: String, val description: String) {
     Headlines("Headlines", "Al Jazeera English and RT, by topic"),
     Prayers("Prayer times", "Today's prayers from your mosque on MAWAQIT, with the next one counted down"),
     Stack("Widget stack", "Several widgets in one place, taking turns"),
+    ;
+
+    /** In the language on screen. */
+    val title: String get() = tr(titleEn)
+    val description: String get() = tr(descriptionEn)
 }
 
 /** The header has room for this many cards beside the buttons. */

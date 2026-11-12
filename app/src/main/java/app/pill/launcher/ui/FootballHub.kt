@@ -1,5 +1,6 @@
 package app.pill.launcher.ui
 
+import app.pill.launcher.tr
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
@@ -87,18 +88,18 @@ fun FootballHub(
         }
         val f = football.firstOrNull { it.team.id == selected } ?: return@OverlayPage
         PageTitle(
-            "Football",
+            tr("Football"),
             listOfNotNull(
-                "TheSportsDB" + if (f.viaMirror) " via the GitHub copy" else "",
-                f.fetchedAt.takeIf { it != Instant.EPOCH }?.let { "updated " + ageText(it).lowercase() },
-                if (football.size > 1) "Up / Down for other teams" else null,
+                "TheSportsDB" + if (f.viaMirror) tr(" via the GitHub copy") else "",
+                f.fetchedAt.takeIf { it != Instant.EPOCH }?.let { tr("updated %1\$s", ageText(it).lowercase()) },
+                if (football.size > 1) tr("Up / Down for other teams") else null,
                 backHint(),
             ).joinToString(" · "),
             Modifier.reveal(0),
         )
         Row(Modifier.fillMaxWidth().height(PageBodyHeight), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             PageCard(1, Modifier.width(236.dp).fillMaxHeight()) {
-                PageLabel("Your teams", Modifier.padding(bottom = 8.dp))
+                PageLabel(tr("Your teams"), Modifier.padding(bottom = 8.dp))
                 TeamList(football, selected, onSelect = { selected = it }, rowFocus)
             }
             // The free data has no league tables worth showing, so the match takes the room
@@ -147,7 +148,7 @@ private fun TeamList(football: List<Fixtures>, selected: String?, onSelect: (Str
                     Column {
                         Text(f.team.name, color = fg, fontSize = 16.sp, fontWeight = FontWeight(650), maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(
-                            f.next?.let { "Next: " + it.opponent.name + ", " + kickoffText(it.kickoff, compact = true).substringBefore(" · ") } ?: "No match scheduled",
+                            f.next?.let { tr("Next: ") + it.opponent.name + ", " + kickoffText(it.kickoff, compact = true).substringBefore(" · ") } ?: tr("No match scheduled"),
                             color = fg.copy(alpha = 0.72f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
                         )
                     }
@@ -160,10 +161,10 @@ private fun TeamList(football: List<Fixtures>, selected: String?, onSelect: (Str
 /** The next match, large, with a countdown; then the latest result. */
 @Composable
 private fun MatchCentre(f: Fixtures, now: Instant) {
-    PageLabel("Next match")
+    PageLabel(tr("Next match"))
     val next = f.next
     if (next == null) {
-        Text("No match scheduled yet", color = Palette.TextSecondary, fontSize = 17.sp, modifier = Modifier.padding(top = 8.dp))
+        Text(tr("No match scheduled yet"), color = Palette.TextSecondary, fontSize = 17.sp, modifier = Modifier.padding(top = 8.dp))
     } else {
         Text(shortCompetition(next.competition), color = Palette.TextSecondary, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp))
         Spacer(Modifier.height(10.dp))
@@ -179,9 +180,9 @@ private fun MatchCentre(f: Fixtures, now: Instant) {
                 Spacer(Modifier.height(14.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     val parts = if (left.toDays() >= 1) {
-                        listOf(left.toDays() to (if (left.toDays() == 1L) "day" else "days"), left.toHours() % 24 to "hours", left.toMinutes() % 60 to "min")
+                        listOf(left.toDays() to (if (left.toDays() == 1L) tr("day") else tr("days")), left.toHours() % 24 to tr("hours"), left.toMinutes() % 60 to tr("min"))
                     } else {
-                        listOf(left.toHours() to "hours", left.toMinutes() % 60 to "min", left.seconds % 60 to "sec")
+                        listOf(left.toHours() to tr("hours"), left.toMinutes() % 60 to tr("min"), left.seconds % 60 to tr("sec"))
                     }
                     for ((n, unit) in parts) CountBox(n, unit)
                 }
@@ -191,10 +192,10 @@ private fun MatchCentre(f: Fixtures, now: Instant) {
     Spacer(Modifier.height(16.dp))
     Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0x24FFFFFF)))
     Spacer(Modifier.height(12.dp))
-    PageLabel("Latest result")
+    PageLabel(tr("Latest result"))
     val last = f.last
     if (last == null) {
-        Text("No recent result", color = Palette.TextSecondary, fontSize = 17.sp, modifier = Modifier.padding(top = 8.dp))
+        Text(tr("No recent result"), color = Palette.TextSecondary, fontSize = 17.sp, modifier = Modifier.padding(top = 8.dp))
     } else {
         Spacer(Modifier.height(8.dp))
         BigTeams(last, score = true)
@@ -248,11 +249,18 @@ private fun BigTeams(match: Match, score: Boolean) {
     }
 }
 
+/** The badge's letter for a win, a loss or a draw, in the language on screen. */
+internal fun outcomeLetter(outcome: Char): String = when (outcome) {
+    'W' -> tr("W")
+    'L' -> tr("L")
+    else -> tr("D")
+}
+
 @Composable
 private fun Outcome(outcome: Char) {
     val color = when (outcome) { 'W' -> Color(0xFF51CF66); 'L' -> Color(0xFFFF6B6B); else -> Color(0xFFFFD43B) }
     Box(Modifier.size(22.dp).clip(RoundedCornerShape(7.dp)).background(color), contentAlignment = Alignment.Center) {
-        Text(outcome.toString(), color = Palette.Ink, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
+        Text(outcomeLetter(outcome), color = Palette.Ink, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
     }
 }
 
@@ -285,7 +293,7 @@ fun KickoffBanner(team: Team, match: Match, onDismiss: () -> Unit, modifier: Mod
             )
         }
         Spacer(Modifier.width(20.dp))
-        Text("Back hides this", style = TextStyle(fontFamily = Flex, color = Palette.TextTertiary, fontSize = 14.sp), maxLines = 1)
+        Text(tr("Back hides this"), style = TextStyle(fontFamily = Flex, color = Palette.TextTertiary, fontSize = 14.sp), maxLines = 1)
     }
     LaunchedEffect(match.id) {
         delay(30_000)

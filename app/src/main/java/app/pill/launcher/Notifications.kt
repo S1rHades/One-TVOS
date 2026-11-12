@@ -43,7 +43,7 @@ data class Notice(
 
 /** What the bar shows of [n]: a private one from another app as just "New notification" when [hide] is on. */
 fun shownNotice(n: Notice, hide: Boolean): Notice =
-    if (hide && n.isPrivate) n.copy(title = "New notification", text = "") else n
+    if (hide && n.isPrivate) n.copy(title = tr("New notification"), text = "") else n
 
 /** Notifications are kept this long, and at most [MaxNotices] of them. */
 val NoticeLifetime: Duration = Duration.ofDays(7)
@@ -87,8 +87,8 @@ fun noticesFromJson(text: String?): List<Notice> = runCatching {
 fun noticeAge(at: Instant, now: Instant, zone: ZoneId = ZoneId.systemDefault()): String {
     val d = Duration.between(at, now)
     return when {
-        d < Duration.ofMinutes(1) -> "now"
-        d < Duration.ofHours(1) -> "${d.toMinutes()} min"
+        d < Duration.ofMinutes(1) -> tr("now")
+        d < Duration.ofHours(1) -> tr("%1\$s min", d.toMinutes())
         d < Duration.ofHours(24) -> "${d.toHours()} h"
         d < Duration.ofDays(6) -> DateTimeFormatter.ofPattern("EEE", Locale.getDefault()).format(at.atZone(zone))
         else -> DateTimeFormatter.ofPattern("MMM d", Locale.getDefault()).format(at.atZone(zone))
@@ -103,23 +103,23 @@ fun updateNotice(update: UpdateState, dismissed: String?, now: Instant): Notice?
     val release = update.release ?: return null
     if (release.version == dismissed && update.phase != UpdatePhase.Downloading && update.phase != UpdatePhase.Installing) return null
     val title = when (update.phase) {
-        UpdatePhase.Available -> "Pill Launcher ${release.version} is ready"
-        UpdatePhase.Downloading -> "Downloading Pill Launcher ${release.version}"
-        UpdatePhase.Installing -> "Installing Pill Launcher ${release.version}"
-        UpdatePhase.Failed -> "Pill Launcher ${release.version} isn't installed yet"
+        UpdatePhase.Available -> tr("Pill Launcher %1\$s is ready", release.version)
+        UpdatePhase.Downloading -> tr("Downloading Pill Launcher %1\$s", release.version)
+        UpdatePhase.Installing -> tr("Installing Pill Launcher %1\$s", release.version)
+        UpdatePhase.Failed -> tr("Pill Launcher %1\$s isn't installed yet", release.version)
         else -> return null
     }
     val text = when (update.phase) {
-        UpdatePhase.Installing -> "Confirm on the screen Android shows"
+        UpdatePhase.Installing -> tr("Confirm on the screen Android shows")
         UpdatePhase.Downloading -> "${(update.progress * 100).toInt()}%"
-        else -> update.message ?: release.notes.firstOrNull() ?: "Settings and favourites stay as they are"
+        else -> update.message ?: release.notes.firstOrNull() ?: tr("Settings and favourites stay as they are")
     }
     return Notice("update:${release.version}", NoticeKind.Update, title, text, update.checkedAt ?: now)
 }
 
 /** "Updated to 3.3", after an update, with what was new in it when there is a note of it. */
 fun updatedNotice(version: String, notes: List<String>, now: Instant): Notice =
-    Notice("updated:$version", NoticeKind.Updated, "Updated to $version", notes.take(2).joinToString(" · ").ifEmpty { "What's new is in Settings → Updates" }, now)
+    Notice("updated:$version", NoticeKind.Updated, tr("Updated to %1\$s", version), notes.take(2).joinToString(" · ").ifEmpty { tr("What's new is in Settings → Updates") }, now)
 
 /** A followed team about to kick off (the kick-off reminder). */
 fun kickoffNotice(team: Team, match: Match, now: Instant): Notice = Notice(
@@ -158,27 +158,27 @@ fun prayerNotice(times: PrayerTimes, now: java.time.ZonedDateTime, clock: (java.
     val (prayer, time) = times.list.lastOrNull { (_, t) -> !now.toLocalTime().isBefore(t) } ?: return null
     val at = java.time.ZonedDateTime.of(times.forDate, time, now.zone)
     if (Duration.between(at, now) >= PrayerNoticeFor) return null
-    val iqama = times.iqama[prayer]?.let { " · Iqama " + clock(it) }.orEmpty()
-    return Notice("prayer:${times.forDate}:${prayer.name}", NoticeKind.Prayer, "${prayer.title} · ${clock(time)}", "Prayer time$iqama", at.toInstant())
+    val iqama = times.iqama[prayer]?.let { tr(" · Iqama ") + clock(it) }.orEmpty()
+    return Notice("prayer:${times.forDate}:${prayer.name}", NoticeKind.Prayer, "${prayer.title} · ${clock(time)}", tr("Prayer time%1\$s", iqama), at.toInstant())
 }
 
 fun offlineNotice(since: Instant): Notice =
-    Notice("offline:${since.toEpochMilli()}", NoticeKind.Connection, "No internet connection", "Weather, football and photos wait until it's back", since)
+    Notice("offline:${since.toEpochMilli()}", NoticeKind.Connection, tr("No internet connection"), tr("Weather, football and photos wait until it's back"), since)
 
 /** The connection came back after dropping for a while. */
 fun backOnlineNotice(since: Instant, now: Instant): Notice {
     val minutes = Duration.between(since, now).toMinutes().coerceAtLeast(1)
-    val length = if (minutes < 60) "$minutes min" else "${minutes / 60} h ${minutes % 60} min"
-    return Notice("online:${now.toEpochMilli()}", NoticeKind.Connection, "Back online", "The connection dropped for $length", now)
+    val length = if (minutes < 60) tr("%1\$s min", minutes) else tr("%1\$s h %2\$s min", minutes / 60, minutes % 60)
+    return Notice("online:${now.toEpochMilli()}", NoticeKind.Connection, tr("Back online"), tr("The connection dropped for %1\$s", length), now)
 }
 
 /** A file sent to the TV from a phone or computer. */
 fun fileNotice(name: String, size: Long, from: String?, now: Instant): Notice =
-    Notice("file:$name:${now.toEpochMilli()}", NoticeKind.File, "$name arrived" + (from?.let { " from $it" } ?: ""), fileSize(size) + " · OK to open", now, target = name)
+    Notice("file:$name:${now.toEpochMilli()}", NoticeKind.File, tr("%1\$s arrived", name) + (from?.let { tr(" from %1\$s", it) } ?: ""), fileSize(size) + tr(" · OK to open"), now, target = name)
 
 /** An APK in Files whose app is now installed: OK asks to delete it, holding OK keeps it. */
 fun installedApkNotice(name: String, now: Instant): Notice =
-    Notice("$InstalledApk$name", NoticeKind.File, "$name: its app is installed", "OK to delete the file · hold OK to keep it", now, target = name)
+    Notice("$InstalledApk$name", NoticeKind.File, tr("%1\$s: its app is installed", name), tr("OK to delete the file · hold OK to keep it"), now, target = name)
 
 /** The id prefix of [installedApkNotice]. */
 const val InstalledApk = "installed-apk:"
@@ -261,7 +261,7 @@ class NotificationWatcher : NotificationListenerService() {
             val opened = runCatching {
                 context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             }.isSuccess
-            return if (opened) null else "This TV hides Notification access. From a computer: $AdbGrant"
+            return if (opened) null else tr("This TV hides Notification access. From a computer: %1\$s", AdbGrant)
         }
 
         /** Does what the app's notification does when chosen, else opens the app. */
@@ -302,12 +302,12 @@ fun noticeGroups(notices: List<Notice>, appLabel: (String) -> String?): List<Pai
     val groups = LinkedHashMap<String, MutableList<Notice>>()
     for (n in notices) {
         val source = when (n.kind) {
-            NoticeKind.Update, NoticeKind.Updated -> "Pill Launcher"
-            NoticeKind.File -> "Files"
-            NoticeKind.Football -> "Football"
-            NoticeKind.Connection -> "Connection"
-            NoticeKind.Prayer -> "Prayer times"
-            NoticeKind.App -> n.pkg?.let(appLabel) ?: n.title.ifBlank { "Other apps" }
+            NoticeKind.Update, NoticeKind.Updated -> tr("Pill Launcher")
+            NoticeKind.File -> tr("Files")
+            NoticeKind.Football -> tr("Football")
+            NoticeKind.Connection -> tr("Connection")
+            NoticeKind.Prayer -> tr("Prayer times")
+            NoticeKind.App -> n.pkg?.let(appLabel) ?: n.title.ifBlank { tr("Other apps") }
         }
         groups.getOrPut(source) { mutableListOf() } += n
     }

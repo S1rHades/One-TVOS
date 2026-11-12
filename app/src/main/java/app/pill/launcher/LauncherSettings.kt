@@ -60,6 +60,8 @@ data class LauncherSettings(
     val connectionNotices: Boolean = true,
     /** A notice in the bar at each prayer's time, while the prayer times widget is on. */
     val prayerNotices: Boolean = true,
+    /** The launcher's language as a [Language] tag ("fr"); blank to follow the TV's. */
+    val language: String = "",
     /** Files keep arriving for 15 minutes after the launcher goes behind another app. */
     val keepReceiving: Boolean = false,
     /** Once an APK's app is installed, the notification bar offers to delete the APK (never on its own). */
@@ -127,6 +129,7 @@ class SettingsStore(context: Context) {
         footballNotices = prefs.getBoolean("footballNotices", true),
         connectionNotices = prefs.getBoolean("connectionNotices", true),
         prayerNotices = prefs.getBoolean("prayerNotices", true),
+        language = prefs.getString("language", "").orEmpty(),
         keepReceiving = prefs.getBoolean("keepReceiving", false),
         askInstalledApks = prefs.getBoolean("askInstalledApks", true),
         tidyOld = prefs.getBoolean("tidyOld", false),
@@ -164,6 +167,7 @@ class SettingsStore(context: Context) {
             .putBoolean("footballNotices", settings.footballNotices)
             .putBoolean("connectionNotices", settings.connectionNotices)
             .putBoolean("prayerNotices", settings.prayerNotices)
+            .putString("language", settings.language)
             .putBoolean("keepReceiving", settings.keepReceiving)
             .putBoolean("askInstalledApks", settings.askInstalledApks)
             .putBoolean("tidyOld", settings.tidyOld)

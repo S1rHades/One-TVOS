@@ -1,5 +1,7 @@
 package app.pill.launcher.ui
 
+import app.pill.launcher.rowStep
+import app.pill.launcher.tr
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
@@ -73,7 +75,7 @@ internal fun Group(label: String?, content: @Composable ColumnScope.() -> Unit) 
             color = Palette.TextTertiary,
             fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold,
-            letterSpacing = 1.4.sp,
+            letterSpacing = tracking(1.4f),
             modifier = Modifier.padding(start = 12.dp, bottom = 8.dp),
         )
     }
@@ -140,8 +142,8 @@ internal fun SettingRow(
                 if (onStep == null) Modifier else Modifier.onKeyEvent { event ->
                     if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
                     when (event.key) {
-                        Key.DirectionLeft -> { onStep(-1); true }
-                        Key.DirectionRight -> { onStep(1); true }
+                        Key.DirectionLeft -> { onStep(rowStep(-1)); true }
+                        Key.DirectionRight -> { onStep(rowStep(1)); true }
                         else -> false
                     }
                 },
@@ -222,7 +224,7 @@ internal fun Footer() {
         runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull()
     }
     Text(
-        listOfNotNull("Pill Launcher", version?.let { "v$it" }, backHint()).joinToString("  ·  "),
+        listOfNotNull(tr("Pill Launcher"), version?.let { "v$it" }, backHint()).joinToString("  ·  "),
         color = Palette.TextTertiary,
         fontSize = 13.sp,
         modifier = Modifier.padding(start = 12.dp, top = 8.dp),
@@ -282,7 +284,7 @@ internal fun TeamSearchField(value: String, onChange: (String) -> Unit, hint: St
 internal fun ColumnScope.Advanced(summary: String, startOpen: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
     var open by remember { mutableStateOf(startOpen) }
     SettingRow(
-        title = "Advanced",
+        title = tr("Advanced"),
         subtitle = summary,
         onClick = { open = !open },
     ) { focused -> Mark(if (open) "–" else "+", focused) }

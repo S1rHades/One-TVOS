@@ -1,5 +1,6 @@
 package app.pill.launcher.ui
 
+import app.pill.launcher.tr
 import android.text.format.DateFormat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -89,20 +90,20 @@ fun PrayerWidget(
         Row(verticalAlignment = Alignment.CenterVertically) {
             // The mosque's name comes first; the age gets what room is left, or goes
             FitText(
-                times.mosque.ifBlank { "Prayer times" }.uppercase(),
-                style = TextStyle(fontFamily = Flex, color = if (times.fromCache) Palette.TextTertiary else PrayerGreen.copy(alpha = 0.9f), fontSize = 12.sp, fontWeight = FontWeight(650), letterSpacing = 1.3.sp),
+                times.mosque.ifBlank { tr("Prayer times") }.uppercase(),
+                style = TextStyle(fontFamily = Flex, color = if (times.fromCache) Palette.TextTertiary else PrayerGreen.copy(alpha = 0.9f), fontSize = 12.sp, fontWeight = FontWeight(650), letterSpacing = tracking(1.3f)),
                 shorter = listOf("PRAYERS"),
             )
             Spacer(Modifier.width(8.dp))
             FitText(
-                (if (times.fromCache) "saved " else "") + ageText(times.fetchedAt, now.toInstant()).lowercase(),
+                ageText(times.fetchedAt, now.toInstant()).lowercase().let { age -> if (times.fromCache) tr("saved %1\$s", age) else age },
                 style = prayerStyle(11.sp, Palette.TextTertiary),
                 shorter = listOf(ageText(times.fetchedAt, now.toInstant()).lowercase(), ""),
                 modifier = Modifier.weight(1f, fill = false),
             )
         }
         if (next == null) {
-            Text("No times for today", style = prayerStyle(15.sp), maxLines = 2)
+            Text(tr("No times for today"), style = prayerStyle(15.sp), maxLines = 2)
             return@Column
         }
         Row(verticalAlignment = Alignment.Bottom) {
@@ -113,7 +114,7 @@ fun PrayerWidget(
             Text(at.format(clock), style = prayerStyle(if (compact) 16.sp else 18.sp, Palette.TextPrimary, 500), maxLines = 1, softWrap = false, modifier = Modifier.padding(bottom = 1.dp))
             Spacer(Modifier.width(8.dp))
             FitText(
-                if (big != null) whenText(big.second, now) else untilText(next.at, now) + if (next.tomorrow) " · tomorrow" else "",
+                if (big != null) whenText(big.second, now) else untilText(next.at, now) + if (next.tomorrow) tr(" · tomorrow") else "",
                 // Green counts down to the next prayer; another one picked by hand is quieter
                 style = prayerStyle(if (compact) 13.sp else 14.sp, if (big != null) Palette.TextSecondary else PrayerGreen, 600),
                 maxLines = 1,
@@ -131,16 +132,16 @@ fun PrayerWidget(
             val friday = times.jumua?.takeIf { now.dayOfWeek == java.time.DayOfWeek.FRIDAY && now.toLocalTime().isBefore(it) && times.forDate == now.toLocalDate() }
             FitText(
                 when {
-                    big != null -> "Next: ${next.prayer.title} ${next.at.format(clock)}"
-                    friday != null -> "Friday prayer ${friday.format(clock)}"
-                    else -> after?.let { (p, t) -> "Then ${p.title} ${t.format(clock)}" } ?: lastLine(times)
+                    big != null -> tr("Next: %1\$s %2\$s", next.prayer.title, next.at.format(clock))
+                    friday != null -> tr("Friday prayer %1\$s", friday.format(clock))
+                    else -> after?.let { (p, t) -> tr("Then %1\$s %2\$s", p.title, t.format(clock)) } ?: lastLine(times)
                 },
                 style = prayerStyle(12.sp, Palette.TextTertiary),
                 maxLines = 1,
                 shorter = listOfNotNull(
                     when {
                         big != null -> "${next.prayer.title} ${next.at.format(clock)}"
-                        friday != null -> "Friday ${friday.format(clock)}"
+                        friday != null -> tr("Friday %1\$s", friday.format(clock))
                         else -> after?.let { (p, t) -> "${p.title} ${t.format(clock)}" }
                     },
                     "",
@@ -181,7 +182,7 @@ private fun PrayerStrip(times: PrayerTimes, next: NextPrayer?, clock: DateTimeFo
                     }
                     Text(
                         shortTitle(prayer),
-                        style = TextStyle(fontFamily = Flex, color = if (current) Palette.TextPrimary else Palette.TextTertiary, fontSize = 10.sp, fontWeight = FontWeight(650), letterSpacing = 0.8.sp),
+                        style = TextStyle(fontFamily = Flex, color = if (current) Palette.TextPrimary else Palette.TextTertiary, fontSize = 10.sp, fontWeight = FontWeight(650), letterSpacing = tracking(0.8f)),
                         maxLines = 1,
                     )
                 }
@@ -202,29 +203,29 @@ private fun shortTitle(p: Prayer): String = p.title.uppercase()
 
 /** "Saved 3 h ago" or "Yesterday's times" under a compact card, when nothing comes after the next prayer. */
 private fun lastLine(times: PrayerTimes): String =
-    if (times.fromCache) "Saved " + ageText(times.fetchedAt).lowercase() else "Updated " + ageText(times.fetchedAt).lowercase()
+    if (times.fromCache) tr("Saved ") + ageText(times.fetchedAt).lowercase() else tr("Updated ") + ageText(times.fetchedAt).lowercase()
 
 /** The card's words while there are no times: why, in a line or two. */
 @Composable
 fun PrayerEmpty(error: String?, hasMosque: Boolean, modifier: Modifier = Modifier) {
     Column(modifier) {
-        PageLabel("Prayer times")
+        PageLabel(tr("Prayer times"))
         Spacer(Modifier.height(6.dp))
         FitText(
             when {
-                !hasMosque -> "Choose a mosque in Settings"
-                error != null && error.startsWith("MAWAQIT has no mosque") -> "Mosque not found · see Settings"
-                error != null -> "Can't reach MAWAQIT"
-                else -> "Getting today's times…"
+                !hasMosque -> tr("Choose a mosque in Settings")
+                error != null && error.startsWith("MAWAQIT has no mosque") -> tr("Mosque not found · see Settings")
+                error != null -> tr("Can't reach MAWAQIT")
+                else -> tr("Getting today's times…")
             },
             style = prayerStyle(15.sp),
             maxLines = 2,
             shorter = listOf(
                 when {
-                    !hasMosque -> "Choose a mosque"
-                    error != null && error.startsWith("MAWAQIT has no mosque") -> "Mosque not found"
-                    error != null -> "Offline"
-                    else -> "Loading…"
+                    !hasMosque -> tr("Choose a mosque")
+                    error != null && error.startsWith("MAWAQIT has no mosque") -> tr("Mosque not found")
+                    error != null -> tr("Offline")
+                    else -> tr("Loading…")
                 },
             ),
         )

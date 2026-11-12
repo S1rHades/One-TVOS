@@ -1,5 +1,8 @@
 package app.pill.launcher.ui
 
+import app.pill.launcher.ltr
+import app.pill.launcher.rowStep
+import app.pill.launcher.tr
 import android.text.format.DateFormat
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Animatable
@@ -177,8 +180,8 @@ internal fun FootballCard(
     }
     val keys: (KeyEvent) -> Boolean = { event ->
         val by = when (event.key) {
-            Key.DirectionLeft -> -1
-            Key.DirectionRight -> 1
+            Key.DirectionLeft -> rowStep(-1)
+            Key.DirectionRight -> rowStep(1)
             else -> 0
         }
         // Past the first or last team, Left / Right move on to the next widget as usual
@@ -221,7 +224,7 @@ internal fun FootballCard(
         Crossfade(current, animationSpec = tween(600), label = "footballTeam", modifier = Modifier.align(Alignment.Center)) { f ->
             Box(Modifier.fillMaxSize().clipToBounds(), contentAlignment = Alignment.CenterStart) {
                 when {
-                    f == null -> Text("Loading fixtures…", style = lineStyle(15.sp, Palette.TextPrimary), maxLines = 1)
+                    f == null -> Text(tr("Loading fixtures…"), style = lineStyle(15.sp, Palette.TextPrimary), maxLines = 1)
                     moment != null && f.team.id == moment.team.id -> MomentFixtures(moment, f, now, compact)
                     else -> TeamFixtures(f, if (f.team.id == current?.team?.id) phase else MatchPhase.None, now, compact)
                 }
@@ -273,8 +276,8 @@ private fun MomentFixtures(m: FootballMoment, f: Fixtures, now: Instant, compact
     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
         CardLabel(
             when (m.kind) {
-                MomentKind.Goal -> if (compact) "Goal" else "Goal · " + shortCompetition(match.competition)
-                MomentKind.Win -> if (compact) "Full time" else "Full time · " + shortCompetition(match.competition)
+                MomentKind.Goal -> if (compact) tr("Goal") else tr("Goal · ") + shortCompetition(match.competition)
+                MomentKind.Win -> if (compact) tr("Full time") else tr("Full time · ") + shortCompetition(match.competition)
             },
             color = GoalText,
         )
@@ -333,19 +336,19 @@ private fun TeamFixtures(f: Fixtures, phase: MatchPhase, now: Instant, compact: 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     LiveDot()
                     Spacer(Modifier.width(6.dp))
-                    CardLabel("Live · " + shortCompetition(live.competition), color = Color(0xFFFF8A9B), shorter = listOf("Live"))
+                    CardLabel(tr("Live · ") + shortCompetition(live.competition), color = Color(0xFFFF8A9B), shorter = listOf(tr("Live")))
                 }
                 Teams(live, compact, showScore = true)
                 FitText(
-                    (if (f.team.isAlgeria) "Les Fennecs" else f.team.name) + " are playing now",
+                    (if (f.team.isAlgeria) tr("Les Fennecs") else f.team.name) + tr(" are playing now"),
                     style = lineStyle(14.sp, Palette.TextTertiary),
                     maxLines = 1,
-                    shorter = listOf("Playing now", ""),
+                    shorter = listOf(tr("Playing now"), ""),
                 )
             }
             upcoming != null && (phase == MatchPhase.Today || phase == MatchPhase.Soon) -> MatchDayCountdown(upcoming, now, compact)
             upcoming != null -> {
-                CardLabel("Next · ${shortCompetition(upcoming.competition)}", shorter = listOf("Next"))
+                CardLabel(tr("Next · %1\$s", shortCompetition(upcoming.competition)), shorter = listOf(tr("Next")))
                 Teams(upcoming, compact, showScore = false)
                 FitText(
                     kickoffText(upcoming.kickoff, compact),
@@ -354,23 +357,23 @@ private fun TeamFixtures(f: Fixtures, phase: MatchPhase, now: Instant, compact: 
                 )
             }
             else -> {
-                CardLabel(if (f.team.isAlgeria) "Les Fennecs" else f.team.name)
+                CardLabel(if (f.team.isAlgeria) tr("Les Fennecs") else f.team.name)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Crest(Side(f.team.id, f.team.name, f.team.badge), 26.dp)
                     Spacer(Modifier.width(10.dp))
                     FitText(
                         when {
-                            f.fetchedAt != Instant.EPOCH -> "No match scheduled yet"
-                            f.error != null -> "Can't reach match data · see Settings"
-                            else -> "Loading fixtures…"
+                            f.fetchedAt != Instant.EPOCH -> tr("No match scheduled yet")
+                            f.error != null -> tr("Can't reach match data · see Settings")
+                            else -> tr("Loading fixtures…")
                         },
                         style = lineStyle(15.sp, Palette.TextPrimary),
                         maxLines = 2,
                         shorter = listOf(
                             when {
-                                f.fetchedAt != Instant.EPOCH -> "No match yet"
-                                f.error != null -> "No match data"
-                                else -> "Loading…"
+                                f.fetchedAt != Instant.EPOCH -> tr("No match yet")
+                                f.error != null -> tr("No match data")
+                                else -> tr("Loading…")
                             },
                         ),
                     )
@@ -378,10 +381,10 @@ private fun TeamFixtures(f: Fixtures, phase: MatchPhase, now: Instant, compact: 
             }
         }
         if (phase != MatchPhase.Today && phase != MatchPhase.Soon) {
-            f.last?.takeIf { it != live && it.outcome != null }?.let { LastResult(it, compact) }
+            f.last?.takeIf { it != live && it.outcome != null }?.let { LastResult(it, compact, Modifier.onlyIfRoom()) }
         }
         if (f.fromCache && f.fetchedAt != Instant.EPOCH && Duration.between(f.fetchedAt, now) > Duration.ofHours(6)) {
-            Text("Offline · saved " + savedText(f.fetchedAt), style = lineStyle(12.sp, Palette.TextTertiary), maxLines = 1)
+            Text(tr("Offline · saved ") + savedText(f.fetchedAt), style = lineStyle(12.sp, Palette.TextTertiary), maxLines = 1, modifier = Modifier.onlyIfRoom())
         }
     }
 }
@@ -397,7 +400,7 @@ private fun MatchDayCountdown(match: Match, now: Instant, compact: Boolean) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(7.dp).background(Color(0xFF8CE99A), CircleShape))
         Spacer(Modifier.width(6.dp))
-        CardLabel(if (compact) "Kick-off in" else "Match day · kick-off in", color = Color(0xFF8CE99A))
+        CardLabel(if (compact) tr("Kick-off in") else tr("Match day · kick-off in"), color = Color(0xFF8CE99A))
     }
     Text(
         time,
@@ -467,23 +470,23 @@ private fun FlipNumber(value: Int, style: TextStyle) {
 }
 
 @Composable
-private fun LastResult(match: Match, compact: Boolean) {
+private fun LastResult(match: Match, compact: Boolean, modifier: Modifier = Modifier) {
     val outcome = match.outcome ?: return
     val color = when (outcome) { 'W' -> Color(0xFF51CF66); 'L' -> Color(0xFFFF6B6B); else -> Color(0xFFFFD43B) }
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
         Box(
             Modifier.size(18.dp).clip(RoundedCornerShape(6.dp)).background(color.copy(alpha = 0.9f)),
             contentAlignment = Alignment.Center,
         ) {
-            Text(outcome.toString(), style = lineStyle(11.sp, Palette.Ink, 800))
+            Text(outcomeLetter(outcome), style = lineStyle(11.sp, Palette.Ink, 800))
         }
         Spacer(Modifier.width(7.dp))
         val opponent = if (compact) shortCode(match.opponent.name) else match.opponent.name
         FitText(
-            "${if (compact) "" else "Last  "}${match.ourScore}–${match.opponentScore} v $opponent",
+            (if (compact) "" else tr("Last  ")) + ltr("${match.ourScore}–${match.opponentScore} v ${opponent}"),
             style = lineStyle(14.sp, Palette.TextTertiary),
             maxLines = 1,
-            shorter = listOf("${match.ourScore}–${match.opponentScore} v ${shortCode(match.opponent.name)}", "${match.ourScore}–${match.opponentScore}"),
+            shorter = listOf(ltr("${match.ourScore}–${match.opponentScore} v ${shortCode(match.opponent.name)}"), ltr("${match.ourScore}–${match.opponentScore}")),
         )
     }
 }
@@ -499,7 +502,7 @@ private fun LiveDot() {
 /** "Today · 18:00", "Tomorrow · 18:00" or "Wed 11 Nov · 18:00", in the TV's time zone. */
 @Composable
 fun kickoffText(kickoff: Instant?, compact: Boolean): String {
-    if (kickoff == null) return "Date to be confirmed"
+    if (kickoff == null) return tr("Date to be confirmed")
     val context = LocalContext.current
     val locale = Locale.getDefault()
     val zone = ZoneId.systemDefault()
@@ -507,8 +510,8 @@ fun kickoffText(kickoff: Instant?, compact: Boolean): String {
     val time = local.format(DateTimeFormatter.ofPattern(if (DateFormat.is24HourFormat(context)) "HH:mm" else "h:mm a", locale))
     val days = Duration.between(LocalDate.now(zone).atStartOfDay(zone), local.toLocalDate().atStartOfDay(zone)).toDays()
     val day = when (days) {
-        0L -> "Today"
-        1L -> "Tomorrow"
+        0L -> tr("Today")
+        1L -> tr("Tomorrow")
         else -> local.format(DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, if (compact) "dMMM" else "EEEdMMM"), locale))
     }
     return "$day · $time"

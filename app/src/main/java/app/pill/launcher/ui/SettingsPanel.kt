@@ -1,5 +1,6 @@
 package app.pill.launcher.ui
 
+import app.pill.launcher.tr
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.MutableTransitionState
@@ -263,7 +264,7 @@ fun SettingsPanel(
                                 Text("‹", color = Palette.TextSecondary, fontSize = 30.sp, fontWeight = FontWeight.Medium)
                             }
                             Spacer(Modifier.width(12.dp))
-                            Text(shown?.title ?: "Settings", color = Palette.TextPrimary, fontSize = 28.sp, fontWeight = FontWeight.SemiBold)
+                            Text(shown?.title ?: tr("Settings"), color = Palette.TextPrimary, fontSize = 28.sp, fontWeight = FontWeight.SemiBold)
                         }
                     }
                     Spacer(Modifier.height(18.dp))
@@ -300,22 +301,22 @@ fun SettingsPanel(
                                 }
                                 SettingsPage.Background -> Group(null) {
                             SettingRow(
-                                title = "Photo slideshow",
+                                title = tr("Photo slideshow"),
                                 subtitle = when {
-                                    photoError != null -> "Can't load photos: $photoError"
-                                    settings.slideshow -> "A new photo every ${formatInterval(settings.intervalSec)}"
-                                    else -> "Keeps the current photo"
+                                    photoError != null -> tr("Can't load photos: %1\$s", photoError)
+                                    settings.slideshow -> tr("A new photo every %1\$s", formatInterval(settings.intervalSec))
+                                    else -> tr("Keeps the current photo")
                                 },
                                 onClick = { onChange(settings.copy(slideshow = !settings.slideshow)) },
                                 modifier = Modifier.focusRequester(pageFirst),
                             ) { focused -> Switch(checked = settings.slideshow, focused = focused) }
 
                             SettingRow(
-                                title = "Online nature photos",
+                                title = tr("Online nature photos"),
                                 subtitle = if (settings.onlinePhotos) {
-                                    photoCredit?.let { "Now: $it" } ?: "A new set every day from Wikimedia Commons"
+                                    photoCredit?.let { tr("Now: %1\$s", it) } ?: tr("A new set every day from Wikimedia Commons")
                                 } else {
-                                    "Uses the 12 built-in photos"
+                                    tr("Uses the 12 built-in photos")
                                 },
                                 onClick = { onChange(settings.copy(onlinePhotos = !settings.onlinePhotos)) },
                             ) { focused -> Switch(checked = settings.onlinePhotos, focused = focused) }
@@ -323,8 +324,8 @@ fun SettingsPanel(
                             val options = LauncherSettings.IntervalOptions
                             val current = options.indexOf(settings.intervalSec).coerceAtLeast(0)
                             SettingRow(
-                                title = "Change photo every",
-                                subtitle = if (settings.slideshow) null else "Turn on the slideshow first",
+                                title = tr("Change photo every"),
+                                subtitle = if (settings.slideshow) null else tr("Turn on the slideshow first"),
                                 enabled = settings.slideshow,
                                 onClick = { onChange(settings.copy(intervalSec = options[(current + 1) % options.size])) },
                                 onStep = { by ->
@@ -347,16 +348,16 @@ fun SettingsPanel(
                                         SettingRow(
                                             title = (if (on) "${position + 1}  " else "") + kind.title,
                                             subtitle = when {
-                                                on && kind == WidgetKind.Weather && weatherError != null -> "Can't get the weather: $weatherError"
-                                                on && kind == WidgetKind.Fennecs && football.firstOrNull()?.error != null -> "Can't get fixtures: ${football.first().error}"
-                                                on && kind == WidgetKind.Headlines && news != null && news.headlines.isEmpty() -> "Can't get headlines · see Headlines below"
-                                                on && kind == WidgetKind.Stack && settings.stackShown().isEmpty() -> "Empty · choose its widgets below"
-                                                on && kind == WidgetKind.Prayers && settings.mosque.isBlank() -> "Choose a mosque · see Prayer times below"
-                                                on && kind == WidgetKind.Prayers && prayers == null && prayersError != null -> "Can't reach MAWAQIT · see Prayer times below"
-                                                on && settings.widgets.size > 1 -> "Position ${position + 1} of ${settings.widgets.size} · Left / Right to move"
+                                                on && kind == WidgetKind.Weather && weatherError != null -> tr("Can't get the weather: %1\$s", weatherError)
+                                                on && kind == WidgetKind.Fennecs && football.firstOrNull()?.error != null -> tr("Can't get fixtures: %1\$s", football.first().error)
+                                                on && kind == WidgetKind.Headlines && news != null && news.headlines.isEmpty() -> tr("Can't get headlines · see Headlines below")
+                                                on && kind == WidgetKind.Stack && settings.stackShown().isEmpty() -> tr("Empty · choose its widgets below")
+                                                on && kind == WidgetKind.Prayers && settings.mosque.isBlank() -> tr("Choose a mosque · see Prayer times below")
+                                                on && kind == WidgetKind.Prayers && prayers == null && prayersError != null -> tr("Can't reach MAWAQIT · see Prayer times below")
+                                                on && settings.widgets.size > 1 -> tr("Position %1\$s of %2\$s · Left / Right to move", position + 1, settings.widgets.size)
                                                 !on && kind in settings.stackShown() && WidgetKind.Stack in settings.widgets ->
-                                                    if (full) "In the widget stack" else "In the widget stack · OK shows it by itself"
-                                                full -> "Turn another widget off first"
+                                                    if (full) tr("In the widget stack") else tr("In the widget stack · OK shows it by itself")
+                                                full -> tr("Turn another widget off first")
                                                 else -> kind.description
                                             },
                                             dimmed = full,
@@ -376,38 +377,38 @@ fun SettingsPanel(
                                         ) { focused -> Switch(checked = on, focused = focused) }
                                     }
                                     if (settings.widgets.isNotEmpty()) {
-                                        Group("On · ${settings.widgets.size} of $MaxWidgets · Left / Right moves one") {
+                                        Group(tr("On · %1\$s of %2\$s · Left / Right moves one", settings.widgets.size, MaxWidgets)) {
                                             for (kind in settings.widgets) key(kind) { widgetRow(kind) }
                                         }
                                     }
                                     if (available.isNotEmpty()) {
-                                        Group("Available") {
+                                        Group(tr("Available")) {
                                             for (kind in available) key(kind) { widgetRow(kind) }
                                         }
                                     }
                                     Group(null) {
                                         SettingRow(
                                             title = SettingsPage.Stack.title,
-                                            subtitle = settings.stack.joinToString(", ") { it.title }.ifEmpty { "Empty" } +
-                                                if (WidgetKind.Stack in settings.widgets) "" else " · turn on Widget stack above to show it",
+                                            subtitle = settings.stack.joinToString(tr(", ")) { it.title }.ifEmpty { tr("Empty") } +
+                                                if (WidgetKind.Stack in settings.widgets) "" else tr(" · turn on Widget stack above to show it"),
                                             onClick = { page = SettingsPage.Stack },
                                             modifier = Modifier.focusRequester(categoryFocus.getValue(SettingsPage.Stack)),
                                         ) { focused -> Chevron(focused) }
                                         SettingRow(
                                             title = SettingsPage.Football.title,
-                                            subtitle = settings.teams.joinToString(", ") { it.name } + " · match day: " + settings.matchDay.title.lowercase(),
+                                            subtitle = settings.teams.joinToString(tr(", ")) { it.name } + tr(" · match day: ") + settings.matchDay.title.lowercase(),
                                             onClick = { page = SettingsPage.Football },
                                             modifier = Modifier.focusRequester(categoryFocus.getValue(SettingsPage.Football)),
                                         ) { focused -> Chevron(focused) }
                                         SettingRow(
                                             title = SettingsPage.News.title,
-                                            subtitle = NewsTopic.entries.filter { it in settings.newsTopics }.joinToString(", ") { it.title },
+                                            subtitle = NewsTopic.entries.filter { it in settings.newsTopics }.joinToString(tr(", ")) { it.title },
                                             onClick = { page = SettingsPage.News },
                                             modifier = Modifier.focusRequester(categoryFocus.getValue(SettingsPage.News)),
                                         ) { focused -> Chevron(focused) }
                                         SettingRow(
                                             title = SettingsPage.Prayers.title,
-                                            subtitle = prayers?.mosque?.ifBlank { null } ?: settings.mosque.ifBlank { "No mosque chosen" },
+                                            subtitle = prayers?.mosque?.ifBlank { null } ?: settings.mosque.ifBlank { tr("No mosque chosen") },
                                             onClick = { page = SettingsPage.Prayers },
                                             modifier = Modifier.focusRequester(categoryFocus.getValue(SettingsPage.Prayers)),
                                         ) { focused -> Chevron(focused) }
@@ -415,7 +416,7 @@ fun SettingsPanel(
                                     Group(null) {
                             SettingRow(
                                 title = SettingsPage.WeatherPlace.title,
-                                subtitle = settings.weatherPlace?.label ?: ("Automatic" + (weather?.place?.takeIf { it.isNotBlank() }?.let { " · now $it" } ?: "")),
+                                subtitle = settings.weatherPlace?.label ?: (tr("Automatic") + (weather?.place?.takeIf { it.isNotBlank() }?.let { tr(" · now %1\$s", it) } ?: "")),
                                 onClick = { page = SettingsPage.WeatherPlace },
                                 modifier = Modifier.focusRequester(categoryFocus.getValue(SettingsPage.WeatherPlace)),
                             ) { focused -> Chevron(focused) }
@@ -423,8 +424,8 @@ fun SettingsPanel(
                             val units = listOf(WeatherMode.Celsius, WeatherMode.Fahrenheit)
                             val unit = units.indexOf(settings.weather).coerceAtLeast(0)
                             SettingRow(
-                                title = "Temperature unit",
-                                subtitle = "For the weather widget",
+                                title = tr("Temperature unit"),
+                                subtitle = tr("For the weather widget"),
                                 onClick = { onChange(settings.copy(weather = units[(unit + 1) % units.size])) },
                                 onStep = { by ->
                                     val next = (unit + by).coerceIn(0, units.lastIndex)
@@ -439,11 +440,11 @@ fun SettingsPanel(
                             val layouts = FavoritesLayout.entries
                             val layoutIndex = layouts.indexOf(settings.favoritesLayout)
                             SettingRow(
-                                title = "Layout",
+                                title = tr("Layout"),
                                 modifier = Modifier.focusRequester(pageFirst),
                                 subtitle = when (settings.favoritesLayout) {
-                                    FavoritesLayout.Scroll -> "One row that slides when you go past the edge"
-                                    FavoritesLayout.Wrap -> "As many as fit across; the rest on rows below"
+                                    FavoritesLayout.Scroll -> tr("One row that slides when you go past the edge")
+                                    FavoritesLayout.Wrap -> tr("As many as fit across; the rest on rows below")
                                 },
                                 onClick = { onChange(settings.copy(favoritesLayout = layouts[(layoutIndex + 1) % layouts.size])) },
                                 onStep = { by ->
@@ -452,18 +453,18 @@ fun SettingsPanel(
                                 },
                             ) { focused ->
                                 Stepper(
-                                    if (settings.favoritesLayout == FavoritesLayout.Scroll) "Scroll" else "Wrap",
+                                    if (settings.favoritesLayout == FavoritesLayout.Scroll) tr("Scroll") else tr("Wrap"),
                                     layoutIndex > 0,
                                     layoutIndex < layouts.lastIndex,
                                     focused,
                                 )
                             }
                             SettingRow(
-                                title = "Order",
+                                title = tr("Order"),
                                 subtitle = if (settings.favoritesByUse) {
-                                    "Most opened first, the next most opened last"
+                                    tr("Most opened first, the next most opened last")
                                 } else {
-                                    "Where you put them · Menu → Move"
+                                    tr("Where you put them · Menu → Move")
                                 },
                                 onClick = { onChange(settings.copy(favoritesByUse = !settings.favoritesByUse)) },
                                 onStep = { by ->
@@ -471,11 +472,11 @@ fun SettingsPanel(
                                     if (byUse != settings.favoritesByUse) onChange(settings.copy(favoritesByUse = byUse))
                                 },
                             ) { focused ->
-                                Stepper(if (settings.favoritesByUse) "By use" else "Yours", settings.favoritesByUse, !settings.favoritesByUse, focused)
+                                Stepper(if (settings.favoritesByUse) tr("By use") else tr("Yours"), settings.favoritesByUse, !settings.favoritesByUse, focused)
                             }
                             SettingRow(
-                                title = "Animations",
-                                subtitle = if (settings.favoritesAnimation) "Smooth sliding and rearranging" else "Instant, no motion",
+                                title = tr("Animations"),
+                                subtitle = if (settings.favoritesAnimation) tr("Smooth sliding and rearranging") else tr("Instant, no motion"),
                                 onClick = { onChange(settings.copy(favoritesAnimation = !settings.favoritesAnimation)) },
                             ) { focused -> Switch(checked = settings.favoritesAnimation, focused = focused) }
                                 }
@@ -483,12 +484,12 @@ fun SettingsPanel(
                             val idleOptions = LauncherSettings.IdleOptions
                             val idleIndex = idleOptions.indexOf(settings.idleMinutes).coerceAtLeast(0)
                             SettingRow(
-                                title = "Go idle after",
+                                title = tr("Go idle after"),
                                 modifier = Modifier.focusRequester(pageFirst),
                                 subtitle = if (settings.idleMinutes == 0) {
-                                    "Never: the apps always stay on screen"
+                                    tr("Never: the apps always stay on screen")
                                 } else {
-                                    "Without a key press, only the widgets stay"
+                                    tr("Without a key press, only the widgets stay")
                                 },
                                 onClick = { onChange(settings.copy(idleMinutes = idleOptions[(idleIndex + 1) % idleOptions.size])) },
                                 onStep = { by ->
@@ -499,20 +500,20 @@ fun SettingsPanel(
                                 Stepper(idleLabel(settings.idleMinutes), idleIndex > 0, idleIndex < idleOptions.lastIndex, focused)
                             }
                             SettingRow(
-                                title = "Idle animation",
-                                subtitle = if (settings.idleMinutes == 0) "Turn on the idle screen first" else "Slow photo zoom; widgets step a few dp every 3 min to spare the screen",
+                                title = tr("Idle animation"),
+                                subtitle = if (settings.idleMinutes == 0) tr("Turn on the idle screen first") else tr("Slow photo zoom; widgets step a few dp every 3 min to spare the screen"),
                                 enabled = settings.idleMinutes != 0,
                                 onClick = { onChange(settings.copy(idleAnimation = !settings.idleAnimation)) },
                             ) { focused -> Switch(checked = settings.idleAnimation, focused = focused) }
                                 }
                                 SettingsPage.Home -> Group(null) {
                             SettingRow(
-                                title = "Open at startup",
+                                title = tr("Open at startup"),
                                 modifier = Modifier.focusRequester(pageFirst),
                                 subtitle = autostartNote ?: when {
-                                    !settings.autostart -> "Show Pill Launcher when the TV turns on"
-                                    home.canAutostart -> "Opens when the TV turns on"
-                                    else -> "Needs one more permission, below"
+                                    !settings.autostart -> tr("Show Pill Launcher when the TV turns on")
+                                    home.canAutostart -> tr("Opens when the TV turns on")
+                                    else -> tr("Needs one more permission, below")
                                 },
                                 onClick = {
                                     val on = !settings.autostart
@@ -523,29 +524,29 @@ fun SettingsPanel(
                             ) { focused -> Switch(checked = settings.autostart, focused = focused) }
                             if (settings.autostart && !home.canAutostart) {
                                 SettingRow(
-                                    title = "Allow opening at startup",
-                                    subtitle = "Turn on \"Display over other apps\" for Pill Launcher",
+                                    title = tr("Allow opening at startup"),
+                                    subtitle = tr("Turn on \"Display over other apps\" for Pill Launcher"),
                                     onClick = { autostartNote = onAllowAutostart() },
                                 ) { focused -> Chevron(focused) }
                             }
 
                             SettingRow(
-                                title = "Default home screen",
+                                title = tr("Default home screen"),
                                 subtitle = defaultNote ?: if (home.isDefault) {
-                                    "Pill Launcher opens on Home and after closing apps"
+                                    tr("Pill Launcher opens on Home and after closing apps")
                                 } else {
-                                    "Make Pill Launcher open on Home and after closing apps"
+                                    tr("Make Pill Launcher open on Home and after closing apps")
                                 },
                                 onClick = { if (!home.isDefault) defaultNote = onMakeDefault() },
                             ) { focused -> if (home.isDefault) Check(focused) else Chevron(focused) }
 
                             if (!home.isDefault) {
                                 SettingRow(
-                                    title = "Home button helper",
+                                    title = tr("Home button helper"),
                                     subtitle = helperNote ?: if (home.redirectOn) {
-                                        "On: returns here whenever the TV's own home screen opens"
+                                        tr("On: returns here whenever the TV's own home screen opens")
                                     } else {
-                                        "For TVs that won't change their home screen. Turn on \"Pill Launcher Home button\" in Accessibility"
+                                        tr("For TVs that won't change their home screen. Turn on \"Pill Launcher Home button\" in Accessibility")
                                     },
                                     onClick = { helperNote = onHomeHelper() },
                                 ) { focused -> if (home.redirectOn) Check(focused) else Chevron(focused) }
@@ -573,11 +574,18 @@ fun SettingsPanel(
                                                 .focusRequester(categoryFocus.getValue(SettingsPage.Updates))
                                                 .focusRequester(pageFirst),
                                         ) { focused -> Chevron(focused) }
+                                        SettingRow(
+                                            title = SettingsPage.Language.title,
+                                            subtitle = summaryOf(SettingsPage.Language, settings, home, update, version),
+                                            onClick = { page = SettingsPage.Language },
+                                            modifier = Modifier.focusRequester(categoryFocus.getValue(SettingsPage.Language)),
+                                        ) { focused -> Chevron(focused) }
                                     }
                                     SystemPage(onSystemAction, Modifier)
                                 }
                                 SettingsPage.Files -> FilesSettingsPage(settings, onChange, share, Modifier.focusRequester(pageFirst))
                                 SettingsPage.Notifications -> NotificationsPage(settings, onChange, noticeAccess, onNoticeAccess, noticeApps, Modifier.focusRequester(pageFirst))
+                                SettingsPage.Language -> LanguagePage(settings, onChange, Modifier.focusRequester(pageFirst))
                                 SettingsPage.Updates -> UpdatesPage(
                                     settings = settings,
                                     onChange = onChange,
@@ -615,24 +623,24 @@ fun SettingsPanel(
                 enter = fadeIn() + slideInVertically { it / 2 },
                 exit = fadeOut() + slideOutVertically { it / 2 },
             ) {
-                Box(contentAlignment = Alignment.Center) { ToastChip("Maximum of $MaxWidgets widgets can be active at once") }
+                Box(contentAlignment = Alignment.Center) { ToastChip(tr("Maximum of %1\$s widgets can be active at once", MaxWidgets)) }
             }
         }
     }
 }
 
-private fun idleLabel(minutes: Int): String = if (minutes == 0) "Off" else "$minutes min"
+private fun idleLabel(minutes: Int): String = if (minutes == 0) tr("Off") else tr("%1\$s min", minutes)
 
-private fun formatInterval(sec: Int): String = if (sec % 60 == 0) "${sec / 60} min" else "$sec s"
+private fun formatInterval(sec: Int): String = if (sec % 60 == 0) tr("%1\$s min", sec / 60) else tr("%1\$s s", sec)
 
 private fun weatherLabel(mode: WeatherMode): String = when (mode) {
-    WeatherMode.Off -> "Off" // only in settings saved before widgets
+    WeatherMode.Off -> tr("Off") // only in settings saved before widgets
     WeatherMode.Celsius -> "°C"
     WeatherMode.Fahrenheit -> "°F"
 }
 
 /** The settings categories, each on its own page; a page with a [parent] opens from that page. */
-enum class SettingsPage(val title: String, val parent: SettingsPage? = null) {
+enum class SettingsPage(private val titleEn: String, val parent: SettingsPage? = null) {
     // The categories, in the list's order: six, so the whole list fits without scrolling
     HomeScreen("Home screen"),
     Widgets("Widgets"),
@@ -645,12 +653,16 @@ enum class SettingsPage(val title: String, val parent: SettingsPage? = null) {
     Favorites("Favorites row", HomeScreen),
     Idle("Idle screen", HomeScreen),
     Updates("Updates", System),
+    Language("Language", System),
     Stack("Widget stack", Widgets),
     Football("Football teams", Widgets),
     News("Headlines", Widgets),
     Prayers("Prayer times", Widgets),
     WeatherPlace("Weather location", Widgets),
     ;
+
+    /** In the language on screen. */
+    val title: String get() = tr(titleEn)
 
     /** The category this page is under, in the list. */
     val root: SettingsPage get() = parent?.root ?: this
@@ -659,39 +671,40 @@ enum class SettingsPage(val title: String, val parent: SettingsPage? = null) {
 /** One line under each category, saying what it is set to now. */
 private fun summaryOf(page: SettingsPage, settings: LauncherSettings, home: HomeStatus, update: UpdateState = UpdateState(), version: String = ""): String = when (page) {
     SettingsPage.Updates -> updateSummary(update, version)
+    SettingsPage.Language -> app.pill.launcher.Language.ofTag(settings.language)?.ownName ?: tr("Same as the TV")
     SettingsPage.HomeScreen -> listOf(
-        if (settings.slideshow) "Photos every ${formatInterval(settings.intervalSec)}" else "One photo",
+        if (settings.slideshow) tr("Photos every %1\$s", formatInterval(settings.intervalSec)) else tr("One photo"),
         summaryOf(SettingsPage.Favorites, settings, home).lowercase(),
-        if (settings.idleMinutes == 0) "no idle screen" else "idle after ${settings.idleMinutes} min",
+        if (settings.idleMinutes == 0) tr("no idle screen") else tr("idle after %1\$s min", settings.idleMinutes),
     ).joinToString(" · ")
     SettingsPage.Background -> listOf(
-        if (settings.onlinePhotos) "Online nature photos" else "Built-in photos",
-        if (settings.slideshow) "every ${formatInterval(settings.intervalSec)}" else "slideshow off",
-    ).joinToString(", ")
-    SettingsPage.Widgets -> settings.widgets.joinToString(", ") { it.title.substringBefore(" (") }.ifEmpty { "None" }
-    SettingsPage.Favorites -> (if (settings.favoritesLayout == FavoritesLayout.Scroll) "Scroll" else "Wrap") +
-        if (settings.favoritesByUse) ", by use" else ""
-    SettingsPage.Idle -> if (settings.idleMinutes == 0) "Off" else "After ${settings.idleMinutes} min"
+        if (settings.onlinePhotos) tr("Online nature photos") else tr("Built-in photos"),
+        if (settings.slideshow) tr("every %1\$s", formatInterval(settings.intervalSec)) else tr("slideshow off"),
+    ).joinToString(tr(", "))
+    SettingsPage.Widgets -> settings.widgets.joinToString(tr(", ")) { it.title.substringBefore(" (") }.ifEmpty { tr("None") }
+    SettingsPage.Favorites -> (if (settings.favoritesLayout == FavoritesLayout.Scroll) tr("Scroll") else tr("Wrap")) +
+        if (settings.favoritesByUse) tr(", by use") else ""
+    SettingsPage.Idle -> if (settings.idleMinutes == 0) tr("Off") else tr("After %1\$s min", settings.idleMinutes)
     SettingsPage.Home -> when {
-        home.isDefault -> "Pill Launcher is the home screen"
-        home.redirectOn -> "Home button helper on"
-        else -> "Not the home screen yet"
+        home.isDefault -> tr("Pill Launcher is the home screen")
+        home.redirectOn -> tr("Home button helper on")
+        else -> tr("Not the home screen yet")
     }
     SettingsPage.Notifications -> listOfNotNull(
-        if (settings.appNotices) "App notifications" else null,
-        if (settings.footballNotices) "football" else null,
-        if (settings.connectionNotices) "connection" else null,
-        if (settings.prayerNotices) "prayer times" else null,
-    ).joinToString(", ").replaceFirstChar { it.uppercase() }.ifEmpty { "Updates and files only" }
+        if (settings.appNotices) tr("App notifications") else null,
+        if (settings.footballNotices) tr("football") else null,
+        if (settings.connectionNotices) tr("connection") else null,
+        if (settings.prayerNotices) tr("prayer times") else null,
+    ).joinToString(tr(", ")).replaceFirstChar { it.uppercase() }.ifEmpty { tr("Updates and files only") }
     SettingsPage.Files -> listOfNotNull(
-        if (settings.keepReceiving) "Keep receiving" else null,
-        if (settings.askInstalledApks) "asks before deleting APKs" else null,
-        if (settings.tidyOld) "files kept 30 days" else null,
-    ).joinToString(", ").replaceFirstChar { it.uppercase() }.ifEmpty { "Phones, tidying" }
-    SettingsPage.System -> "Updates, backup, free up memory, network, display, sound, uninstall"
-    SettingsPage.Football -> settings.teams.joinToString(", ") { it.name }
-    SettingsPage.News -> settings.newsTopics.joinToString(", ") { it.title }
-    SettingsPage.Stack -> settings.stack.joinToString(", ") { it.title }
-    SettingsPage.Prayers -> settings.mosque.ifBlank { "No mosque chosen" }
-    SettingsPage.WeatherPlace -> settings.weatherPlace?.name ?: "Automatic"
+        if (settings.keepReceiving) tr("Keep receiving") else null,
+        if (settings.askInstalledApks) tr("asks before deleting APKs") else null,
+        if (settings.tidyOld) tr("files kept 30 days") else null,
+    ).joinToString(tr(", ")).replaceFirstChar { it.uppercase() }.ifEmpty { tr("Phones, tidying") }
+    SettingsPage.System -> tr("Updates, backup, free up memory, network, display, sound, uninstall")
+    SettingsPage.Football -> settings.teams.joinToString(tr(", ")) { it.name }
+    SettingsPage.News -> settings.newsTopics.joinToString(tr(", ")) { it.title }
+    SettingsPage.Stack -> settings.stack.joinToString(tr(", ")) { it.title }
+    SettingsPage.Prayers -> settings.mosque.ifBlank { tr("No mosque chosen") }
+    SettingsPage.WeatherPlace -> settings.weatherPlace?.name ?: tr("Automatic")
 }
