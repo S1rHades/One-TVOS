@@ -1274,7 +1274,7 @@ class DataTest {
     /** Web shortcuts keep their settings through the settings file; broken ones are dropped. */
     @Test
     fun webShortcutsAreKept() {
-        val list = listOf(WebShortcut("a1", "Tube", "https://tube.example/tv", tvVersion = true, textZoom = 150, pointer = false, pageZoom = 80, safeEdges = false), WebShortcut("b2", "News", "https://news.example/"))
+        val list = listOf(WebShortcut("a1", "Tube", "https://tube.example/tv", tvVersion = true, textZoom = 150, pointer = false, pageZoom = 80), WebShortcut("b2", "News", "https://news.example/"))
         assertEquals(list, parseWebShortcuts(webShortcutsJson(list)))
         assertEquals(list.take(1), parseWebShortcuts(webShortcutsJson(list).replace("news.example", "news example")))
         assertEquals(emptyList<WebShortcut>(), parseWebShortcuts("nonsense"))

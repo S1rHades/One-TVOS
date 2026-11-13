@@ -44,8 +44,6 @@ data class WebShortcut(
     val pointer: Boolean = true,
     /** How big the page is drawn, in percent: under 100 fits more of a wide page on screen. */
     val pageZoom: Int = 100,
-    /** Keep the page inside the margin the launcher keeps, clear of edges older TVs cut off. */
-    val safeEdges: Boolean = true,
 ) {
     val pkg: String get() = WebPrefix + id
 }
@@ -240,7 +238,7 @@ fun webShortcutsJson(list: List<WebShortcut>): String = JSONArray().apply {
         JSONObject()
             .put("id", s.id).put("name", s.name).put("url", s.url)
             .put("tv", s.tvVersion).put("zoom", s.textZoom).put("pointer", s.pointer)
-            .put("page", s.pageZoom).put("edges", s.safeEdges),
+            .put("page", s.pageZoom),
     )
 }.toString()
 
@@ -257,7 +255,6 @@ fun parseWebShortcuts(json: String?): List<WebShortcut> = runCatching {
             textZoom = o.optInt("zoom", 100).coerceIn(100, 175),
             pointer = o.optBoolean("pointer", true),
             pageZoom = o.optInt("page", 100).coerceIn(PageZooms.last(), 100),
-            safeEdges = o.optBoolean("edges", true),
         )
     }
 }.getOrDefault(emptyList())
