@@ -1524,17 +1524,59 @@ class Screenshots {
         val h = viewer.size.height
         check(w > 0) { "the viewer has a size" }
         fun press(code: Int) { check(viewer.key(key(code))); check(viewer.key(key(code, android.view.KeyEvent.ACTION_UP))) }
-        repeat(3) { press(android.view.KeyEvent.KEYCODE_DPAD_RIGHT) }
+        // The pointer glides by time, a frame (16 ms) at a time, not a jump per key repeat
+        var ms = 1000L
+        fun frames(n: Int, during: (Int) -> Unit = {}) = repeat(n) { i ->
+            ms += 16
+            during(i)
+            viewer.tick(ms * 1_000_000L, ms)
+        }
+        fun hold(code: Int, frameCount: Int) {
+            val start = ms
+            check(viewer.key(android.view.KeyEvent(start, start, android.view.KeyEvent.ACTION_DOWN, code, 0)))
+            frames(frameCount) { i ->
+                // The remote repeats a held key every 50 ms after the first 400
+                if (ms - start > 400 && i % 3 == 0) viewer.key(android.view.KeyEvent(start, ms, android.view.KeyEvent.ACTION_DOWN, code, i / 3 + 1))
+            }
+            check(viewer.key(android.view.KeyEvent(start, ms, android.view.KeyEvent.ACTION_UP, code, 0)))
+        }
+        // Held: it sets off slowly and speeds up smoothly, every frame a small step
+        check(viewer.key(android.view.KeyEvent(ms, ms, android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_DPAD_RIGHT, 0)))
+        val xs = mutableListOf<Float>()
+        val heldFrom = ms
+        frames(40) { i ->
+            if (ms - heldFrom > 400 && i % 3 == 0) viewer.key(android.view.KeyEvent(heldFrom, ms, android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_DPAD_RIGHT, i / 3 + 1))
+            if (i > 0) xs += viewer.cursor.x
+        }
+        check(viewer.key(android.view.KeyEvent(heldFrom, ms, android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_DPAD_RIGHT, 0)))
+        frames(3)
+        val steps = xs.zipWithNext { a, b -> b - a }
+        check(steps.all { it > 0f && it < w * 0.03f }) { "every frame a small step to the right: $steps" }
+        check(steps.last() > steps.first() * 2) { "faster the longer it is held: $steps" }
+        check(steps.zipWithNext().all { (a, b) -> b >= a - 0.01f }) { "never jerks back to slower while held: $steps" }
         val x = viewer.cursor.x
         check(x > w / 2f) { "Right moves the pointer right: $x of $w" }
+        // A quick tap still nudges it, gliding there
+        check(viewer.key(key(android.view.KeyEvent.KEYCODE_DPAD_LEFT)))
+        check(viewer.key(key(android.view.KeyEvent.KEYCODE_DPAD_LEFT, android.view.KeyEvent.ACTION_UP)))
+        val tapFrom = viewer.cursor.x
+        frames(20)
+        check(tapFrom - viewer.cursor.x in (w * 0.008f)..(w * 0.02f)) { "a tap moves it a little: ${tapFrom - viewer.cursor.x}" }
+        check(!viewer.moving) { "and then it rests" }
         settle()
         captureScreenRoboImage(File(out, "web-viewer.png").path)
+        val cx = viewer.cursor.x
+        val cy = viewer.cursor.y
         press(android.view.KeyEvent.KEYCODE_DPAD_CENTER)
-        check(page.calls.last() == "click ${x.toInt()},${(h / 2f).toInt()}") { "OK clicks where the pointer is: ${page.calls}" }
-        // Held down, it speeds up and stops at the edge; then the page scrolls
-        for (r in 0 until 60) viewer.key(key(android.view.KeyEvent.KEYCODE_DPAD_DOWN, repeat = r))
+        check(page.calls.last() == "click ${cx.toInt()},${cy.toInt()}") { "OK clicks where the pointer is: ${page.calls}" }
+        // Held down to the bottom: it stops at the edge and the page scrolls on
+        hold(android.view.KeyEvent.KEYCODE_DPAD_DOWN, 150)
         check(page.calls.any { it.startsWith("scroll 0,") }) { "at the bottom the page scrolls: ${page.calls}" }
         check(viewer.cursor.y < h) { "the pointer stays on screen" }
+        // A release that never comes: it stops by itself
+        check(viewer.key(android.view.KeyEvent(ms, ms, android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_DPAD_UP, 0)))
+        frames(60)
+        check(!viewer.moving) { "a lost release doesn't send it off for ever" }
         // Back: a page back, then out
         press(android.view.KeyEvent.KEYCODE_BACK)
         check(page.calls.last() == "back" && !left) { "Back goes a page back first" }

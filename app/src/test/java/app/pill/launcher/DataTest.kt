@@ -1274,12 +1274,15 @@ class DataTest {
     /** Web shortcuts keep their settings through the settings file; broken ones are dropped. */
     @Test
     fun webShortcutsAreKept() {
-        val list = listOf(WebShortcut("a1", "Tube", "https://tube.example/tv", tvVersion = true, textZoom = 150, pointer = false), WebShortcut("b2", "News", "https://news.example/"))
+        val list = listOf(WebShortcut("a1", "Tube", "https://tube.example/tv", tvVersion = true, textZoom = 150, pointer = false, pageZoom = 80, safeEdges = false), WebShortcut("b2", "News", "https://news.example/"))
         assertEquals(list, parseWebShortcuts(webShortcutsJson(list)))
         assertEquals(list.take(1), parseWebShortcuts(webShortcutsJson(list).replace("news.example", "news example")))
         assertEquals(emptyList<WebShortcut>(), parseWebShortcuts("nonsense"))
         assertEquals(listOf(125, 150, 175, 100), listOf(100, 125, 150, 175).map(::nextTextZoom))
         assertEquals("web:a1", list[0].pkg)
+        assertEquals(listOf(90, 80, 67, 100), listOf(100, 90, 80, 67).map(::nextPageZoom))
+        assertEquals("document.documentElement.style.zoom='0.80'", pageZoomScript(80))
+        assertEquals("document.documentElement.style.zoom=''", pageZoomScript(100))
     }
 
     /** The viewer hides that it is inside an app, and adds a TV's mark when asked for the TV version. */

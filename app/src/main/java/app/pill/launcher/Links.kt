@@ -42,6 +42,10 @@ data class WebShortcut(
     val textZoom: Int = 100,
     /** Steer a pointer with the arrows (true), or jump between links (false). */
     val pointer: Boolean = true,
+    /** How big the page is drawn, in percent: under 100 fits more of a wide page on screen. */
+    val pageZoom: Int = 100,
+    /** Keep the page inside the margin the launcher keeps, clear of edges older TVs cut off. */
+    val safeEdges: Boolean = true,
 ) {
     val pkg: String get() = WebPrefix + id
 }
@@ -235,7 +239,8 @@ fun webShortcutsJson(list: List<WebShortcut>): String = JSONArray().apply {
     for (s in list) put(
         JSONObject()
             .put("id", s.id).put("name", s.name).put("url", s.url)
-            .put("tv", s.tvVersion).put("zoom", s.textZoom).put("pointer", s.pointer),
+            .put("tv", s.tvVersion).put("zoom", s.textZoom).put("pointer", s.pointer)
+            .put("page", s.pageZoom).put("edges", s.safeEdges),
     )
 }.toString()
 
@@ -251,12 +256,24 @@ fun parseWebShortcuts(json: String?): List<WebShortcut> = runCatching {
             tvVersion = o.optBoolean("tv", false),
             textZoom = o.optInt("zoom", 100).coerceIn(100, 175),
             pointer = o.optBoolean("pointer", true),
+            pageZoom = o.optInt("page", 100).coerceIn(PageZooms.last(), 100),
+            safeEdges = o.optBoolean("edges", true),
         )
     }
 }.getOrDefault(emptyList())
 
 /** The text sizes the viewer steps through. */
 val TextZooms = listOf(100, 125, 150, 175)
+
+/** The page sizes the viewer steps through: full size, then smaller to fit wide pages. */
+val PageZooms = listOf(100, 90, 80, 67)
+
+/** The next page size after [zoom], back to 100 after the smallest. */
+fun nextPageZoom(zoom: Int): Int = PageZooms.firstOrNull { it < zoom } ?: PageZooms.first()
+
+/** Draws the page at [zoom] percent (CSS zoom on the whole page, so a wide layout fits); 100 takes it off. */
+fun pageZoomScript(zoom: Int): String =
+    "document.documentElement.style.zoom='" + (if (zoom >= 100) "" else String.format(Locale.ROOT, "%.2f", zoom / 100f)) + "'"
 
 /** The next text size after [zoom], back to 100 after the largest. */
 fun nextTextZoom(zoom: Int): Int = TextZooms.firstOrNull { it > zoom } ?: TextZooms.first()
