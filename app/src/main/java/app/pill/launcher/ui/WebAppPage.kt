@@ -32,6 +32,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.asAndroidPath
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -121,6 +124,10 @@ class WebViewer(
     var presses by mutableIntStateOf(0)
         private set
 
+    /** Bumped on each click, for the pointer's press. */
+    var clicks by mutableIntStateOf(0)
+        private set
+
     private var okDown = false
     private var okHeld = false
 
@@ -194,7 +201,10 @@ class WebViewer(
                         error = null
                         controls.reload()
                     }
-                    shortcut.pointer -> here().let { controls.click(it.x, it.y) }
+                    shortcut.pointer -> here().let {
+                        clicks++
+                        controls.click(it.x, it.y)
+                    }
                     else -> {
                         val t = e.eventTime
                         controls.pageKey(KeyEvent(t, t, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_CENTER, 0))
@@ -325,15 +335,7 @@ fun WebAppPage(viewer: WebViewer, icon: ImageBitmap?, modifier: Modifier = Modif
                 Box(Modifier.fillMaxWidth(viewer.progress / 100f).height(4.dp).background(WebAccent))
             }
             if (s.pointer && !viewer.fullscreen && viewer.error == null && viewer.size != IntSize.Zero) {
-                // Read while drawing, so each frame of the glide only redraws the pointer
-                Canvas(Modifier.fillMaxSize()) {
-                    val at = viewer.cursor.takeIf { it != Offset.Unspecified } ?: Offset(size.width / 2f, size.height / 2f)
-                    val r = 15.dp.toPx()
-                    drawCircle(Color(0x33000000), radius = r + 4.dp.toPx(), center = at + Offset(0f, 2.dp.toPx()))
-                    drawCircle(Color(0xE6FFFFFF), radius = r, center = at)
-                    drawCircle(Color(0xFF0B0F1A), radius = r, center = at, style = Stroke(2.5.dp.toPx()))
-                    drawCircle(WebAccent, radius = 4.dp.toPx(), center = at)
-                }
+                Pointer(viewer)
             }
         }
         viewer.error?.let { problem ->
@@ -402,5 +404,61 @@ fun WebAppPage(viewer: WebViewer, icon: ImageBitmap?, modifier: Modifier = Modif
                 onDismiss = { viewer.menuClosed() },
             )
         }
+    }
+}
+
+/**
+ * The arrow's outline, tip at (0, 0), in units of [PointerUnit]: the classic pointer, a
+ * little slimmer, so the tip (where OK clicks) is plain to see.
+ */
+private val ArrowPoints = listOf(
+    0f to 0f, 0f to 17.2f, 4.1f to 13.4f, 6.9f to 19.8f, 9.6f to 18.6f, 6.9f to 12.4f, 12.4f to 12.4f,
+)
+private val PointerUnit = 1.7.dp
+
+/**
+ * The pointer: a dark arrow with a white edge and a soft shadow, drawn as a smooth shape at
+ * any size, so it stays sharp on a 4K screen. Its tip is where OK clicks. A click presses it
+ * in for a moment, with a ring spreading from the tip.
+ */
+@Composable
+private fun Pointer(viewer: WebViewer) {
+    val press = remember { androidx.compose.animation.core.Animatable(0f) }
+    LaunchedEffect(viewer.clicks) {
+        if (viewer.clicks == 0) return@LaunchedEffect
+        press.snapTo(1f)
+        press.animateTo(0f, androidx.compose.animation.core.tween(320, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+    }
+    val shadow = remember {
+        android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            color = android.graphics.Color.TRANSPARENT
+            style = android.graphics.Paint.Style.FILL
+        }
+    }
+    // Read while drawing, so each frame of the glide only redraws the pointer
+    Canvas(Modifier.fillMaxSize()) {
+        val at = viewer.cursor.takeIf { it != Offset.Unspecified } ?: Offset(size.width / 2f, size.height / 2f)
+        val p = press.value
+        val unit = PointerUnit.toPx() * (1f - 0.12f * p)
+        val arrow = androidx.compose.ui.graphics.Path().apply {
+            ArrowPoints.forEachIndexed { i, (x, y) -> if (i == 0) moveTo(at.x + x * unit, at.y + y * unit) else lineTo(at.x + x * unit, at.y + y * unit) }
+            close()
+        }
+        // A ring from the tip on a click
+        if (p > 0f) {
+            drawCircle(Color.White.copy(alpha = 0.55f * p), radius = (6.dp.toPx() + 16.dp.toPx() * (1f - p)), center = at, style = Stroke(2.dp.toPx()))
+            drawCircle(WebAccent.copy(alpha = 0.35f * p), radius = (4.dp.toPx() + 12.dp.toPx() * (1f - p)), center = at)
+        }
+        // The soft shadow under it, a little below and right, as a light from above casts
+        drawIntoCanvas { canvas ->
+            shadow.setShadowLayer(5.dp.toPx(), 0f, 2.dp.toPx(), android.graphics.Color.argb(110, 0, 0, 0))
+            shadow.color = android.graphics.Color.argb(1, 0, 0, 0)
+            canvas.nativeCanvas.drawPath(arrow.asAndroidPath(), shadow)
+        }
+        val round = Stroke(width = 2.6.dp.toPx() * (unit / PointerUnit.toPx()), join = androidx.compose.ui.graphics.StrokeJoin.Round)
+        drawPath(arrow, Color.White, style = round)
+        drawPath(arrow, Color(0xFF14161C))
+        // A faint light along its top edge, for a little depth
+        drawPath(arrow, androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color(0x33FFFFFF), Color.Transparent), startY = at.y, endY = at.y + 14f * unit))
     }
 }

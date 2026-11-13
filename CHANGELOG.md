@@ -7,6 +7,7 @@ Pill Launcher is built from `main` on every change; the newest build is always t
 
 The web viewer, after a first try on a TV:
 
+- **A sharper pointer**: an arrow like a computer's, dark with a white edge and a soft shadow, drawn as a smooth shape so it stays crisp at any size; a click presses it in, with a ring from the tip.
 - **A smooth pointer**: it glides by time instead of jumping at each key repeat. Held, it sets off slowly and speeds up smoothly; a quick tap moves it a little; at the edge the page scrolls on smoothly. A release the remote never sends no longer leaves it running.
 - **Clear of the TV's edges**: the page keeps the launcher's own margin, since many TVs cut off the edges of the picture (pages ran off the right side). **Use the whole screen** in the viewer's menu turns it off for a TV that shows everything.
 - **Page size**: 100%, 90%, 80% or 67% in the viewer's menu, so a page made for a wider screen fits. Each site keeps its own.
