@@ -327,9 +327,8 @@ fun WebAppPage(viewer: WebViewer, icon: ImageBitmap?, modifier: Modifier = Modif
         if (viewer.moving) while (isActive) withFrameNanos { viewer.tick(it) }
     }
     Box(modifier.fillMaxSize().background(Palette.Ink)) {
-        // The page keeps the launcher's own margin (clear of edges older TVs cut off) unless asked not to
-        val inset = if (s.safeEdges && !viewer.fullscreen) Modifier.padding(horizontal = 48.dp, vertical = 27.dp) else Modifier
-        Box(Modifier.fillMaxSize().then(inset).background(Color.White).onSizeChanged { viewer.size = it }) {
+        // The page fills the screen, fitted to it edge to edge
+        Box(Modifier.fillMaxSize().background(Color.White).onSizeChanged { viewer.size = it }) {
             page()
             if (viewer.progress in 1..99 && !viewer.fullscreen) {
                 Box(Modifier.fillMaxWidth(viewer.progress / 100f).height(4.dp).background(WebAccent))
@@ -391,8 +390,6 @@ fun WebAppPage(viewer: WebViewer, icon: ImageBitmap?, modifier: Modifier = Modif
                     MenuChoice(tr("Reload")) { viewer.reloadPage() },
                     MenuChoice(tr("Text size · %1\$s%%", s.textZoom), tr("OK for the next size")) { viewer.change(s.copy(textZoom = nextTextZoom(s.textZoom))) },
                     MenuChoice(tr("Page size · %1\$s%%", s.pageZoom), tr("Smaller fits more of a wide page")) { viewer.change(s.copy(pageZoom = nextPageZoom(s.pageZoom))) },
-                    if (s.safeEdges) MenuChoice(tr("Use the whole screen"), tr("Now inside the edges, which some TVs cut off")) { viewer.change(s.copy(safeEdges = false)) }
-                    else MenuChoice(tr("Keep clear of the screen's edges"), tr("For TVs that cut off the picture's edges")) { viewer.change(s.copy(safeEdges = true)) },
                     if (s.pointer) MenuChoice(tr("Jump between links"), tr("For pages made for a remote")) { viewer.change(s.copy(pointer = false)) }
                     else MenuChoice(tr("Use the pointer"), tr("Arrows move it, OK clicks")) { viewer.change(s.copy(pointer = true)) },
                     MenuChoice(
