@@ -141,6 +141,8 @@ fun SettingsPanel(
     noticeApps: List<Pair<String, String>> = emptyList(),
     /** Files between phones and the TV, for its trusted devices; null where there is none. */
     share: FileShare? = null,
+    /** Adding an app or a website from a link; null in safe mode. */
+    links: app.pill.launcher.LinkAdder? = null,
 ) {
     // A message from the last attempt, shown under the row until the panel closes
     var defaultNote by remember { mutableStateOf<String?>(null) }
@@ -553,7 +555,7 @@ fun SettingsPanel(
                             }
                                 }
                                 SettingsPage.HomeScreen -> Group(null) {
-                                    for ((i, sub) in listOf(SettingsPage.Background, SettingsPage.Favorites, SettingsPage.Idle).withIndex()) {
+                                    for ((i, sub) in listOf(SettingsPage.Background, SettingsPage.Favorites, SettingsPage.Idle, SettingsPage.AddLink).withIndex()) {
                                         SettingRow(
                                             title = sub.title,
                                             subtitle = summaryOf(sub, settings, home, update, version),
@@ -586,6 +588,7 @@ fun SettingsPanel(
                                 SettingsPage.Files -> FilesSettingsPage(settings, onChange, share, Modifier.focusRequester(pageFirst))
                                 SettingsPage.Notifications -> NotificationsPage(settings, onChange, noticeAccess, onNoticeAccess, noticeApps, Modifier.focusRequester(pageFirst))
                                 SettingsPage.Language -> LanguagePage(settings, onChange, Modifier.focusRequester(pageFirst))
+                                SettingsPage.AddLink -> AddLinkPage(links, Modifier.focusRequester(pageFirst))
                                 SettingsPage.Updates -> UpdatesPage(
                                     settings = settings,
                                     onChange = onChange,
@@ -652,6 +655,7 @@ enum class SettingsPage(private val titleEn: String, val parent: SettingsPage? =
     Background("Background", HomeScreen),
     Favorites("Favorites row", HomeScreen),
     Idle("Idle screen", HomeScreen),
+    AddLink("Add an app or website", HomeScreen),
     Updates("Updates", System),
     Language("Language", System),
     Stack("Widget stack", Widgets),
@@ -672,6 +676,7 @@ enum class SettingsPage(private val titleEn: String, val parent: SettingsPage? =
 private fun summaryOf(page: SettingsPage, settings: LauncherSettings, home: HomeStatus, update: UpdateState = UpdateState(), version: String = ""): String = when (page) {
     SettingsPage.Updates -> updateSummary(update, version)
     SettingsPage.Language -> app.pill.launcher.Language.ofTag(settings.language)?.ownName ?: tr("Same as the TV")
+    SettingsPage.AddLink -> tr("From a link: a website, or an app to install")
     SettingsPage.HomeScreen -> listOf(
         if (settings.slideshow) tr("Photos every %1\$s", formatInterval(settings.intervalSec)) else tr("One photo"),
         summaryOf(SettingsPage.Favorites, settings, home).lowercase(),

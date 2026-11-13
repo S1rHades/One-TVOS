@@ -74,7 +74,11 @@ class MainActivity : ComponentActivity() {
     }
     private val appWatch = object : LauncherApps.Callback() {
         override fun onPackageRemoved(packageName: String?, user: UserHandle?) = noteAppChange(packageName)
-        override fun onPackageAdded(packageName: String?, user: UserHandle?) = noteAppChange(packageName)
+        override fun onPackageAdded(packageName: String?, user: UserHandle?) {
+            noteAppChange(packageName)
+            // An app installed from a link joins the favourites
+            if (packageName != null && ::links.isInitialized) links.installed(packageName)
+        }
         override fun onPackageChanged(packageName: String?, user: UserHandle?) = noteAppChange(packageName)
         override fun onPackagesAvailable(packageNames: Array<out String>?, user: UserHandle?, replacing: Boolean) = noteAppChange(*packageNames.orEmpty())
         override fun onPackagesUnavailable(packageNames: Array<out String>?, user: UserHandle?, replacing: Boolean) = noteAppChange(*packageNames.orEmpty())
@@ -93,6 +97,11 @@ class MainActivity : ComponentActivity() {
     /** Ends the data loops' waits early when the TV wakes, the launcher comes back or the internet returns. */
     private val nudges = Nudges()
     private lateinit var store: SettingsStore
+    private lateinit var webShortcuts: WebShortcuts
+    private lateinit var links: LinkAdder
+
+    /** Links to add, from a site's download in the web viewer: each one a notification. */
+    private val incomingLinks = kotlinx.coroutines.flow.MutableSharedFlow<Pair<String, String>>(extraBufferCapacity = 4)
     private lateinit var crashGuard: CrashGuard
 
     /** Why the launcher started in safe mode (two crashes within a minute); null normally. */
@@ -125,21 +134,14 @@ class MainActivity : ComponentActivity() {
      * direction it is laid out in) then follows it.
      */
     override fun attachBaseContext(base: Context) {
-        val system = base.resources.configuration.locales[0]
-        val chosen = Language.ofTag(base.getSharedPreferences("launcher", Context.MODE_PRIVATE).getString("language", null))
-        val language = chosen ?: Language.of(system)
-        Lang.current = language
-        val locale = Lang.localeFor(language, system)
-        java.util.Locale.setDefault(locale)
-        val config = android.content.res.Configuration(base.resources.configuration)
-        config.setLocale(locale)
-        config.setLayoutDirection(locale)
-        super.attachBaseContext(base.createConfigurationContext(config))
+        super.attachBaseContext(Lang.wrap(base))
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         store = SettingsStore(this)
+        webShortcuts = WebShortcuts(this)
+        links = LinkAdder(this, webShortcuts)
         crashGuard = CrashGuard(this).also { it.install() }
         safeMode = crashGuard.safeModeReason()
         ContextCompat.registerReceiver(this, screenOn, IntentFilter(Intent.ACTION_SCREEN_ON), ContextCompat.RECEIVER_NOT_EXPORTED)
@@ -180,8 +182,20 @@ class MainActivity : ComponentActivity() {
             }
             // Names given in the launcher replace the apps' own everywhere it shows them
             var names by remember { mutableStateOf(store.readNames()) }
-            val apps = remember(scanned, names) { scanned?.let { withNames(it, names) } }
+            // Web shortcuts are tiles among the apps
+            val webChanged by links.changed.collectAsState()
+            val webEntries = remember(webChanged) { webShortcuts.entries(webShortcuts.read()) }
+            val apps = remember(scanned, names, webEntries) { scanned?.let { withNames(it + webEntries, names) } }
             var pins by remember { mutableStateOf(store.readPins()) }
+            // A website just added, or an app from a link just installed, joins the favourites
+            LaunchedEffect(Unit) {
+                links.pins.collect { pkg ->
+                    if (pkg !in pins) {
+                        pins = pins + pkg
+                        store.savePins(pins)
+                    }
+                }
+            }
             // Openings per app, for favourites ordered by use
             var uses by remember { mutableStateOf(store.readUses()) }
             var settings by remember { mutableStateOf(store.load()) }
@@ -394,6 +408,13 @@ class MainActivity : ComponentActivity() {
             LaunchedEffect(share) {
                 share.arrivals.collect { f -> postNotice(fileNotice(f.name, f.size, f.from, Instant.now())) }
             }
+            // Links from phones, and apps a site offers in the web viewer: OK on the notification adds them
+            LaunchedEffect(share) {
+                share.sentLinks.collect { (link, from) -> postNotice(sentLinkNotice(link, from, Instant.now())) }
+            }
+            LaunchedEffect(Unit) {
+                incomingLinks.collect { (link, from) -> postNotice(sentLinkNotice(link, from, Instant.now())) }
+            }
             // Files tidies itself on each return to the launcher. An APK whose app is now installed is
             // never deleted on its own: the notification bar asks, once per APK. Old files go only when chosen.
             LaunchedEffect(refresh, settings.askInstalledApks, settings.tidyOld) {
@@ -472,7 +493,20 @@ class MainActivity : ComponentActivity() {
                     names = cleanName(name, own)?.let { names + (app.pkg to it) } ?: (names - app.pkg)
                     store.saveNames(names)
                 },
-                onUninstall = { app ->
+                onUninstall = uninstall@{ app ->
+                    if (app.isWeb) {
+                        // A web shortcut goes at once: nothing is installed
+                        links.remove(app.pkg.removePrefix(WebPrefix))
+                        if (app.pkg in pins) {
+                            pins = pins - app.pkg
+                            store.savePins(pins)
+                        }
+                        if (app.pkg in names) {
+                            names = names - app.pkg
+                            store.saveNames(names)
+                        }
+                        return@uninstall
+                    }
                     // The system asks to confirm; the app list refreshes when the launcher resumes
                     tryStartActivity(Intent(Intent.ACTION_DELETE, Uri.parse("package:${app.pkg}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                 },
@@ -552,6 +586,7 @@ class MainActivity : ComponentActivity() {
                 noticeAccess = noticeAccess,
                 onNoticeAccess = { NotificationWatcher.askForAccess(this) },
                 share = share.takeIf { safe == null },
+                links = links.takeIf { safe == null },
                 onOpenFile = { file -> openFile(file, updater) },
                 safeMode = safe,
                 onTryNormally = {
@@ -599,6 +634,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         if (intent.hasCategory(Intent.CATEGORY_HOME)) homePresses++
+        intent.getStringExtra(ExtraAddLink)?.let { link -> incomingLinks.tryEmit(link to hostOf(link)) }
     }
 
     // Files runs while the launcher is on screen (so a phone can send without opening Files),
@@ -758,6 +794,10 @@ class MainActivity : ComponentActivity() {
         }
 
     private fun openApp(app: AppEntry) {
+        if (app.isWeb) {
+            tryStartActivity(WebAppActivity.intent(this, app.pkg.removePrefix(WebPrefix)))
+            return
+        }
         val intent = Intent(Intent.ACTION_MAIN)
             .setComponent(app.component)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
@@ -769,4 +809,10 @@ class MainActivity : ComponentActivity() {
             // activity not exported
         }
     }
+
+    companion object {
+        /** A link to add (an app a site offered in the web viewer), sent to the launcher. */
+        const val ExtraAddLink = "addLink"
+    }
+
 }

@@ -1210,4 +1210,89 @@ class DataTest {
         store.save(LauncherSettings(language = "ar"))
         assertEquals("ar", store.load().language)
     }
+
+    /** Links as typed: https added or made of http, Play Store links kept as such, and nonsense refused. */
+    @Test
+    fun linksAreTidied() {
+        assertEquals("https://youtube.com/tv", normaliseLink("  youtube.com/tv "))
+        assertEquals("https://example.com/a?b=1", normaliseLink("http://example.com/a?b=1"))
+        assertEquals("https://192.168.1.20:8080/", normaliseLink("192.168.1.20:8080/"))
+        assertEquals("https://play.google.com/store/apps/details?id=com.netflix.ninja", normaliseLink("market://details?id=com.netflix.ninja"))
+        assertNull(normaliseLink("hello"))
+        assertNull(normaliseLink("two words.com"))
+        assertNull(normaliseLink("ftp://example.com"))
+        assertNull(normaliseLink("javascript:alert(1)"))
+        assertNull(normaliseLink(""))
+        assertEquals("com.netflix.ninja", playStoreId("https://play.google.com/store/apps/details?id=com.netflix.ninja&hl=fr"))
+        assertNull(playStoreId("https://play.google.com/store/apps/details?id=x"))
+        assertNull(playStoreId("https://example.com/store/apps/details?id=com.a.b"))
+    }
+
+    /** An APK is known by its type, the name it is sent as, or its address; a page called something.apk is not one. */
+    @Test
+    fun apksAreRecognised() {
+        assertTrue(looksLikeApk("https://x.org/dl", "application/vnd.android.package-archive", null))
+        assertTrue(looksLikeApk("https://x.org/dl?id=4", "application/octet-stream", "attachment; filename=\"Kodi 21.apk\""))
+        assertTrue(looksLikeApk("https://github.com/a/b/releases/download/v1/app.apk", "application/octet-stream", null))
+        assertFalse(looksLikeApk("https://apkmirror.example/app.apk", "text/html; charset=utf-8", null))
+        assertFalse(looksLikeApk("https://example.com/", "text/html", null))
+        assertEquals("Kodi 21", apkName("https://x.org/dl", "attachment; filename=\"Kodi 21.apk\""))
+        assertEquals("pill-launcher-4.0", apkName("https://github.com/a/b/releases/download/v4.0/pill-launcher-4.0.apk", null))
+    }
+
+    /** A page's head gives its app name before its title, and its icons (with sizes) and manifest as full addresses. */
+    @Test
+    fun aSiteSaysWhatItIs() {
+        val html = """
+            <html><head><title>Watch &amp; listen - Tube</title>
+            <meta property="og:site_name" content="TubeSite">
+            <link rel="icon" href="/favicon-32.png" sizes="32x32">
+            <link rel="apple-touch-icon" href="https://cdn.example.com/touch.png">
+            <link rel=manifest href=/app.webmanifest>
+            <link rel="icon" href="data:image/png;base64,AAAA">
+            </head><body><link rel="icon" href="/not-in-head.png"></body></html>
+        """.trimIndent()
+        val info = parseSiteInfo(html, "https://www.example.com/watch")
+        assertEquals("TubeSite", info.name)
+        assertEquals("https://www.example.com/app.webmanifest", info.manifest)
+        assertEquals(listOf(IconRef("https://www.example.com/favicon-32.png", 32), IconRef("https://cdn.example.com/touch.png", 180)), info.icons)
+        assertEquals("Watch & listen - Tube", parseSiteInfo("<title>Watch &amp; listen - Tube</title>", "https://e.com").name)
+        val (name, icons) = parseManifest("""{"name":"Tube for TV","short_name":"Tube","icons":[{"src":"i/512.png","sizes":"512x512"},{"src":"i/m.png","sizes":"192x192","purpose":"monochrome"},{"src":"i/192.png","sizes":"192x192"}]}""", "https://www.example.com/app.webmanifest")
+        assertEquals("Tube", name)
+        assertEquals(listOf("https://www.example.com/i/512.png", "https://www.example.com/i/192.png"), icons.map { it.url })
+        // The smallest sharp icon first, then larger, then smaller, then the favicon
+        assertEquals(
+            listOf("https://e.com/192.png", "https://e.com/512.png", "https://e.com/32.png", "https://e.com/favicon.ico"),
+            iconsToTry(listOf(IconRef("https://e.com/32.png", 32), IconRef("https://e.com/512.png", 512), IconRef("https://e.com/192.png", 192)), "https://e.com/page"),
+        )
+        assertEquals("YouTube", cleanSiteName("YouTube - Broadcast yourself", "https://youtube.com"))
+        assertEquals("Wikipedia", cleanSiteName(null, "https://www.wikipedia.org/"))
+        assertEquals("Netflix", cleanSiteName(playTitle("<html><head><title>Netflix - Apps on Google Play</title>"), "https://play.google.com/"))
+        assertNull(playTitle("<title>Google Play</title>"))
+    }
+
+    /** Web shortcuts keep their settings through the settings file; broken ones are dropped. */
+    @Test
+    fun webShortcutsAreKept() {
+        val list = listOf(WebShortcut("a1", "Tube", "https://tube.example/tv", tvVersion = true, textZoom = 150, pointer = false), WebShortcut("b2", "News", "https://news.example/"))
+        assertEquals(list, parseWebShortcuts(webShortcutsJson(list)))
+        assertEquals(list.take(1), parseWebShortcuts(webShortcutsJson(list).replace("news.example", "news example")))
+        assertEquals(emptyList<WebShortcut>(), parseWebShortcuts("nonsense"))
+        assertEquals(listOf(125, 150, 175, 100), listOf(100, 125, 150, 175).map(::nextTextZoom))
+        assertEquals("web:a1", list[0].pkg)
+    }
+
+    /** The viewer hides that it is inside an app, and adds a TV's mark when asked for the TV version. */
+    @Test
+    fun theViewerIntroducesItself() {
+        val webView = "Mozilla/5.0 (Linux; Android 11; SHIELD Android TV Build/RQ1A; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/120.0 Mobile Safari/537.36"
+        val plain = agentFor(webView, tv = false)
+        assertFalse(plain.contains("; wv"))
+        assertFalse(plain.contains("Version/4.0"))
+        assertTrue(plain.contains("Chrome/120.0"))
+        assertTrue(agentFor(webView, tv = true).endsWith(" SMART-TV"))
+        assertFalse(agentFor(webView, tv = true).contains("Mobile"))
+        assertTrue(scrollScript(10f, 20f, 0f, -108f).endsWith("(10.0,20.0,0.0,-108.0)"))
+    }
+
 }

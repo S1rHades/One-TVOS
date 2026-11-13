@@ -14,7 +14,7 @@ import java.time.Instant
 const val BackupPrefix = "pill-launcher-backup"
 
 /** This TV's own history rather than settings: left out of a backup, and left alone by a restore. */
-private val NotBackedUp = setOf("notices", "noticesSeen", "lastVersion", "pendingNotes", "updateDismissed", "askedApks")
+private val NotBackedUp = setOf("notices", "noticesSeen", "lastVersion", "pendingNotes", "updateDismissed", "askedApks", "pendingPins")
 
 /** Everything in [prefs] but this TV's own history, each value with its type, so it goes back as it was. */
 fun backupJson(prefs: SharedPreferences, version: String, at: Instant): String {

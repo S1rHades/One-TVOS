@@ -32,6 +32,8 @@
   .empty { color: var(--muted); padding: 16px; font-size: 15px; }
   form { display: flex; gap: 10px; }
   form input { flex: 1; min-width: 0; font: inherit; font-size: 22px; letter-spacing: .3em; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  form.link input { font-size: 17px; letter-spacing: 0; }
+  .note { color: var(--muted); font-size: 14px; margin: 8px 4px 0; }
   form button { font: inherit; font-weight: 600; padding: 0 20px; border-radius: 14px; border: 0; background: var(--accent); color: var(--bg); }
 </style>
 </head>
@@ -53,6 +55,9 @@
       <input type="file" id="pick" multiple>
     </label>
     <div id="sending"></div>
+    <div class="label">Send a link</div>
+    <form id="linkForm" class="link"><input id="link" type="url" inputmode="url" autocapitalize="off" autocomplete="off" placeholder="A website, an app (.apk) or a Play Store link" aria-label="Link"><button>Send</button></form>
+    <p class="note" id="linkNote">The TV can add it as a tile: a website opens full screen, an app is installed.</p>
     <div class="label">On the TV</div>
     <div class="list" id="files"><div class="empty">Loading…</div></div>
   </section>
@@ -155,6 +160,19 @@
   drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
   drop.addEventListener('dragleave', () => drop.classList.remove('over'));
   drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('over'); sendAll([...e.dataTransfer.files]); });
+
+  $('linkForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const link = $('link').value.trim();
+    if (!link) return;
+    let r;
+    try { r = await fetch('/api/link?url=' + encodeURIComponent(link), { method: 'POST', headers: H }); }
+    catch (err) { $('linkNote').textContent = 'The connection to the TV dropped'; $('linkNote').className = 'note bad'; return; }
+    if (r.status === 401) { showAsk(); return; }
+    $('linkNote').textContent = await r.text();
+    $('linkNote').className = r.status === 200 ? 'note' : 'note bad';
+    if (r.status === 200) $('link').value = '';
+  });
 
   load();
 </script>

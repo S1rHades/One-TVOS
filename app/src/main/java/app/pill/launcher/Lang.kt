@@ -23,6 +23,23 @@ enum class Language(val tag: String, val ownName: String) {
 
 /** The language on screen now. Set as the launcher's screen starts (see MainActivity), before anything is drawn. */
 object Lang {
+    /**
+     * [base] in the language chosen in Settings (or the TV's, when it is one of ours), with
+     * Western digits and the layout direction to match; sets [current] and the default locale.
+     */
+    fun wrap(base: android.content.Context): android.content.Context {
+        val system = base.resources.configuration.locales[0]
+        val chosen = Language.ofTag(base.getSharedPreferences("launcher", android.content.Context.MODE_PRIVATE).getString("language", null))
+        val language = chosen ?: Language.of(system)
+        current = language
+        val locale = localeFor(language, system)
+        java.util.Locale.setDefault(locale)
+        val config = android.content.res.Configuration(base.resources.configuration)
+        config.setLocale(locale)
+        config.setLayoutDirection(locale)
+        return base.createConfigurationContext(config)
+    }
+
     @Volatile var current: Language = Language.English
 
     /**

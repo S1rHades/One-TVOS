@@ -3,6 +3,17 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 4.1 (November 2026)
+
+Apps and websites from a link:
+
+- **Add an app or website**: **Settings → Home screen → Add an app or website** takes a link, typed on the TV or sent from a phone, and works out what it is. A website becomes a tile in Favorites with the site's own name and icon; a link to an `.apk` is downloaded and handed to Android's install screen; a Play Store link opens the app's page. A new app joins Favorites once it is installed.
+- **Send a link from your phone**: the phone's Files page has **Send a link**; the link arrives in the notification bar, and OK on it opens the page with it checked.
+- **The web viewer**: a website opens full screen with a pointer the arrows move (OK clicks, the edge scrolls), or jumping between links for pages made for a remote. Back goes back a page and leaves from the first; holding OK opens Reload, Text size, the links mode, Ask for the TV version and Back to the home screen. Each site keeps its choices and stays signed in, and videos play full screen.
+- **Web shortcuts are tiles like apps**: in Favorites, All apps and Search, renamed and moved the same way, and removed with **Remove shortcut** in their menu.
+- **Updates**: the download and install code is shared with installing from a link; a failed install says why in words for each.
+- **Screenshots**: the README pictures use the photos bundled with the launcher, so they no longer depend on a photo site answering.
+
 ## 4.0 (November 2026)
 
 Pill Launcher in French and Arabic:

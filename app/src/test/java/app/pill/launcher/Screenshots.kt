@@ -52,6 +52,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.async
+import kotlinx.coroutines.runBlocking
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxSize
 import coil.Coil
 import coil.ImageLoader
 import coil.test.FakeImageLoaderEngine
@@ -1399,6 +1407,157 @@ class Screenshots {
         compose.onNodeWithText(tr("All caught up")).assertIsDisplayed()
     }
 
+    /** A link adder whose state the test sets, with one web shortcut made already. */
+    private fun linkAdder(): LinkAdder {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val shortcuts = WebShortcuts(context)
+        shortcuts.write(listOf(WebShortcut("yt", "YouTube", "https://www.youtube.com/tv")))
+        return LinkAdder(context, shortcuts)
+    }
+
+    /** A site's icon as a page would give it: a red rounded square with a white triangle. */
+    private fun siteIcon(): android.graphics.Bitmap {
+        val b = android.graphics.Bitmap.createBitmap(192, 192, android.graphics.Bitmap.Config.ARGB_8888)
+        val c = android.graphics.Canvas(b)
+        val p = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+        p.color = 0xFF2F6FDE.toInt()
+        c.drawRoundRect(0f, 0f, 192f, 192f, 40f, 40f, p)
+        p.color = android.graphics.Color.WHITE
+        p.textSize = 120f
+        p.typeface = android.graphics.Typeface.DEFAULT_BOLD
+        p.textAlign = android.graphics.Paint.Align.CENTER
+        c.drawText("W", 96f, 138f, p)
+        return b
+    }
+
+    /**
+     * Home screen → Add an app or website: a checked link (here a website, with its name and
+     * icon) and what OK on it does; below, the web shortcuts made so far. Adding it makes a
+     * shortcut and asks for it to be pinned.
+     */
+    @Test
+    fun addLinkWebsite() = runBlocking<Unit> {
+        val links = linkAdder()
+        links.state.value = LinkState(LinkPhase.Found, "https://www.wikipedia.org/", FoundLink(LinkKind.Website, "https://www.wikipedia.org/", "Wikipedia", siteIcon()))
+        show("mountain-lake", pins = favorites, links = links)
+        compose.onNodeWithContentDescription("Settings").performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNodeWithText("Home screen").performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNodeWithText("Add an app or website").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNodeWithText("Website · wikipedia.org").assertIsDisplayed()
+        compose.onNodeWithText("Add to the home screen").assertIsDisplayed()
+        compose.onNodeWithText("YouTube").assertExists()
+        captureScreenRoboImage(File(out, "settings-add-link.png").path)
+        val pinned = async(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) { withTimeout(5000) { links.pins.first() } }
+        compose.onNodeWithText("Add to the home screen").performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        val made = links.list().last()
+        check(made.name == "Wikipedia" && made.url == "https://www.wikipedia.org/") { "the shortcut is made: $made" }
+        check(pinned.await() == made.pkg) { "and pinned" }
+        compose.onNodeWithText("Wikipedia is on the home screen, in Favorites").assertExists()
+    }
+
+    /** An APK link says what it is and its size; downloading shows how far it has got, and OK stops it. */
+    @Test
+    fun addLinkApp() {
+        val links = linkAdder()
+        val apk = FoundLink(LinkKind.Apk, "https://github.com/xbmc/xbmc/releases/download/21.1/kodi.apk", "kodi", sizeBytes = 64_000_000)
+        links.state.value = LinkState(LinkPhase.Found, apk.url, apk)
+        show("canyon-river", pins = favorites, links = links)
+        compose.onNodeWithContentDescription("Settings").performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNodeWithText("Home screen").performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNodeWithText("Add an app or website").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNodeWithText("App to install · 64 MB · from github.com").assertIsDisplayed()
+        compose.onNodeWithText("Download and install").assertIsDisplayed()
+        links.state.value = links.state.value.copy(phase = LinkPhase.Downloading, progress = 0.42f)
+        settle()
+        compose.onNodeWithText("Downloading · 42%").assertIsDisplayed()
+    }
+
+    /** What the web viewer asked of the page, in order. */
+    private class FakePage : app.pill.launcher.ui.WebPageControls {
+        val calls = mutableListOf<String>()
+        var history = 1
+        override fun click(x: Float, y: Float) { calls += "click ${x.toInt()},${y.toInt()}" }
+        override fun scroll(x: Float, y: Float, dx: Float, dy: Float) { calls += "scroll ${dx.toInt()},${dy.toInt()}" }
+        override fun pageKey(event: android.view.KeyEvent): Boolean { calls += "key ${event.keyCode}"; return true }
+        override fun back(): Boolean { if (history == 0) return false; history--; calls += "back"; return true }
+        override fun reload() { calls += "reload" }
+        override fun exitFullscreen() { calls += "exit" }
+    }
+
+    private fun key(code: Int, action: Int = android.view.KeyEvent.ACTION_DOWN, repeat: Int = 0, held: Long = 0) =
+        android.view.KeyEvent(1000L, 1000L + held, action, code, repeat)
+
+    /** A stand-in for a website under the viewer: a header, a headline and a few lines. */
+    @androidx.compose.runtime.Composable
+    private fun StandInPage() {
+        androidx.compose.foundation.layout.Column(androidx.compose.ui.Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color(0xFFF7F7F5))) {
+            androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxWidth().height(70.dp).background(androidx.compose.ui.graphics.Color(0xFF2F6FDE)))
+            androidx.compose.material3.Text("Beni Saf: a sunny week ahead", fontSize = 40.sp, color = androidx.compose.ui.graphics.Color(0xFF1B1B1B), modifier = androidx.compose.ui.Modifier.padding(start = 80.dp, top = 48.dp))
+            for (w in listOf(0.82f, 0.9f, 0.76f, 0.88f, 0.6f)) {
+                androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.padding(start = 80.dp, top = 22.dp).fillMaxWidth(w * 0.7f).height(18.dp).background(androidx.compose.ui.graphics.Color(0xFFD9D9D6)))
+            }
+        }
+    }
+
+    /**
+     * A website open full screen: arrows move the pointer and OK clicks where it is; at the
+     * screen's edge the page scrolls instead; Back goes back a page, then leaves; holding OK
+     * opens the viewer's menu, whose changes are kept.
+     */
+    @Test
+    fun webViewer() {
+        val page = FakePage()
+        var left = false
+        var saved: WebShortcut? = null
+        val viewer = app.pill.launcher.ui.WebViewer(WebShortcut("yt", "Wikipedia", "https://www.wikipedia.org/"), page, onLeave = { left = true }, onSave = { saved = it })
+        val icon = webTile(siteIcon(), "Wikipedia").asImageBitmap()
+        compose.setContent { app.pill.launcher.ui.WebAppPage(viewer, icon) { StandInPage() } }
+        settle()
+        val w = viewer.size.width
+        val h = viewer.size.height
+        check(w > 0) { "the viewer has a size" }
+        fun press(code: Int) { check(viewer.key(key(code))); check(viewer.key(key(code, android.view.KeyEvent.ACTION_UP))) }
+        repeat(3) { press(android.view.KeyEvent.KEYCODE_DPAD_RIGHT) }
+        val x = viewer.cursor.x
+        check(x > w / 2f) { "Right moves the pointer right: $x of $w" }
+        settle()
+        captureScreenRoboImage(File(out, "web-viewer.png").path)
+        press(android.view.KeyEvent.KEYCODE_DPAD_CENTER)
+        check(page.calls.last() == "click ${x.toInt()},${(h / 2f).toInt()}") { "OK clicks where the pointer is: ${page.calls}" }
+        // Held down, it speeds up and stops at the edge; then the page scrolls
+        for (r in 0 until 60) viewer.key(key(android.view.KeyEvent.KEYCODE_DPAD_DOWN, repeat = r))
+        check(page.calls.any { it.startsWith("scroll 0,") }) { "at the bottom the page scrolls: ${page.calls}" }
+        check(viewer.cursor.y < h) { "the pointer stays on screen" }
+        // Back: a page back, then out
+        press(android.view.KeyEvent.KEYCODE_BACK)
+        check(page.calls.last() == "back" && !left) { "Back goes a page back first" }
+        press(android.view.KeyEvent.KEYCODE_BACK)
+        check(left) { "then leaves" }
+        // Held OK: the menu, not a click
+        val clicks = page.calls.count { it.startsWith("click") }
+        check(viewer.key(key(android.view.KeyEvent.KEYCODE_DPAD_CENTER)))
+        check(viewer.key(key(android.view.KeyEvent.KEYCODE_DPAD_CENTER, repeat = 1, held = 500)))
+        check(viewer.menuOpen) { "holding OK opens the menu" }
+        settle()
+        compose.onNodeWithText("Text size · 100%").assertExists()
+        compose.onNodeWithText("Ask for the TV version").assertExists()
+        captureScreenRoboImage(File(out, "web-viewer-menu.png").path)
+        check(page.calls.count { it.startsWith("click") } == clicks) { "holding OK clicks nothing" }
+        viewer.menuClosed()
+        viewer.change(viewer.shortcut.copy(pointer = false))
+        check(saved?.pointer == false) { "a change is kept" }
+        // Jumping between links: the arrows go to the page
+        press(android.view.KeyEvent.KEYCODE_DPAD_LEFT)
+        check(page.calls.last() == "key ${android.view.KeyEvent.KEYCODE_DPAD_LEFT}") { "arrows go to the page: ${page.calls}" }
+    }
+
     private val beniSaf = Place("Beni Saf", "Aïn Témouchent", "Algeria", 35.30099, -1.38226)
 
     /** Settings → Widgets → Weather location: Automatic, or a town found by name. */
@@ -1505,6 +1664,7 @@ class Screenshots {
         prayersError: String? = null,
         /** The launcher's language: its words, its dates, and for Arabic the direction it is laid out in. */
         language: Language = Language.English,
+        links: LinkAdder? = null,
     ) {
         check(fixtures.next != null && fixtures.last?.outcome == 'W') { "fixtures didn't parse: $fixtures" }
         Lang.current = language
@@ -1529,6 +1689,7 @@ class Screenshots {
                 notices = kept,
                 onDismissNotice = { n -> kept = kept.filter { it.id != n.id } },
                 share = share,
+                links = links,
                 safeMode = safeMode,
                 prayers = prayers,
                 prayersError = prayersError,

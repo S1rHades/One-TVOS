@@ -198,6 +198,9 @@ class FileShare(
     /** Each file as it arrives. */
     val arrivals = MutableSharedFlow<SharedFile>(extraBufferCapacity = 16)
 
+    /** Links a paired phone sends (Send a link), with the phone's name, to add as an app or website. */
+    val sentLinks = MutableSharedFlow<Pair<String, String>>(extraBufferCapacity = 8)
+
     @Volatile private var socket: ServerSocket? = null
     private var pool: ThreadPoolExecutor? = null
     private val uploads = Semaphore(2)
@@ -495,6 +498,14 @@ class FileShare(
                         respond(out, 200, "application/json", filesJson())
                     }
                     request.method == "PUT" && request.path == "/api/upload" -> receive(request, device, out)
+                    request.method == "POST" && request.path == "/api/link" -> {
+                        if (request.headers["x-pill"] != "1") return respond(out, 403, "text/plain", tr("Use the TV's page to do that"))
+                        val link = normaliseLink(request.params["url"].orEmpty().take(2000))
+                            ?: return respond(out, 400, "text/plain", tr("That isn't a web link. Check it and try again"))
+                        val from = senderOf(request.headers["user-agent"]).ifEmpty { device.name }
+                        sentLinks.tryEmit(link to from)
+                        respond(out, 200, "text/plain", tr("On the TV: choose it in the notification bar"))
+                    }
                     request.method == "GET" && request.path == "/api/file" -> send(file(request.params["name"].orEmpty()), out)
                     else -> respond(out, 404, "text/plain", tr("Not found"))
                 }

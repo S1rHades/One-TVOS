@@ -75,6 +75,15 @@
             </intent-filter>
         </activity>
 
+        <!-- A web shortcut open full screen: one site at a time, in its own task -->
+        <activity
+            android:name=".WebAppActivity"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:taskAffinity="app.pill.launcher.web"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode"
+            android:screenOrientation="landscape" />
+
         <receiver
             android:name=".BootReceiver"
             android:exported="true">

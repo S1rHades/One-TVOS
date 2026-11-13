@@ -14,6 +14,8 @@ val FrenchText: Map<String, String> = HashMap<String, String>(1024).apply {
     frenchtext7(this)
     frenchtext8(this)
     frenchtext9(this)
+    frenchtext10(this)
+    frenchtext11(this)
 }
 
 private fun frenchtext1(m: MutableMap<String, String>) {
@@ -41,6 +43,8 @@ private fun frenchtext1(m: MutableMap<String, String>) {
     m["Open the TV's address directly"] = "Ouvrez directement l'adresse de la TV"
     m["Use the TV's page to do that"] = "Utilisez la page de la TV pour faire cela"
     m["Pair this phone with the TV first"] = "Associez d'abord ce téléphone à la TV"
+    m["That isn't a web link. Check it and try again"] = "Ce n'est pas une adresse web. Vérifiez-la et réessayez"
+    m["On the TV: choose it in the notification bar"] = "Sur la TV : choisissez-le dans la barre de notifications"
     m["Not found"] = "Introuvable"
     m["Too many wrong codes. Try again in 10 minutes"] = "Trop de codes erronés. Réessayez dans 10 minutes"
     m["That code didn't work"] = "Ce code n'a pas fonctionné"
@@ -73,6 +77,28 @@ private fun frenchtext1(m: MutableMap<String, String>) {
     m["This TV doesn't let apps change the home screen. Turn on the Home button helper below instead."] = "Cette TV ne laisse pas les applis changer l'écran d'accueil. Activez plutôt l'assistant du bouton Accueil ci-dessous."
     m["Couldn't open the permission screen on this TV."] = "Impossible d'ouvrir l'écran d'autorisation sur cette TV."
     m["Couldn't open Accessibility settings on this TV."] = "Impossible d'ouvrir les paramètres d'accessibilité sur cette TV."
+    // Links.kt
+    m["Installed · added to Favorites"] = "Installée · ajoutée aux favoris"
+    m["Couldn't open the link: %1\$s"] = "Impossible d'ouvrir le lien : %1\$s"
+    m["%1\$s is on the home screen, in Favorites"] = "%1\$s est sur l'écran d'accueil, dans les favoris"
+    m["Opened in the Play Store · it joins Favorites once installed"] = "Ouvert dans le Play Store · ajouté aux favoris une fois installé"
+    m["This TV has no Play Store"] = "Cette TV n'a pas de Play Store"
+    m["Allow Pill Launcher to install apps, then choose Download and install again"] = "Autorisez Pill Launcher à installer des applis, puis choisissez à nouveau Télécharger et installer"
+    m["Allow it in the TV's Settings → Apps → Special app access → Install unknown apps"] = "Autorisez-le dans Paramètres de la TV → Applis → Accès spécial → Installer des applis inconnues"
+    m["The download isn't an Android app"] = "Le fichier téléchargé n'est pas une appli Android"
+    m["That is Pill Launcher itself: update it from Settings → TV & system → Updates"] = "C'est Pill Launcher lui-même : mettez-le à jour dans Paramètres → TV et système → Mises à jour"
+    m["Couldn't install it: %1\$s"] = "Installation impossible : %1\$s"
+    m["That app is already on the TV"] = "Cette appli est déjà sur la TV"
+    m["The link led nowhere"] = "Le lien ne mène nulle part"
+    m["The site answered %1\$s"] = "Le site a répondu %1\$s"
+    m["Too many redirects"] = "Trop de redirections"
+    m["no site at that address, or the TV is offline"] = "aucun site à cette adresse, ou la TV est hors ligne"
+    m["the connection timed out"] = "la connexion a expiré"
+    m["a secure connection to the site failed"] = "la connexion sécurisée au site a échoué"
+    m["Android didn't allow it"] = "Android ne l'a pas autorisé"
+}
+
+private fun frenchtext2(m: MutableMap<String, String>) {
     // MainActivity.kt
     m["Can't reach GitHub right now"] = "GitHub est injoignable pour le moment"
     m["Removed %1\$s"] = "%1\$s supprimé"
@@ -80,7 +106,6 @@ private fun frenchtext1(m: MutableMap<String, String>) {
     m["%1\$s goes tomorrow"] = "%1\$s sera supprimé demain"
     m["Files keeps things for 30 days · save it on a phone to keep it"] = "Fichiers garde les éléments 30 jours · enregistrez-le sur un téléphone pour le conserver"
     m["Allow Pill Launcher to install apps, then choose Update again"] = "Autorisez Pill Launcher à installer des applis, puis choisissez de nouveau Mettre à jour"
-    m["Allow it in the TV's Settings → Apps → Special app access → Install unknown apps"] = "Autorisez-le dans Paramètres de la TV → Applis → Accès spécial → Installer des applis inconnues"
     m["Couldn't download it: "] = "Téléchargement impossible : "
     m["Couldn't start the install: "] = "Impossible de lancer l'installation : "
     m["Allow Pill Launcher to install apps, then choose Install again"] = "Autorisez Pill Launcher à installer des applis, puis choisissez de nouveau Installer"
@@ -111,9 +136,6 @@ private fun frenchtext1(m: MutableMap<String, String>) {
     // Moments.kt
     m["Goal"] = "But"
     m["%1\$s win %2\$s–%3\$s"] = "Victoire : %1\$s %2\$s–%3\$s"
-}
-
-private fun frenchtext2(m: MutableMap<String, String>) {
     // News.kt
     m["Empty feed"] = "Flux vide"
     m["Direct: %1\$s; GitHub copy: %2\$s"] = "Direct : %1\$s ; copie GitHub : %2\$s"
@@ -148,6 +170,8 @@ private fun frenchtext2(m: MutableMap<String, String>) {
     m[" · OK to open"] = " · OK pour ouvrir"
     m["%1\$s: its app is installed"] = "%1\$s : son appli est installée"
     m["OK to delete the file · hold OK to keep it"] = "OK pour supprimer le fichier · maintenez OK pour le garder"
+    m["Link from %1\$s"] = "Lien de %1\$s"
+    m["%1\$s · OK to add it"] = "%1\$s · OK pour l'ajouter"
     m["This TV hides Notification access. From a computer: %1\$s"] = "Cette TV masque l'accès aux notifications. Depuis un ordinateur : %1\$s"
     m["Pill Launcher"] = "Pill Launcher"
     m["Football"] = "Football"
@@ -157,6 +181,9 @@ private fun frenchtext2(m: MutableMap<String, String>) {
     // PhotoFeed.kt
     m["The photo list is empty"] = "La liste de photos est vide"
     m["%1\$s · Wikimedia Commons"] = "%1\$s · Wikimedia Commons"
+}
+
+private fun frenchtext3(m: MutableMap<String, String>) {
     // Prayers.kt
     m["Mosque %1\$s"] = "Mosquée %1\$s"
     m["in %1\$s min"] = "dans %1\$s min"
@@ -186,9 +213,7 @@ private fun frenchtext2(m: MutableMap<String, String>) {
     m["GitHub answered %1\$s"] = "GitHub a répondu %1\$s"
     m["The newest release has no APK"] = "La dernière version n'a pas d'APK"
     m["The download was empty"] = "Le téléchargement était vide"
-    m["GitHub gave no download link"] = "GitHub n'a pas donné de lien de téléchargement"
     m["The download was cut short"] = "Le téléchargement a été interrompu"
-    m["Too many redirects"] = "Trop de redirections"
     m["Android couldn't show the install screen"] = "Android n'a pas pu afficher l'écran d'installation"
     m["The update was cancelled"] = "La mise à jour a été annulée"
     m["This copy was signed differently: uninstall it, then install the new one from GitHub"] = "Cette copie a été signée différemment : désinstallez-la, puis installez la nouvelle depuis GitHub"
@@ -196,13 +221,14 @@ private fun frenchtext2(m: MutableMap<String, String>) {
     m["This TV can't install the update"] = "Cette TV ne peut pas installer la mise à jour"
     m["The TV blocked the update"] = "La TV a bloqué la mise à jour"
     m["The update couldn't be installed"] = "La mise à jour n'a pas pu être installée"
+    m["The install was cancelled"] = "L'installation a été annulée"
+    m["A copy of this app signed by someone else is already installed: uninstall it first"] = "Une copie de cette appli signée par quelqu'un d'autre est déjà installée : désinstallez-la d'abord"
+    m["Not enough space on the TV for this app"] = "Pas assez d'espace sur la TV pour cette appli"
+    m["This app doesn't run on this TV"] = "Cette appli ne fonctionne pas sur cette TV"
+    m["The TV blocked the install"] = "La TV a bloqué l'installation"
+    m["The app couldn't be installed"] = "L'appli n'a pas pu être installée"
     m["can't reach GitHub"] = "GitHub injoignable"
-    m["the connection timed out"] = "la connexion a expiré"
     m["a secure connection to GitHub failed"] = "la connexion sécurisée à GitHub a échoué"
-    m["Android didn't allow it"] = "Android ne l'a pas autorisé"
-}
-
-private fun frenchtext3(m: MutableMap<String, String>) {
     // Weather.kt
     m["Clear"] = "Dégagé"
     m["Mostly clear"] = "Plutôt dégagé"
@@ -219,6 +245,11 @@ private fun frenchtext3(m: MutableMap<String, String>) {
     m["Open-Meteo"] = "Open-Meteo"
     m["No forecast steps"] = "Aucune étape de prévision"
     m["MET Norway"] = "MET Norway"
+    // WebAppActivity.kt
+    m["No site at that address, or the TV is offline"] = "Aucun site à cette adresse, ou la TV est hors ligne"
+    m["The site didn't answer"] = "Le site n'a pas répondu"
+    m["A secure connection to the site failed"] = "La connexion sécurisée au site a échoué"
+    m["The page didn't load"] = "La page ne s'est pas chargée"
     // Widgets.kt
     m["Clock"] = "Horloge"
     m["Time and date"] = "Heure et date"
@@ -234,6 +265,35 @@ private fun frenchtext3(m: MutableMap<String, String>) {
     m["Today's prayers from your mosque on MAWAQIT, with the next one counted down"] = "Les prières du jour de votre mosquée sur MAWAQIT, avec le compte à rebours de la prochaine"
     m["Widget stack"] = "Pile de widgets"
     m["Several widgets in one place, taking turns"] = "Plusieurs widgets au même endroit, à tour de rôle"
+}
+
+private fun frenchtext4(m: MutableMap<String, String>) {
+    // ui/AddLinkPage.kt
+    m["Not available in safe mode"] = "Indisponible en mode sans échec"
+    m["Link"] = "Lien"
+    m["Web address, e.g. youtube.com/tv"] = "Adresse web, p. ex. youtube.com/tv"
+    m["Check this link"] = "Vérifier ce lien"
+    m["A website, an app to install (.apk) or a Play Store page"] = "Un site, une appli à installer (.apk) ou une page du Play Store"
+    m["Typing is easier on a phone: open Files on the phone and use Send a link"] = "C'est plus simple de taper sur un téléphone : ouvrez Fichiers sur le téléphone et utilisez Envoyer un lien"
+    m["What it is"] = "Ce que c'est"
+    m["Looking at %1\$s…"] = "Examen de %1\$s…"
+    m["Downloading · %1\$s%%"] = "Téléchargement · %1\$s %%"
+    m["OK to stop"] = "OK pour arrêter"
+    m["Android asks you to confirm the install on screen"] = "Android vous demande de confirmer l'installation à l'écran"
+    m["Add to the home screen"] = "Ajouter à l'écran d'accueil"
+    m["Download and install"] = "Télécharger et installer"
+    m["Open in the Play Store"] = "Ouvrir dans le Play Store"
+    m["A tile in Favorites that opens the site full screen"] = "Une tuile dans les favoris qui ouvre le site en plein écran"
+    m["Android asks you to confirm · it joins Favorites once installed"] = "Android demande de confirmer · ajoutée aux favoris une fois installée"
+    m["Install it there · it joins Favorites once installed"] = "Installez-la là-bas · ajoutée aux favoris une fois installée"
+    m["Web shortcuts"] = "Raccourcis web"
+    m["OK again to remove it"] = "OK encore pour le retirer"
+    m[" · OK to remove"] = " · OK pour retirer"
+    m["Rename one, or move it along Favorites, by holding OK on its tile"] = "Renommez-en un, ou déplacez-le dans les favoris, en maintenant OK sur sa tuile"
+    m["Website · %1\$s"] = "Site · %1\$s"
+    m["App to install · %1\$s · from %2\$s"] = "Appli à installer · %1\$s · depuis %2\$s"
+    m["App to install · from %1\$s"] = "Appli à installer · depuis %1\$s"
+    m["App on the Play Store"] = "Appli sur le Play Store"
     // ui/AllApps.kt
     m["All"] = "Toutes"
     // ui/AppMenu.kt
@@ -245,6 +305,7 @@ private fun frenchtext3(m: MutableMap<String, String>) {
     m["Its own name: %1\$s"] = "Son propre nom : %1\$s"
     m["App info"] = "Infos sur l'appli"
     m["In the TV's settings"] = "Dans les paramètres de la TV"
+    m["Remove shortcut"] = "Retirer le raccourci"
     m["Uninstall"] = "Désinstaller"
     // ui/ClockPage.kt
     m["Week %1\$s · day %2\$s of %3\$s"] = "Semaine %1\$s · jour %2\$s sur %3\$s"
@@ -287,7 +348,7 @@ private fun frenchtext3(m: MutableMap<String, String>) {
     m["%1\$s of %2\$s"] = "%1\$s sur %2\$s"
 }
 
-private fun frenchtext4(m: MutableMap<String, String>) {
+private fun frenchtext5(m: MutableMap<String, String>) {
     // ui/FootballCard.kt
     m["Loading fixtures…"] = "Chargement des matchs…"
     m["Goal · "] = "But · "
@@ -363,7 +424,7 @@ private fun frenchtext4(m: MutableMap<String, String>) {
     m["Pill Launcher is ready. Settings has the rest whenever you want it."] = "Pill Launcher est prêt. Les Paramètres ont le reste quand vous voudrez."
 }
 
-private fun frenchtext5(m: MutableMap<String, String>) {
+private fun frenchtext6(m: MutableMap<String, String>) {
     // ui/InternetPage.kt
     m["The test didn't finish"] = "Le test ne s'est pas terminé"
     m["Network settings"] = "Paramètres réseau"
@@ -453,7 +514,7 @@ private fun frenchtext5(m: MutableMap<String, String>) {
     m["Online"] = "En ligne"
 }
 
-private fun frenchtext6(m: MutableMap<String, String>) {
+private fun frenchtext7(m: MutableMap<String, String>) {
     // ui/NotificationBar.kt
     m["Clear all"] = "Tout effacer"
     m["Notifications, %1\$s new"] = "Notifications, %1\$s nouvelles"
@@ -518,7 +579,7 @@ private fun frenchtext6(m: MutableMap<String, String>) {
     m["Search the TV, films and shows"] = "Rechercher sur la TV, des films et des séries"
 }
 
-private fun frenchtext7(m: MutableMap<String, String>) {
+private fun frenchtext8(m: MutableMap<String, String>) {
     // ui/SettingsPanel.kt
     m["Photo slideshow"] = "Diaporama de photos"
     m["Can't load photos: %1\$s"] = "Impossible de charger les photos : %1\$s"
@@ -584,6 +645,7 @@ private fun frenchtext7(m: MutableMap<String, String>) {
     m["Maximum of %1\$s widgets can be active at once"] = "%1\$s widgets au maximum peuvent être actifs en même temps"
     m["%1\$s s"] = "%1\$s s"
     m["Same as the TV"] = "Comme la TV"
+    m["From a link: a website, or an app to install"] = "Depuis un lien : un site, ou une appli à installer"
     m["Photos every %1\$s"] = "Photos toutes les %1\$s"
     m["One photo"] = "Une seule photo"
     m["no idle screen"] = "pas d'écran de veille"
@@ -614,13 +676,14 @@ private fun frenchtext7(m: MutableMap<String, String>) {
     m["Background"] = "Arrière-plan"
     m["Favorites row"] = "Rangée des favoris"
     m["Idle screen"] = "Écran de veille"
+    m["Add an app or website"] = "Ajouter une appli ou un site"
     m["Updates"] = "Mises à jour"
     m["Language"] = "Langue"
     m["Football teams"] = "Équipes de football"
     m["Weather location"] = "Lieu de la météo"
 }
 
-private fun frenchtext8(m: MutableMap<String, String>) {
+private fun frenchtext9(m: MutableMap<String, String>) {
     // ui/SettingsParts.kt
     m["Advanced"] = "Avancé"
     // ui/SettingsPill.kt
@@ -706,7 +769,7 @@ private fun frenchtext8(m: MutableMap<String, String>) {
     m["Removes the launcher and its settings; the TV's own home screen takes over"] = "Supprime le lanceur et ses réglages ; l'écran d'accueil d'origine de la TV reprend la main"
 }
 
-private fun frenchtext9(m: MutableMap<String, String>) {
+private fun frenchtext10(m: MutableMap<String, String>) {
     // ui/SettingsWidgetPages.kt
     m["Following · %1\$s of %2\$s · Left / Right moves"] = "Suivies · %1\$s sur %2\$s · Gauche / Droite déplace"
     m["Loads with the next refresh"] = "Se charge à la prochaine actualisation"
@@ -782,6 +845,26 @@ private fun frenchtext9(m: MutableMap<String, String>) {
     m["%1\$s free"] = "%1\$s libres"
     // ui/WeatherWidget.kt
     m["H %1\$s   L %2\$s"] = "Max %1\$s   Min %2\$s"
+    // ui/WebAppPage.kt
+    m["Can't open %1\$s"] = "Impossible d'ouvrir %1\$s"
+    m["OK to try again · Back to leave"] = "OK pour réessayer · Retour pour quitter"
+    m["Arrows move the pointer · OK clicks · Hold OK for options"] = "Les flèches déplacent le pointeur · OK clique · Maintenez OK pour les options"
+    m["Arrows jump between links · OK opens · Hold OK for options"] = "Les flèches passent d'un lien à l'autre · OK ouvre · Maintenez OK pour les options"
+    m["Reload"] = "Recharger"
+    m["Text size · %1\$s%%"] = "Taille du texte · %1\$s %%"
+    m["OK for the next size"] = "OK pour la taille suivante"
+    m["Jump between links"] = "Passer d'un lien à l'autre"
+    m["For pages made for a remote"] = "Pour les pages faites pour une télécommande"
+    m["Use the pointer"] = "Utiliser le pointeur"
+    m["Arrows move it, OK clicks"] = "Les flèches le déplacent, OK clique"
+    m["Ask for the usual version"] = "Demander la version habituelle"
+    m["Ask for the TV version"] = "Demander la version TV"
+    m["Now asking for the TV version"] = "La version TV est demandée"
+    m["Some sites have one made for a remote"] = "Certains sites en ont une faite pour la télécommande"
+    m["Back to the home screen"] = "Retour à l'écran d'accueil"
+}
+
+private fun frenchtext11(m: MutableMap<String, String>) {
     // ui/WidgetCards.kt
     m["Can't reach the weather service"] = "Service météo inaccessible"
     m["No weather right now"] = "Pas de météo pour le moment"
@@ -809,6 +892,8 @@ val ArabicText: Map<String, String> = HashMap<String, String>(1024).apply {
     arabictext7(this)
     arabictext8(this)
     arabictext9(this)
+    arabictext10(this)
+    arabictext11(this)
 }
 
 private fun arabictext1(m: MutableMap<String, String>) {
@@ -836,6 +921,8 @@ private fun arabictext1(m: MutableMap<String, String>) {
     m["Open the TV's address directly"] = "افتح عنوان التلفاز مباشرة"
     m["Use the TV's page to do that"] = "استخدم صفحة التلفاز للقيام بذلك"
     m["Pair this phone with the TV first"] = "اقرن هذا الهاتف بالتلفاز أولًا"
+    m["That isn't a web link. Check it and try again"] = "هذا ليس رابط ويب. تحقّق منه وحاول مجددًا"
+    m["On the TV: choose it in the notification bar"] = "على التلفاز: اختره من شريط الإشعارات"
     m["Not found"] = "غير موجود"
     m["Too many wrong codes. Try again in 10 minutes"] = "رموز خاطئة كثيرة. حاول مجددًا بعد 10 دقائق"
     m["That code didn't work"] = "هذا الرمز لم ينجح"
@@ -868,6 +955,28 @@ private fun arabictext1(m: MutableMap<String, String>) {
     m["This TV doesn't let apps change the home screen. Turn on the Home button helper below instead."] = "هذا التلفاز لا يسمح للتطبيقات بتغيير الشاشة الرئيسية. فعّل مساعد زر الرئيسية أدناه بدلًا من ذلك."
     m["Couldn't open the permission screen on this TV."] = "تعذّر فتح شاشة الإذن على هذا التلفاز."
     m["Couldn't open Accessibility settings on this TV."] = "تعذّر فتح إعدادات إمكانية الوصول على هذا التلفاز."
+    // Links.kt
+    m["Installed · added to Favorites"] = "تم التثبيت · أُضيف إلى المفضلة"
+    m["Couldn't open the link: %1\$s"] = "تعذّر فتح الرابط: %1\$s"
+    m["%1\$s is on the home screen, in Favorites"] = "%1\$s على الشاشة الرئيسية، في المفضلة"
+    m["Opened in the Play Store · it joins Favorites once installed"] = "فُتح في متجر Play · يُضاف إلى المفضلة بعد تثبيته"
+    m["This TV has no Play Store"] = "لا يوجد متجر Play على هذا التلفاز"
+    m["Allow Pill Launcher to install apps, then choose Download and install again"] = "اسمح لـ Pill Launcher بتثبيت التطبيقات، ثم اختر «تنزيل وتثبيت» مجددًا"
+    m["Allow it in the TV's Settings → Apps → Special app access → Install unknown apps"] = "اسمح به في إعدادات التلفاز ← التطبيقات ← وصول خاص ← تثبيت تطبيقات غير معروفة"
+    m["The download isn't an Android app"] = "الملف الذي نُزّل ليس تطبيق أندرويد"
+    m["That is Pill Launcher itself: update it from Settings → TV & system → Updates"] = "هذا Pill Launcher نفسه: حدّثه من الإعدادات ← التلفاز والنظام ← التحديثات"
+    m["Couldn't install it: %1\$s"] = "تعذّر تثبيته: %1\$s"
+    m["That app is already on the TV"] = "هذا التطبيق موجود على التلفاز"
+    m["The link led nowhere"] = "الرابط لا يؤدي إلى أي مكان"
+    m["The site answered %1\$s"] = "ردّ الموقع بـ %1\$s"
+    m["Too many redirects"] = "عمليات إعادة توجيه كثيرة"
+    m["no site at that address, or the TV is offline"] = "لا يوجد موقع بهذا العنوان، أو التلفاز غير متصل"
+    m["the connection timed out"] = "انتهت مهلة الاتصال"
+    m["a secure connection to the site failed"] = "فشل الاتصال الآمن بالموقع"
+    m["Android didn't allow it"] = "لم يسمح أندرويد بذلك"
+}
+
+private fun arabictext2(m: MutableMap<String, String>) {
     // MainActivity.kt
     m["Can't reach GitHub right now"] = "تعذّر الوصول إلى GitHub الآن"
     m["Removed %1\$s"] = "حُذف %1\$s"
@@ -875,7 +984,6 @@ private fun arabictext1(m: MutableMap<String, String>) {
     m["%1\$s goes tomorrow"] = "سيُحذف %1\$s غدًا"
     m["Files keeps things for 30 days · save it on a phone to keep it"] = "تحتفظ «الملفات» بالعناصر 30 يومًا · احفظه على هاتف للاحتفاظ به"
     m["Allow Pill Launcher to install apps, then choose Update again"] = "اسمح لـ Pill Launcher بتثبيت التطبيقات ثم اختر «تحديث» مجددًا"
-    m["Allow it in the TV's Settings → Apps → Special app access → Install unknown apps"] = "اسمح به في إعدادات التلفاز ← التطبيقات ← وصول خاص ← تثبيت تطبيقات غير معروفة"
     m["Couldn't download it: "] = "تعذّر التنزيل: "
     m["Couldn't start the install: "] = "تعذّر بدء التثبيت: "
     m["Allow Pill Launcher to install apps, then choose Install again"] = "اسمح لـ Pill Launcher بتثبيت التطبيقات ثم اختر «تثبيت» مجددًا"
@@ -906,9 +1014,6 @@ private fun arabictext1(m: MutableMap<String, String>) {
     // Moments.kt
     m["Goal"] = "هدف"
     m["%1\$s win %2\$s–%3\$s"] = "فوز %1\$s ⁦%2\$s–%3\$s⁩"
-}
-
-private fun arabictext2(m: MutableMap<String, String>) {
     // News.kt
     m["Empty feed"] = "الخلاصة فارغة"
     m["Direct: %1\$s; GitHub copy: %2\$s"] = "مباشر: %1\$s؛ نسخة GitHub: %2\$s"
@@ -943,6 +1048,8 @@ private fun arabictext2(m: MutableMap<String, String>) {
     m[" · OK to open"] = " · اضغط OK للفتح"
     m["%1\$s: its app is installed"] = "%1\$s: تطبيقه مثبّت"
     m["OK to delete the file · hold OK to keep it"] = "اضغط OK لحذف الملف · اضغط مطولًا للاحتفاظ به"
+    m["Link from %1\$s"] = "رابط من %1\$s"
+    m["%1\$s · OK to add it"] = "%1\$s · OK لإضافته"
     m["This TV hides Notification access. From a computer: %1\$s"] = "هذا التلفاز يخفي «الوصول إلى الإشعارات». من حاسوب: %1\$s"
     m["Pill Launcher"] = "Pill Launcher"
     m["Football"] = "كرة القدم"
@@ -952,6 +1059,9 @@ private fun arabictext2(m: MutableMap<String, String>) {
     // PhotoFeed.kt
     m["The photo list is empty"] = "قائمة الصور فارغة"
     m["%1\$s · Wikimedia Commons"] = "%1\$s · ويكيميديا كومنز"
+}
+
+private fun arabictext3(m: MutableMap<String, String>) {
     // Prayers.kt
     m["Mosque %1\$s"] = "مسجد %1\$s"
     m["in %1\$s min"] = "بعد %1\$s د"
@@ -981,9 +1091,7 @@ private fun arabictext2(m: MutableMap<String, String>) {
     m["GitHub answered %1\$s"] = "ردّ GitHub بـ %1\$s"
     m["The newest release has no APK"] = "أحدث إصدار لا يحتوي على APK"
     m["The download was empty"] = "التنزيل كان فارغًا"
-    m["GitHub gave no download link"] = "لم يُعطِ GitHub رابط تنزيل"
     m["The download was cut short"] = "انقطع التنزيل قبل اكتماله"
-    m["Too many redirects"] = "عمليات إعادة توجيه كثيرة"
     m["Android couldn't show the install screen"] = "تعذّر على أندرويد عرض شاشة التثبيت"
     m["The update was cancelled"] = "أُلغي التحديث"
     m["This copy was signed differently: uninstall it, then install the new one from GitHub"] = "هذه النسخة موقّعة بشكل مختلف: أزلها ثم ثبّت الجديدة من GitHub"
@@ -991,13 +1099,14 @@ private fun arabictext2(m: MutableMap<String, String>) {
     m["This TV can't install the update"] = "هذا التلفاز لا يستطيع تثبيت التحديث"
     m["The TV blocked the update"] = "حظر التلفاز التحديث"
     m["The update couldn't be installed"] = "تعذّر تثبيت التحديث"
+    m["The install was cancelled"] = "أُلغي التثبيت"
+    m["A copy of this app signed by someone else is already installed: uninstall it first"] = "نسخة من هذا التطبيق موقّعة من جهة أخرى مثبّتة: أزلها أولًا"
+    m["Not enough space on the TV for this app"] = "لا توجد مساحة كافية على التلفاز لهذا التطبيق"
+    m["This app doesn't run on this TV"] = "هذا التطبيق لا يعمل على هذا التلفاز"
+    m["The TV blocked the install"] = "منع التلفاز التثبيت"
+    m["The app couldn't be installed"] = "تعذّر تثبيت التطبيق"
     m["can't reach GitHub"] = "تعذّر الوصول إلى GitHub"
-    m["the connection timed out"] = "انتهت مهلة الاتصال"
     m["a secure connection to GitHub failed"] = "فشل الاتصال الآمن بـ GitHub"
-    m["Android didn't allow it"] = "لم يسمح أندرويد بذلك"
-}
-
-private fun arabictext3(m: MutableMap<String, String>) {
     // Weather.kt
     m["Clear"] = "صافٍ"
     m["Mostly clear"] = "صافٍ غالبًا"
@@ -1014,6 +1123,11 @@ private fun arabictext3(m: MutableMap<String, String>) {
     m["Open-Meteo"] = "Open-Meteo"
     m["No forecast steps"] = "لا توجد بيانات توقعات"
     m["MET Norway"] = "MET Norway"
+    // WebAppActivity.kt
+    m["No site at that address, or the TV is offline"] = "لا يوجد موقع بهذا العنوان، أو التلفاز غير متصل"
+    m["The site didn't answer"] = "لم يستجب الموقع"
+    m["A secure connection to the site failed"] = "فشل الاتصال الآمن بالموقع"
+    m["The page didn't load"] = "لم تُحمَّل الصفحة"
     // Widgets.kt
     m["Clock"] = "الساعة"
     m["Time and date"] = "الوقت والتاريخ"
@@ -1029,6 +1143,35 @@ private fun arabictext3(m: MutableMap<String, String>) {
     m["Today's prayers from your mosque on MAWAQIT, with the next one counted down"] = "صلوات اليوم من مسجدك على «مواقيت» مع العدّ التنازلي للصلاة القادمة"
     m["Widget stack"] = "مجموعة الودجات"
     m["Several widgets in one place, taking turns"] = "عدة ودجات في مكان واحد تتناوب على الظهور"
+}
+
+private fun arabictext4(m: MutableMap<String, String>) {
+    // ui/AddLinkPage.kt
+    m["Not available in safe mode"] = "غير متاح في الوضع الآمن"
+    m["Link"] = "الرابط"
+    m["Web address, e.g. youtube.com/tv"] = "عنوان ويب، مثل youtube.com/tv"
+    m["Check this link"] = "افحص هذا الرابط"
+    m["A website, an app to install (.apk) or a Play Store page"] = "موقع، أو تطبيق للتثبيت (.apk)، أو صفحة في متجر Play"
+    m["Typing is easier on a phone: open Files on the phone and use Send a link"] = "الكتابة أسهل على الهاتف: افتح الملفات على الهاتف واستخدم «أرسل رابطًا»"
+    m["What it is"] = "ما هو"
+    m["Looking at %1\$s…"] = "جارٍ فحص %1\$s…"
+    m["Downloading · %1\$s%%"] = "جارٍ التنزيل · %1\$s%%"
+    m["OK to stop"] = "OK للإيقاف"
+    m["Android asks you to confirm the install on screen"] = "يطلب أندرويد تأكيد التثبيت على الشاشة"
+    m["Add to the home screen"] = "أضف إلى الشاشة الرئيسية"
+    m["Download and install"] = "تنزيل وتثبيت"
+    m["Open in the Play Store"] = "افتح في متجر Play"
+    m["A tile in Favorites that opens the site full screen"] = "مربع في المفضلة يفتح الموقع بملء الشاشة"
+    m["Android asks you to confirm · it joins Favorites once installed"] = "يطلب أندرويد التأكيد · يُضاف إلى المفضلة بعد تثبيته"
+    m["Install it there · it joins Favorites once installed"] = "ثبّته هناك · يُضاف إلى المفضلة بعد تثبيته"
+    m["Web shortcuts"] = "اختصارات الويب"
+    m["OK again to remove it"] = "OK مجددًا لإزالته"
+    m[" · OK to remove"] = " · OK للإزالة"
+    m["Rename one, or move it along Favorites, by holding OK on its tile"] = "لإعادة تسمية اختصار أو تحريكه في المفضلة، اضغط مطولًا على OK فوق مربعه"
+    m["Website · %1\$s"] = "موقع · %1\$s"
+    m["App to install · %1\$s · from %2\$s"] = "تطبيق للتثبيت · %1\$s · من %2\$s"
+    m["App to install · from %1\$s"] = "تطبيق للتثبيت · من %1\$s"
+    m["App on the Play Store"] = "تطبيق في متجر Play"
     // ui/AllApps.kt
     m["All"] = "الكل"
     // ui/AppMenu.kt
@@ -1040,6 +1183,7 @@ private fun arabictext3(m: MutableMap<String, String>) {
     m["Its own name: %1\$s"] = "اسمه الأصلي: %1\$s"
     m["App info"] = "معلومات التطبيق"
     m["In the TV's settings"] = "في إعدادات التلفاز"
+    m["Remove shortcut"] = "إزالة الاختصار"
     m["Uninstall"] = "إزالة التثبيت"
     // ui/ClockPage.kt
     m["Week %1\$s · day %2\$s of %3\$s"] = "الأسبوع %1\$s · اليوم %2\$s من %3\$s"
@@ -1082,7 +1226,7 @@ private fun arabictext3(m: MutableMap<String, String>) {
     m["%1\$s of %2\$s"] = "%1\$s من %2\$s"
 }
 
-private fun arabictext4(m: MutableMap<String, String>) {
+private fun arabictext5(m: MutableMap<String, String>) {
     // ui/FootballCard.kt
     m["Loading fixtures…"] = "جارٍ تحميل المباريات…"
     m["Goal · "] = "هدف · "
@@ -1158,7 +1302,7 @@ private fun arabictext4(m: MutableMap<String, String>) {
     m["Pill Launcher is ready. Settings has the rest whenever you want it."] = "Pill Launcher جاهز. الباقي في الإعدادات متى شئت."
 }
 
-private fun arabictext5(m: MutableMap<String, String>) {
+private fun arabictext6(m: MutableMap<String, String>) {
     // ui/InternetPage.kt
     m["The test didn't finish"] = "لم يكتمل الاختبار"
     m["Network settings"] = "إعدادات الشبكة"
@@ -1248,7 +1392,7 @@ private fun arabictext5(m: MutableMap<String, String>) {
     m["Online"] = "متصل"
 }
 
-private fun arabictext6(m: MutableMap<String, String>) {
+private fun arabictext7(m: MutableMap<String, String>) {
     // ui/NotificationBar.kt
     m["Clear all"] = "مسح الكل"
     m["Notifications, %1\$s new"] = "الإشعارات، %1\$s جديدة"
@@ -1313,7 +1457,7 @@ private fun arabictext6(m: MutableMap<String, String>) {
     m["Search the TV, films and shows"] = "ابحث في التلفاز والأفلام والمسلسلات"
 }
 
-private fun arabictext7(m: MutableMap<String, String>) {
+private fun arabictext8(m: MutableMap<String, String>) {
     // ui/SettingsPanel.kt
     m["Photo slideshow"] = "عرض الصور المتتابع"
     m["Can't load photos: %1\$s"] = "تعذّر تحميل الصور: %1\$s"
@@ -1379,6 +1523,7 @@ private fun arabictext7(m: MutableMap<String, String>) {
     m["Maximum of %1\$s widgets can be active at once"] = "يمكن تفعيل %1\$s ودجات كحد أقصى في آن واحد"
     m["%1\$s s"] = "%1\$s ث"
     m["Same as the TV"] = "مثل لغة التلفاز"
+    m["From a link: a website, or an app to install"] = "من رابط: موقع، أو تطبيق للتثبيت"
     m["Photos every %1\$s"] = "صور كل %1\$s"
     m["One photo"] = "صورة واحدة"
     m["no idle screen"] = "بلا شاشة سكون"
@@ -1409,13 +1554,14 @@ private fun arabictext7(m: MutableMap<String, String>) {
     m["Background"] = "الخلفية"
     m["Favorites row"] = "صف المفضلة"
     m["Idle screen"] = "شاشة السكون"
+    m["Add an app or website"] = "أضف تطبيقًا أو موقعًا"
     m["Updates"] = "التحديثات"
     m["Language"] = "اللغة"
     m["Football teams"] = "فرق كرة القدم"
     m["Weather location"] = "موقع الطقس"
 }
 
-private fun arabictext8(m: MutableMap<String, String>) {
+private fun arabictext9(m: MutableMap<String, String>) {
     // ui/SettingsParts.kt
     m["Advanced"] = "متقدّم"
     // ui/SettingsPill.kt
@@ -1501,7 +1647,7 @@ private fun arabictext8(m: MutableMap<String, String>) {
     m["Removes the launcher and its settings; the TV's own home screen takes over"] = "يزيل المشغّل وإعداداته؛ وتعود الشاشة الرئيسية الأصلية للتلفاز"
 }
 
-private fun arabictext9(m: MutableMap<String, String>) {
+private fun arabictext10(m: MutableMap<String, String>) {
     // ui/SettingsWidgetPages.kt
     m["Following · %1\$s of %2\$s · Left / Right moves"] = "المتابَعة · %1\$s من %2\$s · يسار / يمين للنقل"
     m["Loads with the next refresh"] = "يُحمَّل مع التحديث القادم"
@@ -1577,6 +1723,26 @@ private fun arabictext9(m: MutableMap<String, String>) {
     m["%1\$s free"] = "%1\$s متاحة"
     // ui/WeatherWidget.kt
     m["H %1\$s   L %2\$s"] = "العظمى %1\$s   الصغرى %2\$s"
+    // ui/WebAppPage.kt
+    m["Can't open %1\$s"] = "تعذّر فتح %1\$s"
+    m["OK to try again · Back to leave"] = "OK لإعادة المحاولة · رجوع للخروج"
+    m["Arrows move the pointer · OK clicks · Hold OK for options"] = "الأسهم تحرّك المؤشر · OK للنقر · اضغط مطولًا على OK للخيارات"
+    m["Arrows jump between links · OK opens · Hold OK for options"] = "الأسهم تنتقل بين الروابط · OK للفتح · اضغط مطولًا على OK للخيارات"
+    m["Reload"] = "إعادة التحميل"
+    m["Text size · %1\$s%%"] = "حجم النص · %1\$s%%"
+    m["OK for the next size"] = "OK للحجم التالي"
+    m["Jump between links"] = "التنقل بين الروابط"
+    m["For pages made for a remote"] = "للصفحات المصمّمة لجهاز التحكم"
+    m["Use the pointer"] = "استخدم المؤشر"
+    m["Arrows move it, OK clicks"] = "الأسهم تحرّكه، OK للنقر"
+    m["Ask for the usual version"] = "اطلب النسخة المعتادة"
+    m["Ask for the TV version"] = "اطلب نسخة التلفاز"
+    m["Now asking for the TV version"] = "تُطلب الآن نسخة التلفاز"
+    m["Some sites have one made for a remote"] = "لبعض المواقع نسخة مصمّمة لجهاز التحكم"
+    m["Back to the home screen"] = "العودة إلى الشاشة الرئيسية"
+}
+
+private fun arabictext11(m: MutableMap<String, String>) {
     // ui/WidgetCards.kt
     m["Can't reach the weather service"] = "تعذّر الوصول إلى خدمة الطقس"
     m["No weather right now"] = "لا بيانات طقس الآن"

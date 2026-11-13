@@ -117,6 +117,18 @@ class FileShareTest {
         assertTrue(back.body.contentEquals(bytes))
     }
 
+    /** Send a link: a paired phone's link reaches the TV tidied (https added), with the phone's name; nonsense is refused. */
+    @Test
+    fun aPhoneSendsALink() = runBlocking {
+        assertEquals(401, call("POST", "/api/link?url=example.com").status)
+        val cookie = scan()
+        val sent = async(start = CoroutineStart.UNDISPATCHED) { withTimeout(5000) { share.sentLinks.first() } }
+        assertEquals(200, call("POST", "/api/link?url=" + URLEncoder.encode("youtube.com/tv", "UTF-8"), cookie).status)
+        assertEquals("https://youtube.com/tv" to "an iPhone", sent.await())
+        assertEquals(400, call("POST", "/api/link?url=not%20a%20link", cookie).status)
+        assertEquals(403, call("POST", "/api/link?url=example.com", cookie, header = false).status)
+    }
+
     @Test
     fun nothingWorksWithoutPairing() {
         assertEquals(200, call("GET", "/", header = false).status)
