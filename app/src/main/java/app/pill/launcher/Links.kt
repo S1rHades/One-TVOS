@@ -271,9 +271,35 @@ val PageZooms = listOf(100, 90, 80, 67)
 /** The next page size after [zoom], back to 100 after the smallest. */
 fun nextPageZoom(zoom: Int): Int = PageZooms.firstOrNull { it < zoom } ?: PageZooms.first()
 
-/** Draws the page at [zoom] percent (CSS zoom on the whole page, so a wide layout fits); 100 takes it off. */
-fun pageZoomScript(zoom: Int): String =
-    "document.documentElement.style.zoom='" + (if (zoom >= 100) "" else String.format(Locale.ROOT, "%.2f", zoom / 100f)) + "'"
+/**
+ * The width, in web pixels, the viewer gives a page at [zoom]: a laptop screen's 1280 at
+ * 100%, so pages lay out as they do on a computer and the whole width is scaled to the TV;
+ * smaller sizes give a wider page (1920 at 67%), drawn smaller.
+ */
+fun fitWidth(zoom: Int): Int = 1280 * 100 / zoom.coerceIn(PageZooms.last(), 100)
+
+/**
+ * Fits a page to the TV: tells it the screen is [fitWidth] web pixels wide and draws it
+ * scaled so that width just fills the viewer ([viewDp] wide; 0 while unknown, when the
+ * page's own idea of its window is used), whatever the page's own viewport line says, and
+ * again if it changes it. Anything still wider is zoomed out until it fits too.
+ */
+fun fitScript(zoom: Int, viewDp: Float = 0f): String {
+    val w = fitWidth(zoom)
+    val view = if (viewDp > 0f) String.format(Locale.ROOT, "%.1f", viewDp) else "Math.min(screen.width,window.outerWidth||screen.width)"
+    return "(function(w,v){var d=document,h=d.documentElement;window.__pillW=w;window.__pillV=v;" +
+        "function vp(){var m=d.querySelector('meta[name=viewport]');" +
+        "if(!m){if(!d.head)return;m=d.createElement('meta');m.name='viewport';d.head.appendChild(m);}" +
+        "var s=(window.__pillV/window.__pillW).toFixed(4);" +
+        "var c='width='+window.__pillW+', initial-scale='+s+', minimum-scale='+s+', maximum-scale='+s;" +
+        "if(m.getAttribute('content')!==c)m.setAttribute('content',c);}" +
+        "function fit(){h.style.zoom='';var sw=Math.max(h.scrollWidth,d.body?d.body.scrollWidth:0);" +
+        "if(sw>window.__pillW+16)h.style.zoom=(window.__pillW/sw).toFixed(3);}" +
+        "vp();if(!window.__pillFit){window.__pillFit=1;" +
+        "if(d.head)new MutationObserver(vp).observe(d.head,{childList:true,subtree:true,attributes:true});" +
+        "window.addEventListener('load',function(){vp();setTimeout(fit,300);});}" +
+        "setTimeout(fit,300);})($w,$view)"
+}
 
 /** The next text size after [zoom], back to 100 after the largest. */
 fun nextTextZoom(zoom: Int): Int = TextZooms.firstOrNull { it > zoom } ?: TextZooms.first()

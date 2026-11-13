@@ -3,6 +3,10 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 4.1.2 (November 2026)
+
+- **Websites fit the TV**: every page is laid out as on a laptop screen (1280 web pixels wide) and scaled so that whole width fills the viewer, whatever size the site asks for; anything still wider is zoomed out until it fits. Sites no longer run off the right of the screen or below it. **Page size** now lays the page out wider (up to a full-HD screen's 1920 at 67%), so everything is smaller.
+
 ## 4.1.1 (November 2026)
 
 The web viewer, after a first try on a TV:
