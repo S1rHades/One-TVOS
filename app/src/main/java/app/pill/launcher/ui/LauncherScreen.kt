@@ -121,6 +121,7 @@ import app.pill.launcher.offlineNotice
 import app.pill.launcher.updateNotice
 import app.pill.launcher.shownNotice
 import app.pill.launcher.InstalledApk
+import app.pill.launcher.SentLink
 import java.io.File
 import kotlinx.coroutines.delay
 
@@ -212,6 +213,8 @@ fun LauncherScreen(
     onNoticeAccess: () -> String? = { null },
     /** Files between phones and the TV; null where there is none. */
     share: FileShare? = null,
+    /** Adding an app or a website from a link, for Settings; null in safe mode. */
+    links: app.pill.launcher.LinkAdder? = null,
     /** Opens a file from the TV with its apps; a message when it can't. */
     onOpenFile: (File) -> String? = { null },
     /** Why the launcher started in safe mode (after crashing twice), or null normally. */
@@ -512,7 +515,13 @@ fun LauncherScreen(
             NoticeKind.Prayer -> prayersOpen = true
             NoticeKind.File -> {
                 val file = n.target?.let { share?.file(it) }
-                if (n.id.startsWith(InstalledApk)) {
+                if (n.id.startsWith(SentLink)) {
+                    // A link from a phone (or a page's download): checked on the Add page
+                    links?.offered?.value = n.target
+                    settingsStart = SettingsPage.AddLink
+                    panelOpen = true
+                    onDismissNotice(n)
+                } else if (n.id.startsWith(InstalledApk)) {
                     // Asks first: nothing is deleted without a second press
                     if (file != null) deleteAsk = n else onDismissNotice(n)
                 } else if (file == null || fileKind(file.name) == FileKind.Photo) {
@@ -1041,6 +1050,7 @@ fun LauncherScreen(
                     noticeAccess = noticeAccess,
                     onNoticeAccess = onNoticeAccess,
                     share = share,
+                    links = links,
                     noticeApps = (notices.filter { it.kind == NoticeKind.App }.mapNotNull { it.pkg } + settings.mutedApps)
                         .distinct()
                         .map { pkg -> pkg to (apps.orEmpty().firstOrNull { it.pkg == pkg }?.label ?: pkg) }

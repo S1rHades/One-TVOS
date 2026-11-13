@@ -201,7 +201,7 @@ private fun readUsage(context: Context): Usage {
     )
 }
 
-private fun formatBytes(bytes: Long): String {
+internal fun formatBytes(bytes: Long): String {
     val gb = bytes / 1e9
     return if (gb >= 10) "%.0f GB".format(gb) else if (gb >= 1) "%.1f GB".format(gb) else "%.0f MB".format(bytes / 1e6)
 }

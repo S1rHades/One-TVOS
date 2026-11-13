@@ -28,6 +28,7 @@
 - **Widgets that open up.** Up to four frosted-glass cards across the top, or more in a widget stack that takes turns. OK on the clock, weather, football or headlines card opens a full page for it, and a goal for your team lights the football card up.
 - **A notification bar.** Under the widgets, as wide as them: the newest notification (a new version, a goal, a file from your phone, another app's) with a bell that opens them all. One press installs an update from there.
 - **Files from your phone.** Scan a code on the TV and send photos, videos, apps or documents from your phone's browser, with nothing to install; they open on the TV in one press.
+- **Apps and websites from a link.** Give the launcher a link, typed on the TV or sent from your phone: a website becomes a tile that opens full screen with a pointer for the remote, an `.apk` is downloaded and installed, and a Play Store link opens the app's page. New ones join Favorites.
 - **Built for the remote.** Focused apps lift and get a crisp white ring, and every action is one or two presses of the D-pad.
 - **In English, French or Arabic.** The launcher follows the TV's language or one you choose, and in Arabic the whole screen is laid out right to left.
 - **Light on the TV.** One small app, written in Jetpack Compose, with no tracking. Behind another app it stays out of the way: the slideshow waits, the app list is read again only when an app is installed or removed, and file sharing stops unless you ask it to keep going. Only the widgets' data keeps refreshing, so they're up to date the moment you come back.
@@ -77,6 +78,29 @@ Press **Down** from Favorites for every app as a card in its own colour. Chips a
 **Rename…** in the app menu gives an app a name of your own. It shows everywhere in the launcher, while the app itself keeps its own name; **Use its own name** brings that back. **App info** opens the app's page in the TV's settings, for its storage, permissions and the rest.
 
 <p align="center"><img src="docs/screenshots/rename.png" width="70%" alt="The Rename card over the dimmed home screen: Cinema's icon, Rename, Only in Pill Launcher, a field reading Films, a Save button and 5 of 30 characters"></p>
+
+### Apps and websites from a link
+
+**Settings → Home screen → Add an app or website** adds a tile from a link. Type the link in the field (**OK** opens the TV's keyboard), or send it from your phone, which is easier: the phone's Files page has **Send a link**, the link arrives in the notification bar, and **OK** on it opens this page with the link already checked. **Check this link** works out what the link is:
+
+- **A website** comes with its name and icon from the site, and **Add to the home screen** puts it in Favorites as a tile of its own. It is in All apps and Search too, and holding **OK** on it renames it, moves it or removes it (**Remove shortcut**).
+- **An app**, a link to an `.apk` file (a GitHub release, say), shows its size. **Download and install** downloads it, showing how far it has got (**OK** stops it), and hands it to Android's install screen, which asks you to confirm. The first time, Android asks you to allow Pill Launcher to install apps. Once it is installed, it joins Favorites.
+- **A Play Store link** opens the app's page in the TV's Play Store, and the app joins Favorites once you install it there.
+
+Below are the web shortcuts made so far; **OK** twice on one removes it.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/settings-add-link.png" alt="Settings, Add an app or website: the link field, Check this link and a note about sending links from a phone; under What it is, Wikipedia, Website, wikipedia.org with its icon, and Add to the home screen focused, A tile in Favorites that opens the site full screen"><br><sub><b>Add an app or website</b>: a checked link and what OK on it does.</sub></td>
+    <td width="50%"><img src="docs/screenshots/web-viewer.png" alt="A website full screen (a stand-in page from the tests: a blue header, a headline about Beni Saf and grey lines of text) with a round pointer right of the middle and, at the bottom, Arrows move the pointer, OK clicks, Hold OK for options"><br><sub><b>A website full screen</b>: the arrows move the pointer and OK clicks.</sub></td>
+  </tr>
+</table>
+
+**The web viewer.** A website opens full screen, with no browser bar, like an app. The arrows move a pointer and **OK** clicks where it is; held, the pointer speeds up, and at the edge of the screen the page scrolls instead. **Back** goes back a page, and leaves from the site's first page; **Home** leaves it waiting in the TV's recent apps. Holding **OK** (or pressing **Menu**) opens the viewer's menu: **Reload**, **Text size** (100% to 175%), **Jump between links** for pages made for a remote (the arrows then go from link to link), **Ask for the TV version** (some sites have a layout made for TVs; YouTube's is at `youtube.com/tv`) and **Back to the home screen**. Each site keeps these choices and stays signed in. A video's full-screen button fills the screen, and **Back** leaves full screen. When a page offers an app to download, it arrives in the notification bar to install as above.
+
+<p align="center"><img src="docs/screenshots/web-viewer-menu.png" width="70%" alt="The viewer's menu over the dimmed page: Wikipedia and wikipedia.org with its icon, then Reload, Text size 100%, Jump between links, Ask for the TV version and Back to the home screen"></p>
+
+**What it can't do.** Streaming services such as Netflix usually refuse to play inside an app's built-in browser: install their TV apps instead (a Play Store link does that). A plain `http://` address is opened as `https://`, since the TV only loads secure pages. Some sites stay awkward with a remote even with the pointer.
 
 ### Search
 
@@ -157,7 +181,7 @@ Pill Launcher's own notifications:
 
 **OK** on a file opens it: photos in the launcher's own viewer (**Left** / **Right** for the next one), videos and documents in the TV's apps, and an app's APK with Android's install screen. Holding **OK** offers **Install** or **Open**, **Send to phone** (a code that saves it on your phone) and **Delete**.
 
-Your phone opens a plain page in its browser, with nothing to install: **Send to TV** picks photos, videos or files and shows each one's progress, and the TV's files are listed with **Save**. The phone must be on the same home network as the TV (the TV on a cable and the phone on Wi-Fi is fine; a guest Wi-Fi usually keeps devices apart). Under the code, the Files page shows the last phone that reached the TV, from which address, and how that went. If a scan fails and the TV still says no phone has reached it, the phone isn't reaching the TV at all, and the page says what to check. On a phone with Android 17, Chrome is kept off the home network until it is allowed (it then says the site can't be reached, with ERR_TOO_MANY_RETRIES): on the phone, open **Settings → Apps → Chrome → Permissions** and allow **Nearby devices**. Otherwise, check that the phone is on the same Wi-Fi, not on mobile data, and that no VPN is on.
+Your phone opens a plain page in its browser, with nothing to install: **Send to TV** picks photos, videos or files and shows each one's progress, **Send a link** sends a web address for [Add an app or website](#apps-and-websites-from-a-link), and the TV's files are listed with **Save**. The phone must be on the same home network as the TV (the TV on a cable and the phone on Wi-Fi is fine; a guest Wi-Fi usually keeps devices apart). Under the code, the Files page shows the last phone that reached the TV, from which address, and how that went. If a scan fails and the TV still says no phone has reached it, the phone isn't reaching the TV at all, and the page says what to check. On a phone with Android 17, Chrome is kept off the home network until it is allowed (it then says the site can't be reached, with ERR_TOO_MANY_RETRIES): on the phone, open **Settings → Apps → Chrome → Permissions** and allow **Nearby devices**. Otherwise, check that the phone is on the same Wi-Fi, not on mobile data, and that no VPN is on.
 
 <table>
   <tr>
@@ -253,7 +277,7 @@ On TVs that ignore that command, turning off the stock launcher works too (turn 
 
 The `latest` release is rebuilt automatically every time `main` changes, so installing it again always gets you the newest version.
 
-Every version also keeps its own release, named after it (**Pill Launcher 4.0**, tag `v4.0`, file `pill-launcher-4.0.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v4.0/pill-launcher-4.0.apk`. The newest is titled **Pill Launcher 4.0 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
+Every version also keeps its own release, named after it (**Pill Launcher 4.1**, tag `v4.1`, file `pill-launcher-4.1.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v4.1/pill-launcher-4.1.apk`. The newest is titled **Pill Launcher 4.1 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
 
 ### Backing up your settings
 
@@ -286,6 +310,11 @@ If the launcher won't open, use the TV's own **Settings → Apps → Pill Launch
 | Delete an installed app's APK | **OK** on its notice in the bar, then **Delete** (hold **OK** to keep it) |
 | Files tidying: asking about installed APKs, removing files after 30 days | **Settings → Files** |
 | Hide the text of private messages | **Settings → Notifications → Hide private messages** |
+| Add a website or an app from a link | **Settings → Home screen → Add an app or website**, or **Send a link** on the phone's Files page |
+| In a website: move the pointer, click, scroll | Arrows, **OK**; at the screen's edge the arrows scroll |
+| In a website: back a page, or leave it | **Back** (from its first page, Back leaves) |
+| In a website: reload, text size, links mode, TV version | Hold **OK**, or press **Menu** (☰) |
+| Remove a web shortcut | Hold **OK** on its tile → **Remove shortcut**, or **OK** twice on it in Add an app or website |
 | See all apps | **Down** from Favorites |
 | Show only video, music or game apps | **Down** to the chips above All apps, **Left** / **Right**, then **OK** |
 | Find an app | The remote's search key, or **Search** in the bar, then letters from the strip (**Left** / **Right**, OK), or **Up** to the field for the keyboard |
@@ -443,7 +472,7 @@ gradle :app:testDebugUnitTest --tests '*Screenshots*'  # re-render docs/screensh
 
 **Text and translations.** The code is written in English: anything shown on screen goes through `tr("…")` (with `%1$s`, `%2$s` for values), and `Translations.kt` gives the French and the Arabic for each English text. A test (`everyTextIsTranslated`) reads the source and fails the build when a text has no translation or a translation has the wrong places for its values, so a new text can't ship in English only. Titles that enums carry (widget names, settings pages) translate when read. Rows that run with the reading direction use `rowStep()` for Left / Right, so they work right to left.
 
-**Builds are automated.** `.github/workflows/build.yml` runs every test and then builds the APK for every pull request and push, so a failing test stops a release; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v4.0`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
+**Builds are automated.** `.github/workflows/build.yml` runs every test and then builds the APK for every pull request and push, so a failing test stops a release; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v4.1`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
 
 <details>
 <summary><b>Architecture</b></summary>
@@ -465,7 +494,9 @@ app/src/main/java/app/pill/launcher/
   Prayers.kt             prayer times from a mosque on MAWAQIT: the answer, the mosque's calendar, the next prayer, the saved copy
   Backup.kt              the settings as one file, and putting one back
   SpeedTest.kt           ping, download and upload against Cloudflare's speed test
-  Updates.kt             newer releases from GitHub: check, download, install, and the installer's answer
+  Updates.kt             newer releases from GitHub: check, download, install, and the installer's answer (for links' apps too)
+  Links.kt               Add an app or website: what a link is, a site's name and icon, web shortcuts and their tiles, installing from a link
+  WebAppActivity.kt      a web shortcut full screen: the WebView, its keys, full-screen video
   Notifications.kt       the notification bar's notices: kept ones, updates, football, the connection, prayer times, and other apps' (NotificationWatcher)
   FileShare.kt           Files: the small web server phones send to, pairing and trusted phones, the files on the TV, tidying
   CrashGuard.kt          notes crashes; two within a minute start the launcher in safe mode
@@ -498,6 +529,8 @@ app/src/main/java/app/pill/launcher/
     SettingsParts.kt     what settings pages are built from: groups, rows, switches
     SettingsWidgetPages.kt   Settings → Widgets: football teams, headlines, weather location, prayer times, the stack
     SettingsSystemPages.kt   Settings → Notifications, Files, TV & system and Updates
+    AddLinkPage.kt       Settings → Home screen → Add an app or website
+    WebAppPage.kt        the web viewer's remote: the pointer, clicks, scrolling, Back, and its menu
     HomePrompt.kt        the Set up reminder until Pill Launcher is the home screen
     NetworkStatus.kt     how the TV is connected, the Wi-Fi signal and whether a VPN is on
     TileInput.kt         OK, long-press and Menu handling shared by tiles and cards

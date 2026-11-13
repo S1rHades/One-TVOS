@@ -127,7 +127,7 @@ class Updater(private val context: Context) {
         var problem: Exception? = null
         for (link in links) {
             try {
-                fetch(link, file, release.sizeBytes, onProgress)
+                downloadFile(link, file, release.sizeBytes, onProgress, answered = { tr("GitHub answered %1\$s", it) })
                 if (file.length() > 0) return@withContext file
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
@@ -136,52 +136,6 @@ class Updater(private val context: Context) {
             }
         }
         throw problem ?: IllegalStateException(tr("The download was empty"))
-    }
-
-    private suspend fun fetch(link: String, file: File, expected: Long, onProgress: (Float) -> Unit) {
-        var url = link
-        // GitHub sends the file from another host; follow up to five redirects by hand
-        repeat(6) {
-            val c = (URL(url).openConnection() as HttpURLConnection).apply {
-                connectTimeout = 15_000
-                readTimeout = 30_000
-                instanceFollowRedirects = false
-                setRequestProperty("User-Agent", "PillLauncher")
-                setRequestProperty("Accept", "application/octet-stream")
-            }
-            try {
-                val code = c.responseCode
-                when {
-                    code in 300..399 -> {
-                        val next = c.getHeaderField("Location") ?: error(tr("GitHub gave no download link"))
-                        url = URL(URL(url), next).toString()
-                    }
-                    code == 200 -> {
-                        val total = c.contentLengthLong.takeIf { it > 0 } ?: expected
-                        var read = 0L
-                        c.inputStream.use { input ->
-                            file.outputStream().use { out ->
-                                val buffer = ByteArray(64 * 1024)
-                                while (true) {
-                                    coroutineContext.ensureActive()
-                                    val n = input.read(buffer)
-                                    if (n < 0) break
-                                    out.write(buffer, 0, n)
-                                    read += n
-                                    if (total > 0) onProgress((read.toFloat() / total).coerceIn(0f, 1f))
-                                }
-                            }
-                        }
-                        if (total > 0 && read < total) error(tr("The download was cut short"))
-                        return
-                    }
-                    else -> error(tr("GitHub answered %1\$s", code))
-                }
-            } finally {
-                c.disconnect()
-            }
-        }
-        error(tr("Too many redirects"))
     }
 
     /**
@@ -198,25 +152,7 @@ class Updater(private val context: Context) {
     }.isSuccess
 
     /** Hands the APK to Android's installer, which shows its own confirmation. */
-    fun install(apk: File) {
-        val installer = context.packageManager.packageInstaller
-        val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
-            setAppPackageName(context.packageName)
-            setSize(apk.length())
-        }
-        val id = installer.createSession(params)
-        installer.openSession(id).use { session ->
-            apk.inputStream().use { input ->
-                session.openWrite("pill-launcher.apk", 0, apk.length()).use { out ->
-                    input.copyTo(out)
-                    session.fsync(out)
-                }
-            }
-            val flags = PendingIntent.FLAG_UPDATE_CURRENT or if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0
-            val result = PendingIntent.getBroadcast(context, id, Intent(context, InstallResultReceiver::class.java), flags)
-            session.commit(result.intentSender)
-        }
-    }
+    fun install(apk: File) = installApk(context, apk, self = true)
 
     private companion object {
         const val LATEST_API = "https://api.github.com/repos/S1rHades/One-TVOS/releases/latest"
@@ -224,28 +160,115 @@ class Updater(private val context: Context) {
 }
 
 /**
+ * Downloads [link] into [file], following redirects (GitHub and others send the file from
+ * another host), reporting 0 to 1 as it goes; [answered] words an error answer.
+ */
+suspend fun downloadFile(
+    link: String,
+    file: File,
+    expected: Long,
+    onProgress: (Float) -> Unit,
+    answered: (Int) -> String = { tr("The site answered %1\$s", it) },
+) {
+    var url = link
+    repeat(8) {
+        val c = (URL(url).openConnection() as HttpURLConnection).apply {
+            connectTimeout = 15_000
+            readTimeout = 30_000
+            instanceFollowRedirects = false
+            setRequestProperty("User-Agent", if (url.contains("github")) "PillLauncher" else BrowserAgent)
+            setRequestProperty("Accept", "application/vnd.android.package-archive,application/octet-stream,*/*")
+        }
+        try {
+            val code = c.responseCode
+            when {
+                code in 300..399 -> {
+                    val next = c.getHeaderField("Location") ?: error(tr("The link led nowhere"))
+                    url = URL(URL(url), next).toString()
+                }
+                code == 200 -> {
+                    val total = c.contentLengthLong.takeIf { it > 0 } ?: expected
+                    var read = 0L
+                    c.inputStream.use { input ->
+                        file.outputStream().use { out ->
+                            val buffer = ByteArray(64 * 1024)
+                            while (true) {
+                                coroutineContext.ensureActive()
+                                val n = input.read(buffer)
+                                if (n < 0) break
+                                out.write(buffer, 0, n)
+                                read += n
+                                if (total > 0) onProgress((read.toFloat() / total).coerceIn(0f, 1f))
+                            }
+                        }
+                    }
+                    if (total > 0 && read < total) error(tr("The download was cut short"))
+                    return
+                }
+                else -> error(answered(code))
+            }
+        } finally {
+            c.disconnect()
+        }
+    }
+    error(tr("Too many redirects"))
+}
+
+/**
+ * Hands an APK to Android's installer, which shows its own confirmation: Pill Launcher's
+ * own update ([self]) or an app from a link. Android's answer comes to [InstallResultReceiver].
+ */
+fun installApk(context: Context, apk: File, self: Boolean) {
+    val installer = context.packageManager.packageInstaller
+    val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
+        if (self) setAppPackageName(context.packageName)
+        setSize(apk.length())
+    }
+    val id = installer.createSession(params)
+    installer.openSession(id).use { session ->
+        apk.inputStream().use { input ->
+            session.openWrite("app.apk", 0, apk.length()).use { out ->
+                input.copyTo(out)
+                session.fsync(out)
+            }
+        }
+        val flags = PendingIntent.FLAG_UPDATE_CURRENT or if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0
+        val answer = Intent(context, InstallResultReceiver::class.java).putExtra(ExtraApk, apk.path).putExtra(ExtraSelf, self)
+        val result = PendingIntent.getBroadcast(context, id, answer, flags)
+        session.commit(result.intentSender)
+    }
+}
+
+private const val ExtraApk = "apk"
+private const val ExtraSelf = "self"
+
+/**
  * Android's answer to an install: it either needs the viewer to confirm (its screen is
  * opened) or has failed, and why is passed to the launcher through [installProblems].
  */
 class InstallResultReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        val self = intent.getBooleanExtra(ExtraSelf, true)
+        val problems = if (self) installProblems else linkInstallProblems
+        fun problem(status: Int) = if (self) installProblem(status) else linkInstallProblem(status)
         when (val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)) {
             PackageInstaller.STATUS_PENDING_USER_ACTION -> {
                 @Suppress("DEPRECATION")
                 val confirm = intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT) ?: return
                 runCatching { context.startActivity(confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-                    .onFailure { installProblems.value = tr("Android couldn't show the install screen") }
+                    .onFailure { problems.value = tr("Android couldn't show the install screen") }
             }
-            PackageInstaller.STATUS_SUCCESS -> installProblems.value = null
+            PackageInstaller.STATUS_SUCCESS -> problems.value = null
             PackageInstaller.STATUS_FAILURE_ABORTED, PackageInstaller.STATUS_FAILURE_CONFLICT, PackageInstaller.STATUS_FAILURE_STORAGE ->
-                installProblems.value = installProblem(status)
+                problems.value = problem(status)
             else -> {
                 // Some TVs refuse background installs: Android's own install screen may still work
-                val apk = File(context.cacheDir, "updates").listFiles()?.maxByOrNull { it.lastModified() }
+                val apk = intent.getStringExtra(ExtraApk)?.let(::File)?.takeIf { it.exists() }
+                    ?: File(context.cacheDir, "updates").listFiles()?.maxByOrNull { it.lastModified() }
                 val opened = apk != null && Updater(context).installWithSystemScreen(apk)
                 if (!opened) {
                     val detail = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)?.take(80)
-                    installProblems.value = installProblem(status) + (detail?.let { " ($it)" } ?: "")
+                    problems.value = problem(status) + (detail?.let { " ($it)" } ?: "")
                 }
             }
         }
@@ -262,6 +285,18 @@ fun installProblem(status: Int): String = when (status) {
     PackageInstaller.STATUS_FAILURE_INCOMPATIBLE -> tr("This TV can't install the update")
     PackageInstaller.STATUS_FAILURE_BLOCKED -> tr("The TV blocked the update")
     else -> tr("The update couldn't be installed")
+}
+
+/** The last failure installing an app from a link, in plain words; null when there was none. */
+val linkInstallProblems = MutableStateFlow<String?>(null)
+
+fun linkInstallProblem(status: Int): String = when (status) {
+    PackageInstaller.STATUS_FAILURE_ABORTED -> tr("The install was cancelled")
+    PackageInstaller.STATUS_FAILURE_CONFLICT -> tr("A copy of this app signed by someone else is already installed: uninstall it first")
+    PackageInstaller.STATUS_FAILURE_STORAGE -> tr("Not enough space on the TV for this app")
+    PackageInstaller.STATUS_FAILURE_INCOMPATIBLE -> tr("This app doesn't run on this TV")
+    PackageInstaller.STATUS_FAILURE_BLOCKED -> tr("The TV blocked the install")
+    else -> tr("The app couldn't be installed")
 }
 
 /** A short, plain reason for a failure, for the update card and Settings. */

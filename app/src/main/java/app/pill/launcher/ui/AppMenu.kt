@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import app.pill.launcher.AppEntry
+import app.pill.launcher.isWeb
 import kotlinx.coroutines.delay
 
 private const val MENU_MS = 200
@@ -95,8 +96,8 @@ fun AppMenu(
             add(MenuChoice(if (pinned) tr("Remove from Favorites") else tr("Add to Favorites")) { onAction(MenuAction.TogglePin) })
             if (pinned && movable) add(MenuChoice(tr("Move"), tr("Left / Right along Favorites")) { onAction(MenuAction.Move) })
             add(MenuChoice(tr("Rename…"), app.originalLabel?.let { tr("Its own name: %1\$s", it) }) { onAction(MenuAction.Rename) })
-            add(MenuChoice(tr("App info"), tr("In the TV's settings")) { onAction(MenuAction.AppInfo) })
-            if (app.removable) add(MenuChoice(tr("Uninstall"), warning = true) { onAction(MenuAction.Uninstall) })
+            if (!app.isWeb) add(MenuChoice(tr("App info"), tr("In the TV's settings")) { onAction(MenuAction.AppInfo) })
+            if (app.removable) add(MenuChoice(if (app.isWeb) tr("Remove shortcut") else tr("Uninstall"), warning = true) { onAction(MenuAction.Uninstall) })
         },
         onDismiss = onDismiss,
     )

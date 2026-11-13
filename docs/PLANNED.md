@@ -33,7 +33,7 @@ Ideas shown as mockups and passed over, so they aren't suggested again:
 - Contextual dimming
 - Unslop design pass (flatter, greyer, thinner restyle; read as a downgrade on the TV)
 - Hide from All apps (left out of 3.1: Rename and App info stay in the app menu)
-- Text and links from your phone
+- Text from your phone (links came in 4.1, with Add an app or website)
 - Live score in the notification bar
 - Wi-Fi for guests (QR)
 - Buttons on app notifications

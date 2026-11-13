@@ -243,7 +243,14 @@ internal fun Note(text: String) {
 
 /** Typing a name to search for (a team, a town): OK opens the TV keyboard. */
 @Composable
-internal fun TeamSearchField(value: String, onChange: (String) -> Unit, hint: String, modifier: Modifier = Modifier) {
+internal fun TeamSearchField(
+    value: String,
+    onChange: (String) -> Unit,
+    hint: String,
+    modifier: Modifier = Modifier,
+    /** The keyboard's action key: Go for a link (null: Search, which does nothing more). */
+    onGo: (() -> Unit)? = null,
+) {
     var focused by remember { mutableStateOf(false) }
     val border by animateColorAsState(if (focused) Palette.Focus else Palette.Hairline, label = "teamFieldBorder")
     BasicTextField(
@@ -252,8 +259,10 @@ internal fun TeamSearchField(value: String, onChange: (String) -> Unit, hint: St
         singleLine = true,
         textStyle = TextStyle(fontFamily = Flex, color = Palette.TextPrimary, fontSize = 19.sp),
         cursorBrush = SolidColor(Palette.Focus),
-        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-        modifier = Modifier
+        keyboardOptions = if (onGo != null) KeyboardOptions(imeAction = ImeAction.Go, keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri, autoCorrectEnabled = false)
+        else KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = androidx.compose.foundation.text.KeyboardActions(onGo = { onGo?.invoke() }),
+        modifier = modifier
             .fillMaxWidth()
             .onFocusChanged { focused = it.isFocused },
         decorationBox = { inner ->

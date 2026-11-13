@@ -183,6 +183,13 @@ fun installedApkNotice(name: String, now: Instant): Notice =
 /** The id prefix of [installedApkNotice]. */
 const val InstalledApk = "installed-apk:"
 
+/** A link a phone sent (or a site offered as a download), waiting to be added from Settings. */
+fun sentLinkNotice(link: String, from: String, now: Instant): Notice =
+    Notice("$SentLink${now.toEpochMilli()}", NoticeKind.File, tr("Link from %1\$s", from), tr("%1\$s · OK to add it", hostOf(link)), now, target = link)
+
+/** The id prefix of [sentLinkNotice]. */
+const val SentLink = "sent-link:"
+
 /** "3.4 MB", "212 MB", "1.2 GB". */
 fun fileSize(bytes: Long): String {
     val units = listOf("B", "KB", "MB", "GB", "TB")
