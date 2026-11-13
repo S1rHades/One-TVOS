@@ -3,6 +3,14 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 4.1.1 (November 2026)
+
+The web viewer, after a first try on a TV:
+
+- **A smooth pointer**: it glides by time instead of jumping at each key repeat. Held, it sets off slowly and speeds up smoothly; a quick tap moves it a little; at the edge the page scrolls on smoothly. A release the remote never sends no longer leaves it running.
+- **Clear of the TV's edges**: the page keeps the launcher's own margin, since many TVs cut off the edges of the picture (pages ran off the right side). **Use the whole screen** in the viewer's menu turns it off for a TV that shows everything.
+- **Page size**: 100%, 90%, 80% or 67% in the viewer's menu, so a page made for a wider screen fits. Each site keeps its own.
+
 ## 4.1 (November 2026)
 
 Apps and websites from a link:

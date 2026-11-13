@@ -845,6 +845,9 @@ private fun frenchtext10(m: MutableMap<String, String>) {
     m["%1\$s free"] = "%1\$s libres"
     // ui/WeatherWidget.kt
     m["H %1\$s   L %2\$s"] = "Max %1\$s   Min %2\$s"
+}
+
+private fun frenchtext11(m: MutableMap<String, String>) {
     // ui/WebAppPage.kt
     m["Can't open %1\$s"] = "Impossible d'ouvrir %1\$s"
     m["OK to try again · Back to leave"] = "OK pour réessayer · Retour pour quitter"
@@ -853,6 +856,12 @@ private fun frenchtext10(m: MutableMap<String, String>) {
     m["Reload"] = "Recharger"
     m["Text size · %1\$s%%"] = "Taille du texte · %1\$s %%"
     m["OK for the next size"] = "OK pour la taille suivante"
+    m["Page size · %1\$s%%"] = "Taille de la page · %1\$s %%"
+    m["Smaller fits more of a wide page"] = "Plus petite, une page large tient mieux"
+    m["Use the whole screen"] = "Utiliser tout l'écran"
+    m["Now inside the edges, which some TVs cut off"] = "Pour l'instant à l'intérieur des bords, que certaines TV coupent"
+    m["Keep clear of the screen's edges"] = "Rester à l'écart des bords de l'écran"
+    m["For TVs that cut off the picture's edges"] = "Pour les TV qui coupent les bords de l'image"
     m["Jump between links"] = "Passer d'un lien à l'autre"
     m["For pages made for a remote"] = "Pour les pages faites pour une télécommande"
     m["Use the pointer"] = "Utiliser le pointeur"
@@ -862,9 +871,6 @@ private fun frenchtext10(m: MutableMap<String, String>) {
     m["Now asking for the TV version"] = "La version TV est demandée"
     m["Some sites have one made for a remote"] = "Certains sites en ont une faite pour la télécommande"
     m["Back to the home screen"] = "Retour à l'écran d'accueil"
-}
-
-private fun frenchtext11(m: MutableMap<String, String>) {
     // ui/WidgetCards.kt
     m["Can't reach the weather service"] = "Service météo inaccessible"
     m["No weather right now"] = "Pas de météo pour le moment"
@@ -1723,6 +1729,9 @@ private fun arabictext10(m: MutableMap<String, String>) {
     m["%1\$s free"] = "%1\$s متاحة"
     // ui/WeatherWidget.kt
     m["H %1\$s   L %2\$s"] = "العظمى %1\$s   الصغرى %2\$s"
+}
+
+private fun arabictext11(m: MutableMap<String, String>) {
     // ui/WebAppPage.kt
     m["Can't open %1\$s"] = "تعذّر فتح %1\$s"
     m["OK to try again · Back to leave"] = "OK لإعادة المحاولة · رجوع للخروج"
@@ -1731,6 +1740,12 @@ private fun arabictext10(m: MutableMap<String, String>) {
     m["Reload"] = "إعادة التحميل"
     m["Text size · %1\$s%%"] = "حجم النص · %1\$s%%"
     m["OK for the next size"] = "OK للحجم التالي"
+    m["Page size · %1\$s%%"] = "حجم الصفحة · %1\$s%%"
+    m["Smaller fits more of a wide page"] = "الحجم الأصغر يُظهر أكثر من الصفحة العريضة"
+    m["Use the whole screen"] = "استخدم الشاشة كاملة"
+    m["Now inside the edges, which some TVs cut off"] = "الآن داخل الحواف التي تقصّها بعض أجهزة التلفاز"
+    m["Keep clear of the screen's edges"] = "ابتعد عن حواف الشاشة"
+    m["For TVs that cut off the picture's edges"] = "للتلفزيونات التي تقصّ حواف الصورة"
     m["Jump between links"] = "التنقل بين الروابط"
     m["For pages made for a remote"] = "للصفحات المصمّمة لجهاز التحكم"
     m["Use the pointer"] = "استخدم المؤشر"
@@ -1740,9 +1755,6 @@ private fun arabictext10(m: MutableMap<String, String>) {
     m["Now asking for the TV version"] = "تُطلب الآن نسخة التلفاز"
     m["Some sites have one made for a remote"] = "لبعض المواقع نسخة مصمّمة لجهاز التحكم"
     m["Back to the home screen"] = "العودة إلى الشاشة الرئيسية"
-}
-
-private fun arabictext11(m: MutableMap<String, String>) {
     // ui/WidgetCards.kt
     m["Can't reach the weather service"] = "تعذّر الوصول إلى خدمة الطقس"
     m["No weather right now"] = "لا بيانات طقس الآن"

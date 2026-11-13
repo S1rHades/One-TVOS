@@ -82,6 +82,7 @@ class WebAppActivity : ComponentActivity() {
     /** Puts a shortcut's settings on the page: text size, the TV version (reloading), and focus for jumping between links. */
     private fun apply(s: WebShortcut, reloadFor: WebShortcut?) {
         web.settings.textZoom = s.textZoom
+        web.evaluateJavascript(pageZoomScript(s.pageZoom), null)
         val agent = agentFor(WebSettings.getDefaultUserAgent(this), s.tvVersion)
         if (web.settings.userAgentString != agent) {
             web.settings.userAgentString = agent
@@ -123,6 +124,14 @@ class WebAppActivity : ComponentActivity() {
 
             override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
                 viewer?.error = null
+            }
+
+            override fun onPageCommitVisible(view: WebView, url: String?) {
+                viewer?.shortcut?.let { view.evaluateJavascript(pageZoomScript(it.pageZoom), null) }
+            }
+
+            override fun onPageFinished(view: WebView, url: String?) {
+                viewer?.shortcut?.let { view.evaluateJavascript(pageZoomScript(it.pageZoom), null) }
             }
 
             override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
