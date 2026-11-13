@@ -82,7 +82,7 @@ class WebAppActivity : ComponentActivity() {
     /** Puts a shortcut's settings on the page: text size, the TV version (reloading), and focus for jumping between links. */
     private fun apply(s: WebShortcut, reloadFor: WebShortcut?) {
         web.settings.textZoom = s.textZoom
-        web.evaluateJavascript(pageZoomScript(s.pageZoom), null)
+        web.evaluateJavascript(fitScript(s.pageZoom, viewDp()), null)
         val agent = agentFor(WebSettings.getDefaultUserAgent(this), s.tvVersion)
         if (web.settings.userAgentString != agent) {
             web.settings.userAgentString = agent
@@ -90,6 +90,9 @@ class WebAppActivity : ComponentActivity() {
         }
         if (!s.pointer) web.requestFocus()
     }
+
+    /** The viewer's width in dp (web pixels at 100%); 0 before it is laid out. */
+    private fun viewDp(): Float = if (::web.isInitialized) web.width / resources.displayMetrics.density else 0f
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun makeWebView(): WebView = WebView(this).apply {
@@ -105,6 +108,10 @@ class WebAppActivity : ComponentActivity() {
         CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
         isFocusable = true
         isFocusableInTouchMode = true
+        // A new width (the margin turned on or off): fit the page to it again
+        addOnLayoutChangeListener { v, l, _, r, _, ol, _, or2, _ ->
+            if (r - l != or2 - ol) viewer?.shortcut?.let { (v as WebView).evaluateJavascript(fitScript(it.pageZoom, viewDp()), null) }
+        }
         setBackgroundColor(android.graphics.Color.WHITE)
         webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
@@ -127,11 +134,11 @@ class WebAppActivity : ComponentActivity() {
             }
 
             override fun onPageCommitVisible(view: WebView, url: String?) {
-                viewer?.shortcut?.let { view.evaluateJavascript(pageZoomScript(it.pageZoom), null) }
+                viewer?.shortcut?.let { view.evaluateJavascript(fitScript(it.pageZoom, viewDp()), null) }
             }
 
             override fun onPageFinished(view: WebView, url: String?) {
-                viewer?.shortcut?.let { view.evaluateJavascript(pageZoomScript(it.pageZoom), null) }
+                viewer?.shortcut?.let { view.evaluateJavascript(fitScript(it.pageZoom, viewDp()), null) }
             }
 
             override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
