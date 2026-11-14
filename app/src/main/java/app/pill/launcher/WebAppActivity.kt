@@ -256,12 +256,40 @@ class WebAppActivity : ComponentActivity() {
     private var tapping = false
 
     /** One touch event at [x], [y] (the page's pixels), made as a real finger's is: one pointer, a finger, from the touch screen. */
-    private fun touch(action: Int, downTime: Long, x: Float, y: Float) {
+    private fun touch(action: Int, downTime: Long, x: Float, y: Float, target: View = web) {
         val props = arrayOf(MotionEvent.PointerProperties().apply { id = 0; toolType = MotionEvent.TOOL_TYPE_FINGER })
         val coords = arrayOf(MotionEvent.PointerCoords().apply { this.x = x; this.y = y; pressure = 1f; size = 1f })
         val e = MotionEvent.obtain(downTime, SystemClock.uptimeMillis(), action, 1, props, coords, 0, 0, 1f, 1f, 0, 0, android.view.InputDevice.SOURCE_TOUCHSCREEN, 0)
-        web.dispatchTouchEvent(e)
+        target.dispatchTouchEvent(e)
         e.recycle()
+    }
+
+    /** No swipe before this time: one at a time while an arrow is held at the edge. */
+    private var swipeUntil = 0L
+
+    /**
+     * A finger's swipe across the row under the pointer, for carousels that only move when
+     * dragged: from near the side the pointer pushes against, across a third of the screen,
+     * so the row's next cards come in from that side.
+     */
+    private fun swipe(y: Float, toRight: Boolean) {
+        val now = SystemClock.uptimeMillis()
+        if (now < swipeUntil || tapping) return
+        swipeUntil = now + SwipeGapMs
+        val w = frame.width.toFloat()
+        val fromX = if (toRight) w * 0.78f else w * 0.22f
+        val toX = if (toRight) w * 0.42f else w * 0.58f
+        val (sx, sy) = onPage(fromX, y)
+        val (ex, _) = onPage(toX, y)
+        touch(MotionEvent.ACTION_DOWN, now, sx, sy)
+        val steps = 10
+        for (i in 1..steps) {
+            web.postDelayed({
+                val f = i / steps.toFloat()
+                val eased = 1f - (1f - f) * (1f - f)
+                touch(if (i == steps) MotionEvent.ACTION_UP else MotionEvent.ACTION_MOVE, now, sx + (ex - sx) * eased, sy)
+            }, i * 16L)
+        }
     }
 
     private val controls = object : WebPageControls {
@@ -271,24 +299,32 @@ class WebAppActivity : ComponentActivity() {
             if (tapping) return
             tapping = true
             val down = SystemClock.uptimeMillis()
-            val (px, py) = onPage(x, y)
-            touch(MotionEvent.ACTION_DOWN, down, px, py)
+            // In a full-screen video the tap goes to the player, which fills the screen unshrunk
+            val player = fullscreenView
+            val (px, py) = if (player != null) x to y else onPage(x, y)
+            val target = player ?: web
+            touch(MotionEvent.ACTION_DOWN, down, px, py, target)
             web.postDelayed({
-                touch(MotionEvent.ACTION_UP, down, px, py)
+                touch(MotionEvent.ACTION_UP, down, px, py, target)
                 tapping = false
             }, TapMs)
         }
 
         override fun scroll(x: Float, y: Float, dx: Float, dy: Float) {
+            if (fullscreenView != null) return
             val d = resources.displayMetrics.density
             val k = web.scaleX.takeIf { it > 0f } ?: 1f
             val (px, py) = onPage(x, y)
-            web.evaluateJavascript(scrollScript(px / d, py / d, dx / k / d, dy / k / d), null)
+            // Nothing that scrolls sideways under the pointer: a carousel that moves when dragged
+            web.evaluateJavascript(scrollScript(px / d, py / d, dx / k / d, dy / k / d)) { result ->
+                if (dx != 0f && result?.contains("none") == true) swipe(y, toRight = dx > 0f)
+            }
         }
 
         override fun pageKey(event: KeyEvent): Boolean {
-            if (!web.hasFocus()) web.requestFocus()
-            return web.dispatchKeyEvent(event)
+            val target = fullscreenView ?: web
+            if (!target.hasFocus()) target.requestFocus()
+            return target.dispatchKeyEvent(event)
         }
 
         override fun back(): Boolean {
@@ -344,6 +380,9 @@ class WebAppActivity : ComponentActivity() {
         /** How long a tap's finger stays down. */
         const val TapMs = 70L
 
+        /** Swipes while an arrow is held at the edge come this far apart. */
+        const val SwipeGapMs = 420L
+
         fun intent(context: Context, id: String): Intent =
             Intent(context, WebAppActivity::class.java).putExtra(ExtraId, id)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
@@ -369,8 +408,11 @@ fun scrollScript(x: Float, y: Float, dx: Float, dy: Float): String {
     return "(function(x,y,dx,dy){var k=(window.visualViewport&&visualViewport.scale)||1;x/=k;y/=k;dx/=k;dy/=k;" +
         "var e=document.elementFromPoint(x,y);" +
         "while(e&&e!==document.body&&e!==document.documentElement){var s=getComputedStyle(e);" +
-        "if((dy&&e.scrollHeight>e.clientHeight+1&&/(auto|scroll)/.test(s.overflowY))||(dx&&e.scrollWidth>e.clientWidth+1&&/(auto|scroll)/.test(s.overflowX))){e.scrollBy(dx,dy);return;}" +
-        "e=e.parentElement;}window.scrollBy(dx,dy);})(${n(x)},${n(y)},${n(dx)},${n(dy)})"
+        "if((dy&&e.scrollHeight>e.clientHeight+1&&/(auto|scroll)/.test(s.overflowY))||(dx&&e.scrollWidth>e.clientWidth+1&&/(auto|scroll)/.test(s.overflowX))){e.scrollBy(dx,dy);return 'box';}" +
+        "e=e.parentElement;}" +
+        "var r=document.scrollingElement||document.documentElement;" +
+        "if(dx&&!dy&&r.scrollWidth<=innerWidth+1)return 'none';" +
+        "window.scrollBy(dx,dy);return 'page';})(${n(x)},${n(y)},${n(dx)},${n(dy)})"
 }
 
 /** Why a page didn't load, in plain words. */

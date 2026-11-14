@@ -124,6 +124,12 @@ class WebViewer(
     var presses by mutableIntStateOf(0)
         private set
 
+    /** In a full-screen video, the pointer is out to reach the player's own buttons (Up or Down brings it, Back hides it). */
+    var playerPointer by mutableStateOf(false)
+
+    /** Whether the arrows steer the pointer now: on the page as the shortcut says, in a full-screen video only when brought out. */
+    val pointerOn: Boolean get() = if (fullscreen) playerPointer else shortcut.pointer
+
     /** Ads, pop-ups and trackers stopped on this page. */
     var blocked by mutableIntStateOf(0)
 
@@ -169,6 +175,7 @@ class WebViewer(
             KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_ESCAPE -> {
                 if (down) return true
                 when {
+                    fullscreen && playerPointer -> hidePlayerPointer()
                     fullscreen -> controls.exitFullscreen()
                     !controls.back() -> onLeave()
                 }
@@ -182,7 +189,54 @@ class WebViewer(
                 return true
             }
         }
-        if (fullscreen) return false
+        // The remote's media keys, anywhere: as a keyboard's are to a web player (Space, ← →)
+        val media = when (e.keyCode) {
+            KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, KeyEvent.KEYCODE_MEDIA_PLAY, KeyEvent.KEYCODE_MEDIA_PAUSE -> KeyEvent.KEYCODE_SPACE
+            KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> KeyEvent.KEYCODE_DPAD_RIGHT
+            KeyEvent.KEYCODE_MEDIA_REWIND -> KeyEvent.KEYCODE_DPAD_LEFT
+            else -> null
+        }
+        if (media != null) {
+            sendAs(e, media)
+            return true
+        }
+        // A full-screen video, the pointer away: the remote works the player as a TV app's does
+        if (fullscreen && !playerPointer) {
+            when (e.keyCode) {
+                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER, KeyEvent.KEYCODE_BUTTON_A -> {
+                    if (down) {
+                        if (e.repeatCount == 0) {
+                            okDown = true
+                            okHeld = false
+                        } else if (okDown && !okHeld && e.eventTime - e.downTime >= HoldMs) {
+                            okHeld = true
+                            menuByHold = true
+                            menuOpen = true
+                        }
+                        return true
+                    }
+                    if (okDown && !okHeld) {
+                        // Play or pause: Space, as every web player takes it
+                        val t = e.eventTime
+                        controls.pageKey(KeyEvent(t, t, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_SPACE, 0))
+                        controls.pageKey(KeyEvent(t, t, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_SPACE, 0))
+                    }
+                    okDown = false
+                    return true
+                }
+                // Skip back or on: the player's own arrow keys, again and again while held
+                KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                    controls.pageKey(e)
+                    return true
+                }
+                // The pointer, for the player's buttons (subtitles, episodes, quality)
+                KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> {
+                    if (down && e.repeatCount == 0) showPlayerPointer()
+                    return true
+                }
+            }
+            return false
+        }
         when (e.keyCode) {
             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER, KeyEvent.KEYCODE_BUTTON_A -> {
                 if (down) {
@@ -204,7 +258,7 @@ class WebViewer(
                         error = null
                         controls.reload()
                     }
-                    shortcut.pointer -> here().let {
+                    pointerOn -> here().let {
                         clicks++
                         controls.click(it.x, it.y)
                     }
@@ -217,7 +271,7 @@ class WebViewer(
                 return true
             }
             KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> {
-                if (!shortcut.pointer) return controls.pageKey(e)
+                if (!pointerOn) return controls.pageKey(e)
                 if (down) {
                     val h = held.getOrPut(e.keyCode) { Held() }
                     h.seen = e.eventTime
@@ -234,6 +288,37 @@ class WebViewer(
             }
         }
         return false
+    }
+
+    /** [e] passed to the page as [code] instead, pressed and let go as [e] is. */
+    private fun sendAs(e: KeyEvent, code: Int) {
+        controls.pageKey(KeyEvent(e.downTime, e.eventTime, e.action, code, e.repeatCount))
+    }
+
+    /** Bumped when the pointer comes out in a full-screen video, so it hides again after a while unused. */
+    var playerPointerShown by mutableIntStateOf(0)
+        private set
+
+    fun showPlayerPointer() {
+        held.clear()
+        nudge = Offset.Zero
+        if (size != IntSize.Zero) cursor = Offset(size.width / 2f, size.height * 0.8f)
+        playerPointer = true
+        playerPointerShown++
+    }
+
+    fun hidePlayerPointer() {
+        held.clear()
+        nudge = Offset.Zero
+        moving = false
+        playerPointer = false
+    }
+
+    /** Video full screen from the menu: F, the key web players take for it. */
+    fun videoFullScreen() {
+        val t = android.os.SystemClock.uptimeMillis()
+        controls.pageKey(KeyEvent(t, t, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_F, 0))
+        controls.pageKey(KeyEvent(t, t, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_F, 0))
     }
 
     private fun direction(code: Int): Offset = when (code) {
@@ -256,7 +341,7 @@ class WebViewer(
      * Moving by time rather than by key repeats is what keeps it smooth.
      */
     fun tick(now: Long, uptimeMs: Long = now / 1_000_000) {
-        if (size == IntSize.Zero || !shortcut.pointer) {
+        if (size == IntSize.Zero || !pointerOn) {
             held.clear()
             nudge = Offset.Zero
             moving = false
@@ -336,7 +421,7 @@ fun WebAppPage(viewer: WebViewer, icon: ImageBitmap?, modifier: Modifier = Modif
             if (viewer.progress in 1..99 && !viewer.fullscreen) {
                 Box(Modifier.fillMaxWidth(viewer.progress / 100f).height(4.dp).background(WebAccent))
             }
-            if (s.pointer && !viewer.fullscreen && viewer.error == null && viewer.size != IntSize.Zero) {
+            if (viewer.pointerOn && viewer.error == null && viewer.size != IntSize.Zero) {
                 Pointer(viewer)
             }
         }
@@ -376,6 +461,37 @@ fun WebAppPage(viewer: WebViewer, icon: ImageBitmap?, modifier: Modifier = Modif
                 modifier = Modifier.clip(RoundedCornerShape(99.dp)).background(Color(0xE60B0F1A)).padding(horizontal = 26.dp, vertical = 13.dp),
             )
         }
+        // A full-screen video: how the remote works it, for a few seconds; the pointer, once out,
+        // goes away again after a while unused; leaving full screen puts it away
+        LaunchedEffect(viewer.fullscreen) { if (!viewer.fullscreen) viewer.hidePlayerPointer() }
+        LaunchedEffect(viewer.playerPointer, viewer.presses) {
+            if (viewer.fullscreen && viewer.playerPointer) {
+                delay(6000)
+                viewer.hidePlayerPointer()
+            }
+        }
+        var playerHint by remember { mutableStateOf(false) }
+        LaunchedEffect(viewer.fullscreen, viewer.playerPointer) {
+            playerHint = viewer.fullscreen
+            if (playerHint) {
+                delay(5000)
+                playerHint = false
+            }
+        }
+        AnimatedVisibility(
+            visible = playerHint && !viewer.menuOpen,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 40.dp),
+        ) {
+            Text(
+                if (viewer.playerPointer) tr("The pointer, for the player's buttons · Back hides it")
+                else tr("OK plays or pauses · ← → skip · ↑ the player's buttons · Back leaves full screen"),
+                color = Palette.TextPrimary,
+                fontSize = 18.sp,
+                modifier = Modifier.clip(RoundedCornerShape(99.dp)).background(Color(0xE60B0F1A)).padding(horizontal = 26.dp, vertical = 13.dp),
+            )
+        }
         if (viewer.menuOpen) {
             MenuCard(
                 okHeld = viewer.menuByHold,
@@ -391,6 +507,7 @@ fun WebAppPage(viewer: WebViewer, icon: ImageBitmap?, modifier: Modifier = Modif
                 },
                 choices = listOf(
                     MenuChoice(tr("Reload")) { viewer.reloadPage() },
+                    MenuChoice(tr("Video full screen"), tr("The video playing fills the screen; Back leaves")) { viewer.videoFullScreen() },
                     MenuChoice(tr("Text size · %1\$s%%", s.textZoom), tr("OK for the next size")) { viewer.change(s.copy(textZoom = nextTextZoom(s.textZoom))) },
                     MenuChoice(tr("Page size · %1\$s%%", s.pageZoom), tr("Smaller fits more of a wide page")) { viewer.change(s.copy(pageZoom = nextPageZoom(s.pageZoom))) },
                     if (s.pointer) MenuChoice(tr("Jump between links"), tr("For pages made for a remote")) { viewer.change(s.copy(pointer = false)) }
@@ -401,7 +518,6 @@ fun WebAppPage(viewer: WebViewer, icon: ImageBitmap?, modifier: Modifier = Modif
                     ) { viewer.change(s.copy(tvVersion = !s.tvVersion)) },
                     if (s.blockAds) MenuChoice(tr("Blocking ads and pop-ups"), tr("%1\$s stopped here · OK to allow on this site", viewer.blocked)) { viewer.change(s.copy(blockAds = false)) }
                     else MenuChoice(tr("Ads and pop-ups allowed"), tr("On this site only · OK to block them again")) { viewer.change(s.copy(blockAds = true)) },
-                    MenuChoice(tr("Back to the home screen")) { viewer.leave() },
                 ),
                 onDismiss = { viewer.menuClosed() },
             )
