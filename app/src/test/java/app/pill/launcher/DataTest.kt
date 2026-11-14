@@ -1298,6 +1298,7 @@ class DataTest {
         assertTrue(agentFor(webView, tv = true).endsWith(" SMART-TV"))
         assertFalse(agentFor(webView, tv = true).contains("Mobile"))
         assertTrue(scrollScript(10f, 20f, 0f, -108f).endsWith("(10.0,20.0,0.0,-108.0)"))
+        assertTrue("scrolls at the page's scale", scrollScript(1f, 1f, 0f, 1f).contains("visualViewport.scale"))
     }
 
 }
