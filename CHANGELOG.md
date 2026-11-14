@@ -3,6 +3,15 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 4.3 (November 2026)
+
+Websites' videos in the launcher's own player:
+
+- **Full screen plays in Pill Launcher's player**: the viewer notes the videos a page asks for (HLS, DASH or a file, from any frame, an embedded player from another site included, with the headers and cookies it used). The site's full-screen button, or **Video full screen** in the viewer's menu, pauses the site's player and plays that video full screen in the launcher's own player (Media3), from where the page's own video had got to when the page holds it.
+- **Worked as Netflix is**: the title at the top; a red progress bar with what has loaded in grey and the time left; controls that come up on any key and go five seconds later while it plays (and stay while paused, over a dimmed picture); **OK** plays or pauses with a big sign in the middle; **Left** / **Right** skip ten seconds and, held, scrub 10, then 30, then 60 seconds a step with the time shown over the bar, jumping when let go; **Down** to **Audio & Subtitles** (the video's own audio languages and subtitles) and **Speed** (0.5x to 1.5x); **Back** closes a panel, hides the controls, then returns to the site; ⏯ ⏪ ⏩ work; leaving the launcher pauses it.
+- **When it can't**: a video the player can't play (protected, or refused outside its site's player) says why, and the site's own full screen is used for it from then on.
+- **Down in the site's full screen** brings the pointer again (back from 4.2.1).
+
 ## 4.2.1 (November 2026)
 
 - **Down clears a full-screen video**: the pointer and the note on the keys go at once, and the player is told the pointer has left, so most players fade their controls. **Up** brings the pointer for the player's buttons, as before.

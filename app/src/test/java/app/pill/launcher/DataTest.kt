@@ -1320,4 +1320,38 @@ class DataTest {
         assertTrue("says when nothing scrolls sideways, for a swipe", scrollScript(1f, 1f, 5f, 0f).contains("return 'none'"))
     }
 
+
+    /** Videos are known by their address: streams and files, not their pieces or pictures. */
+    @Test
+    fun videosAreFound() {
+        assertEquals(MediaKind.Hls, mediaKindOf("https://cdn.example.com/hls/master.m3u8?token=1"))
+        assertEquals(MediaKind.Hls, mediaKindOf("https://e.com/play?src=video.m3u8"))
+        assertEquals(MediaKind.Dash, mediaKindOf("https://e.com/manifest.mpd"))
+        assertEquals(MediaKind.File, mediaKindOf("https://e.com/films/a.MP4"))
+        assertNull(mediaKindOf("https://e.com/seg-001.ts"))
+        assertNull(mediaKindOf("https://e.com/poster.jpg"))
+        assertNull(mediaKindOf("blob:https://e.com/1234"))
+        // The master list first, before its variants; a stream before a file; failed ones skipped
+        var t = 1_000_000L
+        val c = MediaCatch { t }
+        c.note("https://e.com/trailer.mp4", emptyMap())
+        t += 1000
+        c.note("https://e.com/master.m3u8", mapOf("Referer" to "https://e.com/"))
+        t += 500
+        c.note("https://e.com/720p/index.m3u8", emptyMap())
+        assertEquals("https://e.com/master.m3u8", c.pick()?.url)
+        c.failed("https://e.com/master.m3u8")
+        assertEquals("https://e.com/720p/index.m3u8", c.pick()?.url)
+        t += 11 * 60_000L
+        assertNull("old ones are forgotten", c.pick())
+        // Who asked and the cookies go with it
+        val h = mediaHeaders(mapOf("referer" to "https://player.example.net/embed/9"), "a=1", "https://site.com/")
+        assertEquals("https://player.example.net/embed/9", h["Referer"])
+        assertEquals("https://player.example.net", h["Origin"])
+        assertEquals("a=1", h["Cookie"])
+        assertEquals("https://site.com/", mediaHeaders(emptyMap(), null, "https://site.com/")["Referer"])
+        assertEquals("4:05", playerTime(245_000))
+        assertEquals("1:02:33", playerTime(3_753_000))
+    }
+
 }

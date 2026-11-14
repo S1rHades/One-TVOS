@@ -1489,7 +1489,6 @@ class Screenshots {
         override fun back(): Boolean { if (history == 0) return false; history--; calls += "back"; return true }
         override fun reload() { calls += "reload" }
         override fun exitFullscreen() { calls += "exit" }
-        override fun quietPlayer() { calls += "quiet" }
     }
 
     private fun key(code: Int, action: Int = android.view.KeyEvent.ACTION_DOWN, repeat: Int = 0, held: Long = 0) =
@@ -1606,10 +1605,6 @@ class Screenshots {
         check(!viewer.pointerOn) { "no pointer over the video" }
         press(android.view.KeyEvent.KEYCODE_DPAD_UP)
         check(viewer.pointerOn) { "Up brings the pointer" }
-        viewer.hidePlayerPointer()
-        press(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
-        check(!viewer.pointerOn && viewer.quiet == 1 && page.calls.last() == "quiet") { "Down clears the video: ${page.calls}" }
-        press(android.view.KeyEvent.KEYCODE_DPAD_UP)
         press(android.view.KeyEvent.KEYCODE_BACK)
         check(!viewer.pointerOn && viewer.fullscreen) { "Back puts the pointer away first" }
         press(android.view.KeyEvent.KEYCODE_BACK)
@@ -1621,6 +1616,118 @@ class Screenshots {
         // Jumping between links: the arrows go to the page
         press(android.view.KeyEvent.KEYCODE_DPAD_LEFT)
         check(page.calls.last() == "key ${android.view.KeyEvent.KEYCODE_DPAD_LEFT}") { "arrows go to the page: ${page.calls}" }
+    }
+
+    /** A video for the player's tests: where it is, what it has, and what was asked of it. */
+    private class FakeVideo : app.pill.launcher.ui.VideoControls {
+        override var position = 754_000L
+        override var duration = 2_700_000L
+        override var buffered = 1_020_000L
+        override var playing = true
+        override var buffering = false
+        override var error: String? = null
+        var rate = 1f
+        override val speed get() = rate
+        val seeks = mutableListOf<Long>()
+        var audio = 0
+        var text: String? = null
+        override fun play() { playing = true }
+        override fun pause() { playing = false }
+        override fun seekTo(ms: Long) { seeks += ms; position = ms }
+        override fun setSpeed(speed: Float) { rate = speed }
+        override fun audioTracks() = listOf(
+            app.pill.launcher.ui.TrackChoice("0:0", "English", audio == 0),
+            app.pill.launcher.ui.TrackChoice("1:0", "Arabic", audio == 1),
+            app.pill.launcher.ui.TrackChoice("2:0", "French", audio == 2),
+        )
+        override fun textTracks() = listOf(
+            app.pill.launcher.ui.TrackChoice("0:0", "English", text == "0:0"),
+            app.pill.launcher.ui.TrackChoice("1:0", "Arabic", text == "1:0"),
+            app.pill.launcher.ui.TrackChoice("2:0", "French", text == "2:0"),
+        )
+        override fun selectAudio(id: String) { audio = id.substringBefore(':').toInt() }
+        override fun selectText(id: String?) { text = id }
+    }
+
+    /** A frame of a film for the player's pictures: an evening sea. */
+    @androidx.compose.runtime.Composable
+    private fun StandInFilm() {
+        androidx.compose.foundation.layout.Box(
+            androidx.compose.ui.Modifier.fillMaxSize().background(
+                androidx.compose.ui.graphics.Brush.verticalGradient(
+                    listOf(androidx.compose.ui.graphics.Color(0xFF1E3A5F), androidx.compose.ui.graphics.Color(0xFFE07A3F), androidx.compose.ui.graphics.Color(0xFF0E2A47)),
+                ),
+            ),
+        )
+    }
+
+    /**
+     * The launcher's own player, as Netflix's: the title, the red bar with the time left and
+     * the buttons; OK pauses; Left / Right skip ten seconds, and held they scrub further, the
+     * video jumping when the key is let go; Down goes to the buttons, where Audio & Subtitles
+     * opens its panel; Back closes the panel, hides the controls, then leaves.
+     */
+    @Test
+    fun videoPlayer() {
+        val video = FakeVideo()
+        var left = false
+        val player = app.pill.launcher.ui.TvPlayer("Beni Saf by the sea", video, onExit = { left = true })
+        compose.setContent { app.pill.launcher.ui.TvPlayerScreen(player) { StandInFilm() } }
+        settle()
+        compose.onNodeWithText("Beni Saf by the sea").assertIsDisplayed()
+        compose.onNodeWithText("-32:26").assertIsDisplayed()
+        captureScreenRoboImage(File(out, "player.png").path)
+        fun press(code: Int, repeat: Int = 0) {
+            check(player.key(key(code, repeat = repeat)))
+            check(player.key(key(code, android.view.KeyEvent.ACTION_UP)))
+        }
+        // OK pauses and plays
+        press(android.view.KeyEvent.KEYCODE_DPAD_CENTER)
+        check(!video.playing) { "OK pauses" }
+        press(android.view.KeyEvent.KEYCODE_DPAD_CENTER)
+        check(video.playing) { "OK plays" }
+        // A tap of Right: ten seconds on
+        press(android.view.KeyEvent.KEYCODE_DPAD_RIGHT)
+        check(video.seeks.last() == 764_000L) { "Right skips ten seconds: ${video.seeks}" }
+        // Held: further and further, one jump when let go
+        val before = video.seeks.size
+        for (r in 0 until 8) check(player.key(key(android.view.KeyEvent.KEYCODE_DPAD_RIGHT, repeat = r)))
+        check(video.seeks.size == before && player.scrubTarget != null) { "no jump while held" }
+        settle()
+        captureScreenRoboImage(File(out, "player-scrub.png").path)
+        check(player.key(key(android.view.KeyEvent.KEYCODE_DPAD_RIGHT, android.view.KeyEvent.ACTION_UP)))
+        check(video.seeks.last() == 764_000L + 4 * 10_000L + 4 * 30_000L) { "one jump on release: ${video.seeks}" }
+        // Down to the buttons, OK on Audio & Subtitles: Arabic subtitles
+        press(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
+        press(android.view.KeyEvent.KEYCODE_DPAD_CENTER)
+        check(player.panel == app.pill.launcher.ui.TvPlayer.Panel.Tracks) { "the panel opens" }
+        press(android.view.KeyEvent.KEYCODE_DPAD_RIGHT)
+        press(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
+        press(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
+        press(android.view.KeyEvent.KEYCODE_DPAD_CENTER)
+        check(video.text == "1:0") { "Arabic subtitles chosen: ${video.text}" }
+        settle()
+        captureScreenRoboImage(File(out, "player-tracks.png").path)
+        // Back: the panel, then the controls, then out
+        press(android.view.KeyEvent.KEYCODE_BACK)
+        check(player.panel == app.pill.launcher.ui.TvPlayer.Panel.None && player.controlsVisible)
+        press(android.view.KeyEvent.KEYCODE_BACK)
+        check(!player.controlsVisible && !left) { "Back hides the controls while it plays" }
+        // Hidden controls: OK still pauses, and brings them back
+        press(android.view.KeyEvent.KEYCODE_DPAD_CENTER)
+        check(!video.playing && player.controlsVisible)
+        press(android.view.KeyEvent.KEYCODE_BACK)
+        check(left) { "Back on a paused video leaves" }
+        // The speed button
+        val other = app.pill.launcher.ui.TvPlayer("x", video, onExit = {})
+        other.refresh()
+        check(other.key(key(android.view.KeyEvent.KEYCODE_DPAD_DOWN)))
+        check(other.key(key(android.view.KeyEvent.KEYCODE_DPAD_RIGHT)))
+        check(other.key(key(android.view.KeyEvent.KEYCODE_DPAD_CENTER)))
+        check(other.panel == app.pill.launcher.ui.TvPlayer.Panel.Speed)
+        check(other.key(key(android.view.KeyEvent.KEYCODE_DPAD_DOWN)))
+        check(other.key(key(android.view.KeyEvent.KEYCODE_DPAD_CENTER)))
+        check(video.speed == 1.25f && other.panel == app.pill.launcher.ui.TvPlayer.Panel.None) { "speed 1.25x: ${video.speed}" }
     }
 
     private val beniSaf = Place("Beni Saf", "Aïn Témouchent", "Algeria", 35.30099, -1.38226)

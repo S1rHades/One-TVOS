@@ -23,6 +23,9 @@ import android.widget.FrameLayout
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.remember
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.viewinterop.AndroidView
 import app.pill.launcher.ui.WebAppPage
@@ -39,6 +42,17 @@ class WebAppActivity : ComponentActivity() {
     private lateinit var web: WebView
     private var viewer: WebViewer? = null
     private var fullscreenView: View? = null
+
+    /** The videos pages ask for, to play one in the launcher's own player. */
+    private val catch = MediaCatch()
+
+    /** The page's address, for the request thread (WebView's own is only for the main thread). */
+    @Volatile private var pageUrl: String? = null
+
+    /** The launcher's own player, while it plays a page's video. */
+    private var tv by androidx.compose.runtime.mutableStateOf<app.pill.launcher.ui.TvPlayer?>(null)
+    private var native: NativeVideo? = null
+    private var nativeMedia: FoundMedia? = null
     private var fullscreenDone: WebChromeClient.CustomViewCallback? = null
     private lateinit var frame: FrameLayout
     private val shortcuts by lazy { WebShortcuts(this) }
@@ -75,8 +89,24 @@ class WebAppActivity : ComponentActivity() {
         if (saved == null || web.restoreState(saved) == null) web.loadUrl(shortcut.url)
         val icon = shortcuts.tile(shortcut).asImageBitmap()
         setContent {
-            WebAppPage(v, remember { icon }) {
-                AndroidView(factory = { frame.apply { if (web.parent == null) addView(web, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT) } })
+            androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize()) {
+                WebAppPage(v, remember { icon }) {
+                    AndroidView(factory = { frame.apply { if (web.parent == null) addView(web, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT) } })
+                }
+                tv?.let { player ->
+                    androidx.compose.runtime.key(player) {
+                        app.pill.launcher.ui.TvPlayerScreen(player) {
+                            AndroidView(factory = { c ->
+                                androidx.media3.ui.PlayerView(c).apply {
+                                    useController = false
+                                    setShowBuffering(androidx.media3.ui.PlayerView.SHOW_BUFFERING_NEVER)
+                                    setKeepContentOnPlayerReset(true)
+                                    this.player = native?.player
+                                }
+                            }, modifier = androidx.compose.ui.Modifier.fillMaxSize())
+                        }
+                    }
+                }
             }
         }
     }
@@ -175,12 +205,21 @@ class WebAppActivity : ComponentActivity() {
             }
 
             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
-                if (!blockingAds || !isAdHost(request.url.host)) return null
-                noteBlocked()
-                return WebResourceResponse("text/plain", "utf-8", java.io.ByteArrayInputStream(ByteArray(0)))
+                if (blockingAds && isAdHost(request.url.host)) {
+                    noteBlocked()
+                    return WebResourceResponse("text/plain", "utf-8", java.io.ByteArrayInputStream(ByteArray(0)))
+                }
+                // A video, from any frame: noted with how it was asked for, for the launcher's player
+                val url = request.url.toString()
+                if (mediaKindOf(url) != null) {
+                    catch.note(url, mediaHeaders(request.requestHeaders.orEmpty(), runCatching { CookieManager.getInstance().getCookie(url) }.getOrNull(), pageUrl))
+                }
+                return null
             }
 
             override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
+                pageUrl = url
+                catch.clear()
                 viewer?.blocked = 0
                 viewer?.error = null
             }
@@ -222,6 +261,14 @@ class WebAppActivity : ComponentActivity() {
             }
 
             override fun onShowCustomView(view: View, callback: CustomViewCallback) {
+                // A video going full screen plays in the launcher's own player, when it was found;
+                // the site's player leaves its full screen
+                val media = catch.pick()
+                if (media != null) {
+                    web.post { runCatching { callback.onCustomViewHidden() } }
+                    playNatively(media)
+                    return
+                }
                 fullscreenView?.let { frame.removeView(it) }
                 fullscreenView = view
                 fullscreenDone = callback
@@ -335,17 +382,10 @@ class WebAppActivity : ComponentActivity() {
 
         override fun reload() = web.reload()
 
-        override fun quietPlayer() {
-            // The mouse leaves the video: players hide their controls when it does
-            val target = fullscreenView ?: return
-            val t = SystemClock.uptimeMillis()
-            val props = arrayOf(MotionEvent.PointerProperties().apply { id = 0; toolType = MotionEvent.TOOL_TYPE_MOUSE })
-            for (action in listOf(MotionEvent.ACTION_HOVER_MOVE, MotionEvent.ACTION_HOVER_EXIT)) {
-                val coords = arrayOf(MotionEvent.PointerCoords().apply { x = target.width / 2f; y = target.height - 1f })
-                val e = MotionEvent.obtain(t, t, action, 1, props, coords, 0, 0, 1f, 1f, 0, 0, android.view.InputDevice.SOURCE_MOUSE, 0)
-                target.dispatchGenericMotionEvent(e)
-                e.recycle()
-            }
+        override fun playVideo(): Boolean {
+            val media = catch.pick() ?: return false
+            playNatively(media)
+            return true
         }
 
         override fun exitFullscreen() {
@@ -354,7 +394,42 @@ class WebAppActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * Plays [media] in the launcher's own player, from where the page's own video had got to
+     * (when the page holds it itself), pausing the page's video.
+     */
+    private fun playNatively(media: FoundMedia) {
+        if (tv != null) return
+        val js = "(function(){var b=null,a=0;document.querySelectorAll('video').forEach(function(v){var s=v.clientWidth*v.clientHeight;if(s>=a){a=s;b=v;}});" +
+            "var t=b?b.currentTime:0;document.querySelectorAll('video').forEach(function(v){try{v.pause()}catch(e){}});return t;})()"
+        web.evaluateJavascript(js) { result ->
+            if (tv != null) return@evaluateJavascript
+            val start = ((result?.trim('"')?.toDoubleOrNull() ?: 0.0) * 1000).toLong()
+            val nv = NativeVideo(this, media, web.settings.userAgentString, start)
+            native = nv
+            nativeMedia = media
+            val title = viewer?.title?.takeIf { it.isNotBlank() } ?: viewer?.shortcut?.name.orEmpty()
+            tv = app.pill.launcher.ui.TvPlayer(title, nv, onExit = { closeNative() })
+        }
+    }
+
+    /** Leaves the launcher's player for the page, which takes up where it left off (when the page holds the video itself). */
+    private fun closeNative() {
+        val nv = native ?: return
+        val pos = nv.position
+        if (nv.error != null) nativeMedia?.let { catch.failed(it.url) }
+        nv.release()
+        native = null
+        nativeMedia = null
+        tv = null
+        web.evaluateJavascript(
+            "(function(){var b=null,a=0;document.querySelectorAll('video').forEach(function(v){var s=v.clientWidth*v.clientHeight;if(s>=a){a=s;b=v;}});if(b&&$pos>0)b.currentTime=${pos / 1000.0};})()",
+            null,
+        )
+    }
+
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        tv?.let { return it.key(event) || super.dispatchKeyEvent(event) }
         val v = viewer ?: return super.dispatchKeyEvent(event)
         return v.key(event) || super.dispatchKeyEvent(event)
     }
@@ -366,6 +441,8 @@ class WebAppActivity : ComponentActivity() {
 
     override fun onPause() {
         super.onPause()
+        // Leaving for another app or the home screen pauses the video, as a TV app does
+        native?.pause()
         if (::web.isInitialized) web.onPause()
         CookieManager.getInstance().flush()
     }
@@ -380,6 +457,8 @@ class WebAppActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        native?.release()
+        native = null
         if (::web.isInitialized) {
             (web.parent as? ViewGroup)?.removeView(web)
             web.destroy()

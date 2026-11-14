@@ -70,8 +70,8 @@ interface WebPageControls {
     /** Leaves a video playing full screen. */
     fun exitFullscreen()
 
-    /** Tells a full-screen player the pointer has gone, so it lets its controls fade. */
-    fun quietPlayer() {}
+    /** Plays the page's video in the launcher's own player; false when it has found none. */
+    fun playVideo(): Boolean = false
 }
 
 /**
@@ -232,14 +232,9 @@ class WebViewer(
                     controls.pageKey(e)
                     return true
                 }
-                // Up: the pointer, for the player's buttons (subtitles, episodes, quality)
-                KeyEvent.KEYCODE_DPAD_UP -> {
+                // The pointer, for the player's buttons (subtitles, episodes, quality)
+                KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> {
                     if (down && e.repeatCount == 0) showPlayerPointer()
-                    return true
-                }
-                // Down: nothing over the video (the note, and the player's own controls)
-                KeyEvent.KEYCODE_DPAD_DOWN -> {
-                    if (down && e.repeatCount == 0) quietPlayer()
                     return true
                 }
             }
@@ -315,16 +310,6 @@ class WebViewer(
         playerPointerShown++
     }
 
-    /** Bumped when Down clears the video: the note on the keys goes too. */
-    var quiet by mutableIntStateOf(0)
-        private set
-
-    fun quietPlayer() {
-        hidePlayerPointer()
-        quiet++
-        controls.quietPlayer()
-    }
-
     fun hidePlayerPointer() {
         held.clear()
         nudge = Offset.Zero
@@ -334,6 +319,8 @@ class WebViewer(
 
     /** Video full screen from the menu: F, the key web players take for it. */
     fun videoFullScreen() {
+        // The launcher's own player when the page's video was found; else the player's own key for it
+        if (controls.playVideo()) return
         val t = android.os.SystemClock.uptimeMillis()
         controls.pageKey(KeyEvent(t, t, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_F, 0))
         controls.pageKey(KeyEvent(t, t, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_F, 0))
@@ -489,7 +476,6 @@ fun WebAppPage(viewer: WebViewer, icon: ImageBitmap?, modifier: Modifier = Modif
             }
         }
         var playerHint by remember { mutableStateOf(false) }
-        LaunchedEffect(viewer.quiet) { if (viewer.quiet > 0) playerHint = false }
         LaunchedEffect(viewer.fullscreen, viewer.playerPointer) {
             playerHint = viewer.fullscreen
             if (playerHint) {
@@ -505,7 +491,7 @@ fun WebAppPage(viewer: WebViewer, icon: ImageBitmap?, modifier: Modifier = Modif
         ) {
             Text(
                 if (viewer.playerPointer) tr("The pointer, for the player's buttons · Back hides it")
-                else tr("OK plays or pauses · ← → skip · ↑ the player's buttons · ↓ hides them · Back leaves"),
+                else tr("OK plays or pauses · ← → skip · ↑ the player's buttons · Back leaves full screen"),
                 color = Palette.TextPrimary,
                 fontSize = 18.sp,
                 modifier = Modifier.clip(RoundedCornerShape(99.dp)).background(Color(0xE60B0F1A)).padding(horizontal = 26.dp, vertical = 13.dp),

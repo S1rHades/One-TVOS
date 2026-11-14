@@ -12,8 +12,8 @@ android {
         applicationId = "app.pill.launcher"
         minSdk = 26
         targetSdk = 34
-        versionCode = 57
-        versionName = "4.2.1"
+        versionCode = 58
+        versionName = "4.3"
     }
 
     // CI signs with one permanent key (from repository secrets, see build.yml) so each new
@@ -82,6 +82,11 @@ dependencies {
     implementation("com.google.zxing:core:3.5.3")
     implementation("androidx.activity:activity-compose:1.9.2")
     implementation("androidx.core:core-ktx:1.13.1")
+    // The video player for websites' videos (HLS, DASH, MP4)
+    implementation("androidx.media3:media3-exoplayer:1.4.1")
+    implementation("androidx.media3:media3-exoplayer-hls:1.4.1")
+    implementation("androidx.media3:media3-exoplayer-dash:1.4.1")
+    implementation("androidx.media3:media3-ui:1.4.1")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.13")
