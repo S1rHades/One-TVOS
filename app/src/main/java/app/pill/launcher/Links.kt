@@ -279,7 +279,8 @@ fun fitWidth(zoom: Int): Int = 1280 * 100 / zoom.coerceIn(PageZooms.last(), 100)
  * Fits a page to the TV: tells it the screen is [fitWidth] web pixels wide and draws it
  * scaled so that width just fills the viewer ([viewDp] wide; 0 while unknown, when the
  * page's own idea of its window is used), whatever the page's own viewport line says, and
- * again if it changes it. Anything still wider is zoomed out until it fits too.
+ * again if it changes it. A page still wider is given that width instead (once, up to 2560),
+ * so it fits without zooming it, which would upset the sizes carousels measure.
  */
 fun fitScript(zoom: Int, viewDp: Float = 0f): String {
     val w = fitWidth(zoom)
@@ -290,8 +291,8 @@ fun fitScript(zoom: Int, viewDp: Float = 0f): String {
         "var s=(window.__pillV/window.__pillW).toFixed(4);" +
         "var c='width='+window.__pillW+', initial-scale='+s+', minimum-scale='+s+', maximum-scale='+s;" +
         "if(m.getAttribute('content')!==c)m.setAttribute('content',c);}" +
-        "function fit(){h.style.zoom='';var sw=Math.max(h.scrollWidth,d.body?d.body.scrollWidth:0);" +
-        "if(sw>window.__pillW+16)h.style.zoom=(window.__pillW/sw).toFixed(3);}" +
+        "function fit(){if(window.__pillWide)return;var sw=Math.max(h.scrollWidth,d.body?d.body.scrollWidth:0);" +
+        "if(sw>window.__pillW+16){window.__pillWide=1;window.__pillW=Math.min(Math.ceil(sw),2560);vp();}}" +
         "vp();if(!window.__pillFit){window.__pillFit=1;" +
         "if(d.head)new MutationObserver(vp).observe(d.head,{childList:true,subtree:true,attributes:true});" +
         "window.addEventListener('load',function(){vp();setTimeout(fit,300);});}" +

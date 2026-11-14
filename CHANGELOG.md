@@ -3,6 +3,10 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 4.1.5 (November 2026)
+
+- **Carousels turn and fill in**: a page wider than the screen is now laid out at the width it needs rather than zoomed out, which upset the sizes carousels measure; pictures and videos a secure page fetches over plain http show, as in Chrome; and the pages' timers are kept running, so a carousel goes on turning.
+
 ## 4.1.4 (November 2026)
 
 - **Clicks work in websites**: OK now taps the page the way a finger on a touch screen does (pressed, then let go a moment later), instead of an event the TV's web engine could ignore and that could leave the page waiting for the finger to lift, so it seemed frozen.
