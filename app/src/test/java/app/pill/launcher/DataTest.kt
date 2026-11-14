@@ -1283,8 +1283,6 @@ class DataTest {
         assertEquals(listOf(90, 80, 67, 100), listOf(100, 90, 80, 67).map(::nextPageZoom))
         // A laptop's width at 100%, wider (so drawn smaller) below
         assertEquals(listOf(1280, 1422, 1600, 1910), listOf(100, 90, 80, 67).map(::fitWidth))
-        assertTrue(fitScript(80, 864f).endsWith("})(1600,864.0)"))
-        assertTrue(fitScript(100).contains("'width='+window.__pillW"))
     }
 
     /** Ad networks are blocked by host, subdomains too; a site's own hosts and look-alikes aren't; sites are told apart. */

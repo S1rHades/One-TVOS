@@ -28,6 +28,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import app.pill.launcher.ui.WebAppPage
 import app.pill.launcher.ui.WebPageControls
 import app.pill.launcher.ui.WebViewer
+import kotlin.math.roundToInt
 
 /**
  * A web shortcut, open full screen: the site in a WebView, with the remote steering a
@@ -54,7 +55,7 @@ class WebAppActivity : ComponentActivity() {
             return
         }
         web = makeWebView()
-        frame = FrameLayout(this)
+        frame = FitFrame()
         open(shortcut, savedInstanceState)
     }
 
@@ -85,7 +86,8 @@ class WebAppActivity : ComponentActivity() {
         val adsChanged = blockingAds != s.blockAds
         blockingAds = s.blockAds
         web.settings.textZoom = s.textZoom
-        web.evaluateJavascript(fitScript(s.pageZoom, viewDp(), s.tvVersion), null)
+        // A new page width (Page size, the TV version): the page is laid out again at it
+        frame.requestLayout()
         val agent = agentFor(WebSettings.getDefaultUserAgent(this), s.tvVersion)
         if (web.settings.userAgentString != agent) {
             web.settings.userAgentString = agent
@@ -96,8 +98,34 @@ class WebAppActivity : ComponentActivity() {
         if (!s.pointer) web.requestFocus()
     }
 
-    /** The viewer's width in dp (web pixels at 100%); 0 before it is laid out. */
-    private fun viewDp(): Float = if (::web.isInitialized) web.width / resources.displayMetrics.density else 0f
+    /**
+     * Fits a page to the TV without touching the page: the WebView is laid out as a laptop's
+     * screen ([fitWidth] web pixels wide, the TV's shape), so the site sees an ordinary
+     * computer browser and lays itself out for it, and the whole view is then drawn shrunk
+     * to the screen, as a picture would be. (Changing the page's own viewport line, as 4.1.2
+     * to 4.1.6 did, made sites whose code checks their page stop working.)
+     */
+    private inner class FitFrame : FrameLayout(this@WebAppActivity) {
+        override fun onMeasure(widthSpec: Int, heightSpec: Int) {
+            super.onMeasure(widthSpec, heightSpec)
+            if (!::web.isInitialized || web.parent !== this || measuredWidth == 0 || measuredHeight == 0) return
+            val s = viewer?.shortcut ?: return
+            val pageW = (fitWidth(s.pageZoom, s.tvVersion) * resources.displayMetrics.density).roundToInt().coerceAtLeast(measuredWidth)
+            val scale = measuredWidth.toFloat() / pageW
+            val pageH = (measuredHeight / scale).roundToInt()
+            web.measure(MeasureSpec.makeMeasureSpec(pageW, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(pageH, MeasureSpec.EXACTLY))
+            web.pivotX = 0f
+            web.pivotY = 0f
+            web.scaleX = scale
+            web.scaleY = scale
+        }
+    }
+
+    /** Where a point on the screen falls on the page view, which is drawn shrunk. */
+    private fun onPage(x: Float, y: Float): Pair<Float, Float> {
+        val k = web.scaleX.takeIf { it > 0f } ?: 1f
+        return x / k to y / k
+    }
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun makeWebView(): WebView = WebView(this).apply {
@@ -117,10 +145,6 @@ class WebAppActivity : ComponentActivity() {
         CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
         isFocusable = true
         isFocusableInTouchMode = true
-        // A new width (the margin turned on or off): fit the page to it again
-        addOnLayoutChangeListener { v, l, _, r, _, ol, _, or2, _ ->
-            if (r - l != or2 - ol) viewer?.shortcut?.let { (v as WebView).evaluateJavascript(fitScript(it.pageZoom, viewDp(), it.tvVersion), null) }
-        }
         setBackgroundColor(android.graphics.Color.WHITE)
         webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
@@ -159,14 +183,6 @@ class WebAppActivity : ComponentActivity() {
             override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
                 viewer?.blocked = 0
                 viewer?.error = null
-            }
-
-            override fun onPageCommitVisible(view: WebView, url: String?) {
-                viewer?.shortcut?.let { view.evaluateJavascript(fitScript(it.pageZoom, viewDp(), it.tvVersion), null) }
-            }
-
-            override fun onPageFinished(view: WebView, url: String?) {
-                viewer?.shortcut?.let { view.evaluateJavascript(fitScript(it.pageZoom, viewDp(), it.tvVersion), null) }
             }
 
             override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
@@ -255,16 +271,19 @@ class WebAppActivity : ComponentActivity() {
             if (tapping) return
             tapping = true
             val down = SystemClock.uptimeMillis()
-            touch(MotionEvent.ACTION_DOWN, down, x, y)
+            val (px, py) = onPage(x, y)
+            touch(MotionEvent.ACTION_DOWN, down, px, py)
             web.postDelayed({
-                touch(MotionEvent.ACTION_UP, down, x, y)
+                touch(MotionEvent.ACTION_UP, down, px, py)
                 tapping = false
             }, TapMs)
         }
 
         override fun scroll(x: Float, y: Float, dx: Float, dy: Float) {
             val d = resources.displayMetrics.density
-            web.evaluateJavascript(scrollScript(x / d, y / d, dx / d, dy / d), null)
+            val k = web.scaleX.takeIf { it > 0f } ?: 1f
+            val (px, py) = onPage(x, y)
+            web.evaluateJavascript(scrollScript(px / d, py / d, dx / k / d, dy / k / d), null)
         }
 
         override fun pageKey(event: KeyEvent): Boolean {

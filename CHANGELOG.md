@@ -3,6 +3,10 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 4.1.7 (November 2026)
+
+- **Websites work again**: since 4.1.2 the viewer fitted a page by rewriting a line in it as it loaded, and sites whose code checks their own page (as modern ones do) stopped there: no buttons, no carousels, pictures that never came, a page that never finished. Now the page is never touched: the viewer lays it out on a laptop-sized screen and draws that screen shrunk to the TV, like a picture, and the pointer's clicks are placed on it to match. The wider-page fallback (which shrank this site to a tiny wide layout) is gone with it.
+
 ## 4.1.6 (November 2026)
 
 - **Websites work as on a computer**: the viewer now tells sites it is a computer's Chrome, so they send their full version, made for a mouse, rather than a phone's, whose buttons and carousels waited for a touch screen and didn't respond to the pointer. It is still fitted to the screen.
