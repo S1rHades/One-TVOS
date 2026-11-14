@@ -1274,7 +1274,7 @@ class DataTest {
     /** Web shortcuts keep their settings through the settings file; broken ones are dropped. */
     @Test
     fun webShortcutsAreKept() {
-        val list = listOf(WebShortcut("a1", "Tube", "https://tube.example/tv", tvVersion = true, textZoom = 150, pointer = false, pageZoom = 80), WebShortcut("b2", "News", "https://news.example/"))
+        val list = listOf(WebShortcut("a1", "Tube", "https://tube.example/tv", tvVersion = true, textZoom = 150, pointer = false, pageZoom = 80, blockAds = false), WebShortcut("b2", "News", "https://news.example/"))
         assertEquals(list, parseWebShortcuts(webShortcutsJson(list)))
         assertEquals(list.take(1), parseWebShortcuts(webShortcutsJson(list).replace("news.example", "news example")))
         assertEquals(emptyList<WebShortcut>(), parseWebShortcuts("nonsense"))
@@ -1287,14 +1287,34 @@ class DataTest {
         assertTrue(fitScript(100).contains("'width='+window.__pillW"))
     }
 
+    /** Ad networks are blocked by host, subdomains too; a site's own hosts and look-alikes aren't; sites are told apart. */
+    @Test
+    fun adsAreKnown() {
+        assertTrue(isAdHost("securepubads.g.doubleclick.net"))
+        assertTrue(isAdHost("pagead2.googlesyndication.com"))
+        assertTrue(isAdHost("a.exoclick.com"))
+        assertTrue(isAdHost("POPADS.NET."))
+        assertTrue(isAdHost("cdn.taboola.com"))
+        assertFalse(isAdHost("www.youtube.com"))
+        assertFalse(isAdHost("notdoubleclick.net"))
+        assertFalse(isAdHost("net"))
+        assertFalse(isAdHost(null))
+        assertEquals("example.co.uk", siteOf("www.example.co.uk"))
+        assertEquals("movy.cc", siteOf("api.cdn.movy.cc"))
+        assertEquals("example.com.dz", siteOf("shop.example.com.dz"))
+        assertTrue(sameSite("https://www.movy.cc/a", "https://movy.cc/b"))
+        assertFalse(sameSite("https://movy.cc/", "https://ads.example.com/"))
+        assertFalse(sameSite("https://movy.cc/", null))
+    }
+
     /** The viewer hides that it is inside an app, and adds a TV's mark when asked for the TV version. */
     @Test
     fun theViewerIntroducesItself() {
         val webView = "Mozilla/5.0 (Linux; Android 11; SHIELD Android TV Build/RQ1A; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/120.0 Mobile Safari/537.36"
-        val plain = agentFor(webView, tv = false)
-        assertFalse(plain.contains("; wv"))
-        assertFalse(plain.contains("Version/4.0"))
-        assertTrue(plain.contains("Chrome/120.0"))
+        // A computer's Chrome, of the TV's Chrome version: sites send their full version
+        assertEquals("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36", agentFor(webView, tv = false))
+        assertFalse(agentFor(webView, tv = true).contains("; wv"))
+        assertEquals(1920, fitWidth(100, tv = true))
         assertTrue(agentFor(webView, tv = true).endsWith(" SMART-TV"))
         assertFalse(agentFor(webView, tv = true).contains("Mobile"))
         assertTrue(scrollScript(10f, 20f, 0f, -108f).endsWith("(10.0,20.0,0.0,-108.0)"))

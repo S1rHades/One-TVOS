@@ -44,6 +44,8 @@ data class WebShortcut(
     val pointer: Boolean = true,
     /** How big the page is drawn, in percent: under 100 fits more of a wide page on screen. */
     val pageZoom: Int = 100,
+    /** Block ads, pop-ups and trackers (on unless a site breaks without them). */
+    val blockAds: Boolean = true,
 ) {
     val pkg: String get() = WebPrefix + id
 }
@@ -238,7 +240,7 @@ fun webShortcutsJson(list: List<WebShortcut>): String = JSONArray().apply {
         JSONObject()
             .put("id", s.id).put("name", s.name).put("url", s.url)
             .put("tv", s.tvVersion).put("zoom", s.textZoom).put("pointer", s.pointer)
-            .put("page", s.pageZoom),
+            .put("page", s.pageZoom).put("ads", s.blockAds),
     )
 }.toString()
 
@@ -255,6 +257,7 @@ fun parseWebShortcuts(json: String?): List<WebShortcut> = runCatching {
             textZoom = o.optInt("zoom", 100).coerceIn(100, 175),
             pointer = o.optBoolean("pointer", true),
             pageZoom = o.optInt("page", 100).coerceIn(PageZooms.last(), 100),
+            blockAds = o.optBoolean("ads", true),
         )
     }
 }.getOrDefault(emptyList())
@@ -271,9 +274,10 @@ fun nextPageZoom(zoom: Int): Int = PageZooms.firstOrNull { it < zoom } ?: PageZo
 /**
  * The width, in web pixels, the viewer gives a page at [zoom]: a laptop screen's 1280 at
  * 100%, so pages lay out as they do on a computer and the whole width is scaled to the TV;
- * smaller sizes give a wider page (1920 at 67%), drawn smaller.
+ * smaller sizes give a wider page (1920 at 67%), drawn smaller. A site's TV version is made
+ * for a full-HD TV's 1920, so it is given that.
  */
-fun fitWidth(zoom: Int): Int = 1280 * 100 / zoom.coerceIn(PageZooms.last(), 100)
+fun fitWidth(zoom: Int, tv: Boolean = false): Int = (if (tv) 1920 else 1280) * 100 / zoom.coerceIn(PageZooms.last(), 100)
 
 /**
  * Fits a page to the TV: tells it the screen is [fitWidth] web pixels wide and draws it
@@ -282,8 +286,8 @@ fun fitWidth(zoom: Int): Int = 1280 * 100 / zoom.coerceIn(PageZooms.last(), 100)
  * again if it changes it. A page still wider is given that width instead (once, up to 2560),
  * so it fits without zooming it, which would upset the sizes carousels measure.
  */
-fun fitScript(zoom: Int, viewDp: Float = 0f): String {
-    val w = fitWidth(zoom)
+fun fitScript(zoom: Int, viewDp: Float = 0f, tv: Boolean = false): String {
+    val w = fitWidth(zoom, tv)
     val view = if (viewDp > 0f) String.format(Locale.ROOT, "%.1f", viewDp) else "Math.min(screen.width,window.outerWidth||screen.width)"
     return "(function(w,v){var d=document,h=d.documentElement;window.__pillW=w;window.__pillV=v;" +
         "function vp(){var m=d.querySelector('meta[name=viewport]');" +
