@@ -3,6 +3,16 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 4.5 (November 2026)
+
+Websites' TV apps, fixed on a real site:
+
+- **The top carousel works**: the banner is found from the site's slider itself (the common slider libraries, or anything named hero, banner, slider or carousel), every slide of it, including the ones not showing and titles drawn as pictures, without the copies sliders make for looping. It turns every eight seconds while the remote rests on it; **Left** / **Right** past its buttons still go through it, and **Play** presses the slide's own Watch button.
+- **Pictures fit**: each row keeps the shape the site draws its pictures in (posters, 16:9, wide banners), and the picture behind the top of the screen is shown in its own shape when it is a wide one, rather than cut to fit. The top line is darkened so it reads over any picture.
+- **Rows with tabs**: tabs beside a row's heading (Films | Series, Today | This week) show on the TV; **Up** from the row reaches them and **OK** presses the tab on the site, after which the row shows its new cards.
+- **Search**: **Search** at the right of the top line, the remote's search button, or the menu opens the TV's keyboard (with voice search). The words go to the site's search address when it has one; otherwise they are typed into its search box out of sight (after opening its search button or page), and the address the results come to is remembered for next time. The results are rows.
+- **Sign in**: **Sign in** opens the site's sign-in page as the page itself; back from it, the first screen is read again and Sign in goes once the site shows someone signed in.
+
 ## 4.4 (November 2026)
 
 Websites open as TV apps:

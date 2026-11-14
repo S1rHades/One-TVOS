@@ -462,6 +462,13 @@ class WebAppActivity : ComponentActivity() {
         }
         if (fullscreenView != null) controls.exitFullscreen()
         pageMode = false
+        if (refreshOnReturn) {
+            // Back from signing in: every screen but the first is closed, and it is read again
+            refreshOnReturn = false
+            while (app.stack.size > 1) app.stack.removeAt(app.stack.size - 1)
+            app.top?.let { s -> (s.scan?.url?.ifBlank { null } ?: s.url)?.let(web::loadUrl) }
+            return
+        }
         if (pagePop) app.pop() else app.top?.let(siteActions::backTo)
     }
 
@@ -540,6 +547,125 @@ class WebAppActivity : ComponentActivity() {
         override fun showPage(pop: Boolean) = this@WebAppActivity.showPage(pop)
         override fun reload() = web.reload()
         override fun leave() = finish()
+
+        override fun askSearch() = this@WebAppActivity.askSearch()
+
+        override fun search(words: String) = runSearch(words)
+
+        override fun signIn(card: SiteCard) {
+            // Signing in is a form: the page itself, and the first screen read again after
+            val url = card.url
+            if (url != null) web.loadUrl(url) else card.path?.let { clickPath(it) }
+            refreshOnReturn = true
+            showPage(pop = false)
+        }
+
+        override fun pickTab(screen: SiteScreen, tab: SiteTab) {
+            // The tab is pressed on the page, which then shows that tab's cards; read it again
+            clickPath(tab.path) { clicked -> if (clicked) scheduleScan(900) }
+        }
+    }
+
+    /** The first screen is read again on leaving the page (after signing in, say). */
+    private var refreshOnReturn = false
+
+    /** The site's search, asked for in a box with the TV's keyboard (whose microphone does voice search). */
+    private fun askSearch() {
+        val name = viewer?.shortcut?.name.orEmpty()
+        val d = resources.displayMetrics.density
+        val input = android.widget.EditText(this).apply {
+            hint = tr("Search %1\$s", name)
+            setSingleLine()
+            imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH
+            inputType = android.text.InputType.TYPE_CLASS_TEXT
+            textSize = 20f
+        }
+        val box = FrameLayout(this).apply {
+            setPadding((24 * d).toInt(), (8 * d).toInt(), (24 * d).toInt(), 0)
+            addView(input)
+        }
+        val dialog = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(tr("Search"))
+            .setView(box)
+            .setPositiveButton(tr("Search")) { _, _ -> site?.searchFor(input.text.toString()) }
+            .setNegativeButton(tr("Cancel"), null)
+            .create()
+        input.setOnEditorActionListener { _, action, event ->
+            if (action == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH || action == android.view.inputmethod.EditorInfo.IME_ACTION_DONE || event?.keyCode == KeyEvent.KEYCODE_ENTER) {
+                dialog.dismiss()
+                site?.searchFor(input.text.toString())
+                true
+            } else {
+                false
+            }
+        }
+        dialog.window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE)
+        dialog.setOnShowListener { input.requestFocus() }
+        dialog.show()
+    }
+
+    /** A search address learnt from the site, kept per shortcut. */
+    private val learnt by lazy { getSharedPreferences("sitesearch", MODE_PRIVATE) }
+
+    /**
+     * Searches the site for [words]: by its search address when it has one (found on its
+     * pages, or learnt from an earlier search), else by typing into its search box (after
+     * pressing its search button, or opening its search page, to bring the box).
+     */
+    private fun runSearch(words: String) {
+        val id = viewer?.shortcut?.id ?: return
+        // Results that never come: the page as it is
+        val screen = site?.top
+        main.postDelayed({ if (screen != null && site?.top === screen && screen.kind == null && !pageMode) showPage(pop = true) }, 20_000)
+        val scans = site?.stack?.mapNotNull { it.scan }.orEmpty().reversed()
+        val template = learnt.getString(id, null) ?: scans.firstNotNullOfOrNull { it.search }
+        if (template != null) {
+            web.loadUrl(searchUrl(template, words))
+            return
+        }
+        fun typeHere(input: String) {
+            val before = web.url
+            web.evaluateJavascript(typeScript(input, words)) {
+                // Read the results, and learn the address they came to, for next time
+                main.postDelayed({
+                    val now = web.url
+                    if (now != null && now != before) learnSearch(now, words)?.let { learnt.edit().putString(id, it).apply() }
+                    scheduleScan(300)
+                }, 2200)
+            }
+        }
+        fun findBox(tries: Int) {
+            web.evaluateJavascript(scanner) { raw ->
+                val input = parseSiteScan(raw)?.searchInput
+                when {
+                    input != null -> typeHere(input)
+                    tries > 1 -> main.postDelayed({ findBox(tries - 1) }, 900)
+                    else -> noSearch()
+                }
+            }
+        }
+        val s = scans.firstOrNull { it.searchInput != null || it.searchButton != null || it.searchPage != null }
+        when {
+            s == null -> noSearch()
+            s.searchInput != null && web.url?.let { sameUrl(it, s.url) } == true -> typeHere(s.searchInput)
+            s.searchButton != null && web.url?.let { sameUrl(it, s.url) } == true -> clickPath(s.searchButton) { main.postDelayed({ findBox(4) }, 700) }
+            s.searchPage != null -> {
+                web.loadUrl(s.searchPage)
+                main.postDelayed({ findBox(6) }, 2500)
+            }
+            else -> {
+                web.loadUrl(s.url)
+                main.postDelayed({ findBox(6) }, 2500)
+            }
+        }
+    }
+
+    private fun noSearch() {
+        val app = site ?: return
+        if (app.top?.search != null && app.top?.kind == null) {
+            app.notice = tr("The site's search wasn't found, so here is the page")
+            showPage(pop = true)
+        }
     }
 
     private val controls = object : WebPageControls {

@@ -253,6 +253,10 @@ private fun frenchtext3(m: MutableMap<String, String>) {
     m["MET Norway"] = "MET Norway"
     // WebAppActivity.kt
     m["No video found here, so here is the page"] = "Aucune vidéo trouvée, voici la page"
+    m["Search %1\$s"] = "Rechercher sur %1\$s"
+    m["Search"] = "Rechercher"
+    m["Cancel"] = "Annuler"
+    m["The site's search wasn't found, so here is the page"] = "La recherche du site est introuvable, voici la page"
     m["No site at that address, or the TV is offline"] = "Aucun site à cette adresse, ou la TV est hors ligne"
     m["The site didn't answer"] = "Le site n'a pas répondu"
     m["A secure connection to the site failed"] = "La connexion sécurisée au site a échoué"
@@ -511,7 +515,6 @@ private fun frenchtext6(m: MutableMap<String, String>) {
     m["Good afternoon"] = "Bon après-midi"
     m["Good evening"] = "Bonsoir"
     m["Good night"] = "Bonne nuit"
-    m["Search"] = "Recherche"
     m["Settings"] = "Paramètres"
     // ui/NetworkStatus.kt
     m["Offline"] = "Hors ligne"
@@ -533,7 +536,6 @@ private fun frenchtext7(m: MutableMap<String, String>) {
     m["Try again"] = "Réessayer"
     m["Update"] = "Mettre à jour"
     m["Later"] = "Plus tard"
-    m["Cancel"] = "Annuler"
     // ui/Overlay.kt
     m["Back to close"] = "Retour pour fermer"
     // ui/PrayerPage.kt
@@ -861,7 +863,12 @@ private fun frenchtext10(m: MutableMap<String, String>) {
     m["Back to the video"] = "Retour à la vidéo"
     m["Playback speed"] = "Vitesse de lecture"
     m[" (normal)"] = " (normale)"
+}
+
+private fun frenchtext11(m: MutableMap<String, String>) {
     // ui/TvSite.kt
+    m["Sign in"] = "Se connecter"
+    m["Results for “%1\$s”"] = "Résultats pour « %1\$s »"
     m["Open as web page"] = "Ouvrir comme page web"
     m["Reload"] = "Recharger"
     m["Back to the launcher"] = "Retour au lanceur"
@@ -871,9 +878,6 @@ private fun frenchtext10(m: MutableMap<String, String>) {
     m["More"] = "Plus"
     m["Loading"] = "Chargement"
     m["Starting the video"] = "Lancement de la vidéo"
-}
-
-private fun frenchtext11(m: MutableMap<String, String>) {
     // ui/WeatherWidget.kt
     m["H %1\$s   L %2\$s"] = "Max %1\$s   Min %2\$s"
     // ui/WebAppPage.kt
@@ -1167,6 +1171,10 @@ private fun arabictext3(m: MutableMap<String, String>) {
     m["MET Norway"] = "MET Norway"
     // WebAppActivity.kt
     m["No video found here, so here is the page"] = "لم يُعثر على فيديو، إليك الصفحة"
+    m["Search %1\$s"] = "البحث في %1\$s"
+    m["Search"] = "بحث"
+    m["Cancel"] = "إلغاء"
+    m["The site's search wasn't found, so here is the page"] = "لم يُعثر على بحث الموقع، إليك الصفحة"
     m["No site at that address, or the TV is offline"] = "لا يوجد موقع بهذا العنوان، أو التلفاز غير متصل"
     m["The site didn't answer"] = "لم يستجب الموقع"
     m["A secure connection to the site failed"] = "فشل الاتصال الآمن بالموقع"
@@ -1425,7 +1433,6 @@ private fun arabictext6(m: MutableMap<String, String>) {
     m["Good afternoon"] = "طاب يومك"
     m["Good evening"] = "مساء الخير"
     m["Good night"] = "طابت ليلتك"
-    m["Search"] = "بحث"
     m["Settings"] = "الإعدادات"
     // ui/NetworkStatus.kt
     m["Offline"] = "غير متصل"
@@ -1447,7 +1454,6 @@ private fun arabictext7(m: MutableMap<String, String>) {
     m["Try again"] = "حاول مجددًا"
     m["Update"] = "تحديث"
     m["Later"] = "لاحقًا"
-    m["Cancel"] = "إلغاء"
     // ui/Overlay.kt
     m["Back to close"] = "زر الرجوع للإغلاق"
     // ui/PrayerPage.kt
@@ -1775,7 +1781,12 @@ private fun arabictext10(m: MutableMap<String, String>) {
     m["Back to the video"] = "رجوع إلى الفيديو"
     m["Playback speed"] = "سرعة التشغيل"
     m[" (normal)"] = " (عادية)"
+}
+
+private fun arabictext11(m: MutableMap<String, String>) {
     // ui/TvSite.kt
+    m["Sign in"] = "تسجيل الدخول"
+    m["Results for “%1\$s”"] = "نتائج «%1\$s»"
     m["Open as web page"] = "فتح كصفحة ويب"
     m["Reload"] = "إعادة التحميل"
     m["Back to the launcher"] = "العودة إلى المشغّل"
@@ -1785,9 +1796,6 @@ private fun arabictext10(m: MutableMap<String, String>) {
     m["More"] = "المزيد"
     m["Loading"] = "جارٍ التحميل"
     m["Starting the video"] = "جارٍ تشغيل الفيديو"
-}
-
-private fun arabictext11(m: MutableMap<String, String>) {
     // ui/WeatherWidget.kt
     m["H %1\$s   L %2\$s"] = "العظمى %1\$s   الصغرى %2\$s"
     // ui/WebAppPage.kt

@@ -1739,6 +1739,10 @@ class Screenshots {
         val pages = mutableListOf<Boolean>()
         var reloaded = 0
         var left = false
+        var asked = 0
+        val searched = mutableListOf<String>()
+        val signIns = mutableListOf<String?>()
+        val tabsPicked = mutableListOf<String>()
         override fun open(card: SiteCard) { opened += card.title }
         override fun tab(card: SiteCard) { tabs += card.title }
         override fun backTo(screen: app.pill.launcher.ui.SiteScreen) { backs += screen.url }
@@ -1746,6 +1750,10 @@ class Screenshots {
         override fun showPage(pop: Boolean) { pages += pop }
         override fun reload() { reloaded++ }
         override fun leave() { left = true }
+        override fun askSearch() { asked++ }
+        override fun search(words: String) { searched += words }
+        override fun signIn(card: SiteCard) { signIns += card.url }
+        override fun pickTab(screen: app.pill.launcher.ui.SiteScreen, tab: SiteTab) { tabsPicked += tab.title }
     }
 
     /**
@@ -1759,9 +1767,10 @@ class Screenshots {
         fun scan(name: String) = parseSiteScan(javaClass.classLoader!!.getResource("data/$name")!!.readText())!!
         val home = scan("sitescan-home.json")
         val film = scan("sitescan-detail.json")
+        val found = scan("sitescan-search.json")
         // Each picture a different photo, made small
         val files = File("src/main/assets/photos").listFiles()!!.sortedBy { it.name }
-        val urls = (home.heroes.map { it.image } + home.rows.flatMap { r -> r.cards.map { it.image } } + film.detail.image + film.rows.flatMap { r -> r.cards.map { it.image } }).filterNotNull().distinct()
+        val urls = (home.heroes.map { it.image } + home.rows.flatMap { r -> r.cards.map { it.image } } + film.detail.image + film.rows.flatMap { r -> r.cards.map { it.image } } + found.rows.flatMap { r -> r.cards.map { it.image } }).filterNotNull().distinct()
         val engine = FakeImageLoaderEngine.Builder().apply {
             urls.forEachIndexed { i, u ->
                 val bm = BitmapFactory.decodeFile(files[i % files.size].path, BitmapFactory.Options().apply { inSampleSize = 4 })
@@ -1780,7 +1789,8 @@ class Screenshots {
         val top = { site.top!! }
         // Opens on the banner, from the saved reading, before the page has loaded
         compose.onNodeWithText("Night Harbour").assertIsDisplayed()
-        compose.onNodeWithText("Films").assertIsDisplayed()
+        compose.onAllNodesWithText("Films")[0].assertIsDisplayed()
+        compose.onNodeWithText("Sign in").assertIsDisplayed()
         captureScreenRoboImage(File(out, "tv-app-home.png").path)
         // Right past More info: the banner's next picture
         press(android.view.KeyEvent.KEYCODE_DPAD_RIGHT)
@@ -1792,10 +1802,21 @@ class Screenshots {
         settle()
         check(site.focused(top())?.title == "Dust and Gold")
         compose.onAllNodesWithText("Dust and Gold")[0].assertIsDisplayed() // the spotlight's
+        // Down: the next row's tabs first, then its cards
+        press(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
+        check(top().line == app.pill.launcher.ui.tabsLine(1)) { "the tabs: ${top().line}" }
+        press(android.view.KeyEvent.KEYCODE_DPAD_RIGHT)
+        settle()
+        captureScreenRoboImage(File(out, "tv-app-tabs.png").path)
+        press(android.view.KeyEvent.KEYCODE_DPAD_CENTER)
+        check(acts.tabsPicked == listOf("Series")) { "Series picked: ${acts.tabsPicked}" }
+        press(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
+        check(top().line == 1 && top().col(1) == 0)
+        // Wide banners in their own shape
         press(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
         settle()
         captureScreenRoboImage(File(out, "tv-app-rows.png").path)
-        check(top().line == 1 && top().col(1) == 0)
+        check(top().line == 2)
         // Back: to the top of the screen; Up to the menu, Films, OK
         press(android.view.KeyEvent.KEYCODE_BACK)
         check(top().line == -2) { "Back goes to the menu: ${top().line}" }
@@ -1804,6 +1825,8 @@ class Screenshots {
         check(acts.tabs == listOf("Films") && site.tab == 1) { "Films opens: ${acts.tabs}" }
         site.scanned(home)
         check(top().kind == SiteScreenKind.Browse && top().line == -2) { "focus stays on the menu" }
+        // Search and Sign in at the end of the line
+        check(site.topItems(top()).map { it.title } == listOf("Home", "Films", "Series", "Search", "Sign in")) { site.topItems(top()).toString() }
         // Back on another page of the menu: Home again
         press(android.view.KeyEvent.KEYCODE_BACK)
         check(acts.tabs.last() == "Home" && site.tab == 0)
@@ -1841,7 +1864,32 @@ class Screenshots {
         check(top().line == -1 && site.stack.size == 2)
         press(android.view.KeyEvent.KEYCODE_BACK)
         check(site.stack.size == 1)
-        // A held OK: the menu; Down, Down, OK leaves
+        // Search: the menu line's Search asks for words; their results are rows
+        press(android.view.KeyEvent.KEYCODE_BACK)
+        check(top().line == -2)
+        repeat(3) { press(android.view.KeyEvent.KEYCODE_DPAD_RIGHT) }
+        press(android.view.KeyEvent.KEYCODE_DPAD_CENTER)
+        check(acts.asked == 1) { "Search asks for words" }
+        site.searchFor("red")
+        check(acts.searched == listOf("red") && top().kind == null)
+        site.scanned(found)
+        check(top().kind == SiteScreenKind.Browse) { "results: ${top().kind}" }
+        press(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
+        settle()
+        compose.onNodeWithText("Results").assertIsDisplayed()
+        captureScreenRoboImage(File(out, "tv-app-search.png").path)
+        // Back to the first screen; Sign in, at the end of the line
+        press(android.view.KeyEvent.KEYCODE_BACK)
+        press(android.view.KeyEvent.KEYCODE_BACK)
+        check(site.stack.size == 1) { "back from the results: ${site.stack.size}" }
+        // (The results' page said someone is signed in, so Sign in went; the first page says not)
+        check(site.login == null)
+        site.scanned(home)
+        if (top().line != -2) press(android.view.KeyEvent.KEYCODE_BACK)
+        repeat(4) { press(android.view.KeyEvent.KEYCODE_DPAD_RIGHT) }
+        press(android.view.KeyEvent.KEYCODE_DPAD_CENTER)
+        check(acts.signIns == listOf("https://harbour.example/login")) { "Sign in: ${acts.signIns}" }
+        // A held OK: the menu; Down to the end, OK leaves
         check(site.key(key(android.view.KeyEvent.KEYCODE_DPAD_CENTER)))
         check(site.key(key(android.view.KeyEvent.KEYCODE_DPAD_CENTER, repeat = 1)))
         check(site.key(key(android.view.KeyEvent.KEYCODE_DPAD_CENTER, repeat = 2)))
@@ -1850,8 +1898,8 @@ class Screenshots {
         captureScreenRoboImage(File(out, "tv-app-menu.png").path)
         check(site.key(key(android.view.KeyEvent.KEYCODE_DPAD_CENTER, android.view.KeyEvent.ACTION_UP)))
         check(site.menuOpen) { "letting go of the hold keeps the menu" }
-        press(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
-        press(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
+        check(site.menuItems == listOf("Search", "Sign in", "Open as web page", "Reload", "Back to the launcher")) { site.menuItems.toString() }
+        repeat(4) { press(android.view.KeyEvent.KEYCODE_DPAD_DOWN) }
         press(android.view.KeyEvent.KEYCODE_DPAD_CENTER)
         check(acts.left && !site.menuOpen)
         // A page with nothing to draw shows the page itself
