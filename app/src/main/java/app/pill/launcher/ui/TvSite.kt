@@ -56,10 +56,12 @@ import app.pill.launcher.SiteCard
 import app.pill.launcher.SiteRow
 import app.pill.launcher.SiteScan
 import app.pill.launcher.SiteScreenKind
+import app.pill.launcher.SiteTab
 import app.pill.launcher.kind
 import app.pill.launcher.tr
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import kotlinx.coroutines.delay
 
 /** What the TV app view asks of the hidden page it draws. */
 interface SiteActions {
@@ -80,23 +82,53 @@ interface SiteActions {
 
     fun reload()
     fun leave()
+
+    /** Asks for words to search the site with (the TV's keyboard, or its voice search). */
+    fun askSearch() {}
+
+    /** Searches the site for [words], on the hidden page. */
+    fun search(words: String) {}
+
+    /** Opens the site's sign-in, as the page itself. */
+    fun signIn(card: SiteCard) {}
+
+    /** Picks one of a row's tabs on the hidden page. */
+    fun pickTab(screen: SiteScreen, tab: SiteTab) {}
 }
 
+/** What the line along the top holds: the site's menu, then Search and Sign in. */
+data class TopItem(val title: String, val card: SiteCard? = null, val search: Boolean = false, val signIn: Boolean = false)
+
 /** One screen of the TV app view: a page of the site, as rows or as details, or still loading ([kind] null). */
-class SiteScreen(val url: String?, val preview: SiteCard?, val autoPlay: Boolean = false, val first: Boolean = false) {
+class SiteScreen(val url: String?, val preview: SiteCard?, val autoPlay: Boolean = false, val first: Boolean = false, val search: String? = null) {
     var scan by mutableStateOf<SiteScan?>(null)
     var kind by mutableStateOf<SiteScreenKind?>(null)
 
-    /** The focused line: on rows, the menu (-2), the banner (-1) or a row (0…); on details, the buttons (-1) or a row. */
+    /**
+     * The focused line: on rows, the line along the top (-2), the banner (-1), a row (0…) or
+     * a row's tabs ([tabsLine]); on details, the buttons (-1) or a row.
+     */
     var line by mutableIntStateOf(-1)
-    /** The focused card in each row. */
+    /** The focused card in each row, and the focused tab of each row with tabs. */
     val cols = mutableStateMapOf<Int, Int>()
+    val tabFocus = mutableStateMapOf<Int, Int>()
     /** The focused banner, and its button (0 Play, 1 More info); the focused details button (0 Play, 1 Open as web page). */
     var hero by mutableIntStateOf(0)
     var button by mutableIntStateOf(0)
 
     val rows: List<SiteRow> get() = scan?.rows.orEmpty()
     fun col(row: Int) = cols[row] ?: 0
+    fun tab(row: Int) = tabFocus[row] ?: rows.getOrNull(row)?.tabs?.indexOfFirst { it.on }?.coerceAtLeast(0) ?: 0
+}
+
+/** The line of row [r]'s tabs, above its cards. */
+fun tabsLine(r: Int) = -100 - r
+
+/** The row a line belongs to (its cards or its tabs); -1 for the top lines. */
+fun rowOf(line: Int) = when {
+    line >= 0 -> line
+    line <= -100 -> -100 - line
+    else -> -1
 }
 
 /**
@@ -126,6 +158,14 @@ class TvSite(val name: String, private val actions: SiteActions) {
 
     /** Something to tell, shown for a moment (no video found, say). */
     var notice by mutableStateOf<String?>(null)
+
+    /** The site can be searched (seen on any of its pages), and its sign-in when no one is signed in. */
+    var searchable by mutableStateOf(false)
+    var login by mutableStateOf<SiteCard?>(null)
+
+    /** Bumped on each key, so the banner turns its pictures only while the remote rests. */
+    var presses by mutableIntStateOf(0)
+        private set
 
     private var okDown = false
     private var okHeld = false
@@ -165,7 +205,10 @@ class TvSite(val name: String, private val actions: SiteActions) {
     private fun show(s: SiteScreen, scan: SiteScan) {
         val fresh = s.scan == null
         s.scan = scan
-        val k = scan.kind(start = s.first)
+        if (scan.searchable) searchable = true
+        if (scan.signedIn) login = null else if (scan.login != null) login = scan.login
+        // Search results: rows when there are any, even a few
+        val k = if (s.search != null && scan.cardCount > 0) SiteScreenKind.Browse else scan.kind(start = s.first)
         // A screen already showing rows keeps them while its page is between readings
         if (s.kind == SiteScreenKind.Browse && k != SiteScreenKind.Browse && !fresh) return
         s.kind = k
@@ -175,11 +218,25 @@ class TvSite(val name: String, private val actions: SiteActions) {
         if (fresh && !(s.line == -2 && hasMenu(s))) s.line = firstLine(s)
         s.line = s.line.coerceIn(topLine(s), (s.rows.size - 1).coerceAtLeast(topLine(s)))
         if (s.line == -1 && s.kind == SiteScreenKind.Browse && scan.heroes.isEmpty()) s.line = firstLine(s)
+        if (s.line <= -100 && s.rows.getOrNull(rowOf(s.line))?.tabs.isNullOrEmpty()) s.line = rowOf(s.line).coerceAtMost(s.rows.size - 1)
         s.hero = s.hero.coerceIn(0, (scan.heroes.size - 1).coerceAtLeast(0))
-        for (r in s.rows.indices) s.cols[r] = s.col(r).coerceIn(0, s.rows[r].cards.size - 1)
+        for (r in s.rows.indices) {
+            s.cols[r] = s.col(r).coerceIn(0, s.rows[r].cards.size - 1)
+            // The tab the page now shows
+            s.rows[r].tabs.indexOfFirst { it.on }.takeIf { it >= 0 }?.let { s.tabFocus[r] = it }
+        }
     }
 
-    private fun hasMenu(s: SiteScreen) = s.first && nav.isNotEmpty()
+    /** The line along the top of a screen of rows: the site's menu, Search, Sign in. */
+    fun topItems(s: SiteScreen): List<TopItem> {
+        if (s.kind != SiteScreenKind.Browse) return emptyList()
+        val out = nav.map { TopItem(it.title, it) }.toMutableList()
+        if (searchable) out += TopItem(tr("Search"), search = true)
+        login?.let { out += TopItem(tr("Sign in"), it, signIn = true) }
+        return out
+    }
+
+    private fun hasMenu(s: SiteScreen) = topItems(s).isNotEmpty()
 
     /** The line focus starts on: the banner, else the first row; the buttons on details. */
     private fun firstLine(s: SiteScreen): Int = when {
@@ -206,13 +263,17 @@ class TvSite(val name: String, private val actions: SiteActions) {
             if (hasMenu(s)) out += -2
             if (s.scan?.heroes?.isNotEmpty() == true) out += -1
         }
-        out += s.rows.indices
+        for (r in s.rows.indices) {
+            if (s.rows[r].tabs.isNotEmpty()) out += tabsLine(r)
+            out += r
+        }
         return out
     }
 
     /** The card focus is on, for the spotlight: the banner's or a row's. */
     fun focused(s: SiteScreen): SiteCard? = when {
         s.line >= 0 -> s.rows.getOrNull(s.line)?.cards?.getOrNull(s.col(s.line))
+        s.line <= -100 -> rowOf(s.line).let { r -> s.rows.getOrNull(r)?.cards?.getOrNull(s.col(r)) }
         else -> s.scan?.heroes?.getOrNull(s.hero)
     }
 
@@ -236,7 +297,15 @@ class TvSite(val name: String, private val actions: SiteActions) {
         val down = e.action == KeyEvent.ACTION_DOWN
         val code = e.keyCode
         val ok = code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER || code == KeyEvent.KEYCODE_NUMPAD_ENTER || code == KeyEvent.KEYCODE_BUTTON_A
-        if (down) notice = null
+        if (down) {
+            notice = null
+            presses++
+        }
+        // The remote's search button
+        if (code == KeyEvent.KEYCODE_SEARCH && !menuOpen) {
+            if (down && e.repeatCount == 0 && searchable) actions.askSearch()
+            return true
+        }
         if (menuOpen) return menuKey(code, down, ok)
         if (code == KeyEvent.KEYCODE_MENU) {
             if (down && e.repeatCount == 0) openMenu()
@@ -282,7 +351,12 @@ class TvSite(val name: String, private val actions: SiteActions) {
             KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> {
                 val d = if (code == KeyEvent.KEYCODE_DPAD_RIGHT) 1 else -1
                 when {
-                    s.line == -2 -> navFocus = (navFocus + d).coerceIn(0, nav.size - 1)
+                    s.line == -2 -> navFocus = (navFocus + d).coerceIn(0, (topItems(s).size - 1).coerceAtLeast(0))
+                    s.line <= -100 -> {
+                        val r = rowOf(s.line)
+                        val n = s.rows.getOrNull(r)?.tabs?.size ?: 0
+                        s.tabFocus[r] = (s.tab(r) + d).coerceIn(0, (n - 1).coerceAtLeast(0))
+                    }
                     s.line == -1 && s.kind == SiteScreenKind.Details -> s.button = (s.button + d).coerceIn(0, 1)
                     s.line == -1 -> {
                         val b = s.button + d
@@ -343,21 +417,58 @@ class TvSite(val name: String, private val actions: SiteActions) {
                 else -> actions.showPage(pop = false)
             }
             SiteScreenKind.Browse -> when (s.line) {
-                -2 -> nav.getOrNull(navFocus)?.let {
-                    if (navFocus != tab) {
-                        tab = navFocus
-                        goTab(it)
+                -2 -> topItems(s).getOrNull(navFocus)?.let { item ->
+                    when {
+                        item.search -> actions.askSearch()
+                        item.signIn -> item.card?.let(actions::signIn)
+                        navFocus != tab || !s.first -> {
+                            tab = navFocus
+                            item.card?.let(::goTab)
+                        }
                     }
                 }
                 -1 -> focused(s)?.let { open(it, autoPlay = s.button == 0) }
-                else -> focused(s)?.let { open(it, false) }
+                else -> if (s.line <= -100) {
+                    val r = rowOf(s.line)
+                    s.rows.getOrNull(r)?.tabs?.getOrNull(s.tab(r))?.let { actions.pickTab(s, it) }
+                } else {
+                    focused(s)?.let { open(it, false) }
+                }
             }
             else -> {}
         }
     }
 
-    /** The menu: Open as web page, Reload, Back to the launcher. */
-    val menuItems: List<String> get() = listOf(tr("Open as web page"), tr("Reload"), tr("Back to the launcher"))
+    /** Searches the site: a screen for the results, filled when the page with them is read. */
+    fun searchFor(words: String) {
+        val w = words.trim()
+        if (w.isEmpty()) return
+        stack += SiteScreen(null, SiteCard(tr("Results for “%1\$s”", w)), search = w)
+        actions.search(w)
+    }
+
+    private enum class MenuItem { Search, SignIn, Page, Reload, Leave }
+
+    private val menuList: List<MenuItem>
+        get() = buildList {
+            if (searchable) add(MenuItem.Search)
+            if (login != null) add(MenuItem.SignIn)
+            add(MenuItem.Page)
+            add(MenuItem.Reload)
+            add(MenuItem.Leave)
+        }
+
+    /** The menu: Search and Sign in (when the site has them), Open as web page, Reload, Back to the launcher. */
+    val menuItems: List<String>
+        get() = menuList.map {
+            when (it) {
+                MenuItem.Search -> tr("Search")
+                MenuItem.SignIn -> tr("Sign in")
+                MenuItem.Page -> tr("Open as web page")
+                MenuItem.Reload -> tr("Reload")
+                MenuItem.Leave -> tr("Back to the launcher")
+            }
+        }
 
     private fun openMenu() {
         menuOpen = true
@@ -369,9 +480,11 @@ class TvSite(val name: String, private val actions: SiteActions) {
             // The press that opened it is let go first
             if (!down && !okHeld) {
                 menuOpen = false
-                when (menuItem) {
-                    0 -> actions.showPage(pop = false)
-                    1 -> actions.reload()
+                when (menuList.getOrNull(menuItem)) {
+                    MenuItem.Search -> actions.askSearch()
+                    MenuItem.SignIn -> login?.let(actions::signIn)
+                    MenuItem.Page -> actions.showPage(pop = false)
+                    MenuItem.Reload -> actions.reload()
                     else -> actions.leave()
                 }
             }
@@ -433,16 +546,20 @@ private fun SitePicture(url: String?, referer: String?, modifier: Modifier, cont
 
 /** A big picture behind a screen, faded into the dark on the left and at the bottom. */
 @Composable
-private fun BoxScope.Backdrop(image: String?, referer: String?, height: Float = 1f) {
-    Box(Modifier.align(Alignment.TopEnd).fillMaxWidth(0.72f).fillMaxHeight(height)) {
+private fun BoxScope.Backdrop(image: String?, referer: String?, height: Float = 1f, ratio: Float = 0f) {
+    // In the picture's own shape when it is a wide one (a banner's), so all of it shows
+    val shaped = ratio in 1.5f..4.5f
+    Box(Modifier.align(Alignment.TopEnd).fillMaxWidth(0.74f).then(if (shaped) Modifier.aspectRatio(ratio) else Modifier.fillMaxHeight(height))) {
         AnimatedContent(image, transitionSpec = { fadeIn(tween(350)) togetherWith fadeOut(tween(350)) }, label = "backdrop") { img ->
             Box(Modifier.fillMaxSize()) {
                 Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0xFF1D3A63), Color(0xFF0B1525)))))
                 SitePicture(img, referer, Modifier.fillMaxSize())
             }
         }
-        Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(0f to Ink, 0.45f to Ink.copy(alpha = 0.55f), 1f to Color.Transparent)))
-        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.45f to Color.Transparent, 1f to Ink)))
+        Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(0f to Ink, 0.4f to Ink.copy(alpha = 0.5f), 0.75f to Color.Transparent)))
+        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.55f to Color.Transparent, 1f to Ink)))
+        // Darker along the top, so the menu line reads over any picture
+        Box(Modifier.fillMaxWidth().height(110.dp).background(Brush.verticalGradient(0f to Ink.copy(alpha = 0.8f), 1f to Color.Transparent)))
     }
 }
 
@@ -451,8 +568,19 @@ private fun BrowseScreen(site: TvSite, s: SiteScreen, icon: androidx.compose.ui.
     val scan = s.scan ?: return
     val spot = site.focused(s)
     val referer = scan.url
+    // The banner moves on to its next picture every few seconds while the remote rests on it
+    LaunchedEffect(s.hero, s.line, site.presses, scan.heroes.size) {
+        if (s.line == -1 && scan.heroes.size > 1) {
+            delay(8000)
+            if (s.line == -1 && !site.menuOpen) {
+                s.hero = (s.hero + 1) % scan.heroes.size
+                s.button = 0
+            }
+        }
+    }
+    val ratio = if (s.line == -1) spot?.ratio ?: 0f else s.rows.getOrNull(rowOf(s.line))?.shape ?: 0f
     Box(Modifier.fillMaxSize()) {
-        Backdrop(spot?.image, referer, height = 0.72f)
+        Backdrop(spot?.image, referer, height = 0.72f, ratio = ratio)
         Column(Modifier.fillMaxSize()) {
             TopBar(site, s, icon)
             // The spotlight: what focus is on, large
@@ -477,29 +605,29 @@ private fun BrowseScreen(site: TvSite, s: SiteScreen, icon: androidx.compose.ui.
 
 @Composable
 private fun TopBar(site: TvSite, s: SiteScreen, icon: androidx.compose.ui.graphics.ImageBitmap?) {
-    Row(Modifier.fillMaxWidth().padding(start = 48.dp, end = 48.dp, top = 26.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(22.dp)) {
+    val items = site.topItems(s)
+    Row(Modifier.fillMaxWidth().padding(start = 48.dp, end = 48.dp, top = 26.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
         if (icon != null) androidx.compose.foundation.Image(icon, null, Modifier.size(30.dp).clip(RoundedCornerShape(8.dp)))
-        if (site.nav.isEmpty() || !s.first) {
-            Text(site.name, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
-        } else {
-            site.nav.forEachIndexed { i, item ->
-                val focused = s.line == -2 && site.navFocus == i
-                val current = site.tab == i
-                Box(
-                    Modifier.clip(RoundedCornerShape(50)).background(if (focused) Color.White else Color.Transparent).padding(horizontal = 12.dp, vertical = 5.dp),
-                ) {
-                    Text(
-                        item.title,
-                        color = when {
-                            focused -> Ink
-                            current -> Color.White
-                            else -> Muted
-                        },
-                        fontSize = 15.sp,
-                        fontWeight = if (current || focused) FontWeight.SemiBold else FontWeight.Normal,
-                        maxLines = 1,
-                    )
-                }
+        if (site.nav.isEmpty()) Text(site.name, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+        items.forEachIndexed { i, item ->
+            // Search and Sign in sit at the right end
+            if (item.search || (item.signIn && items.none { it.search })) Spacer(Modifier.weight(1f))
+            val focused = s.line == -2 && site.navFocus == i
+            val current = item.card != null && !item.signIn && s.first && site.tab == i
+            Box(
+                Modifier.clip(RoundedCornerShape(50)).background(if (focused) Color.White else Color.Transparent).padding(horizontal = 12.dp, vertical = 5.dp),
+            ) {
+                Text(
+                    (if (item.search) "⌕  " else "") + item.title,
+                    color = when {
+                        focused -> Ink
+                        current -> Color.White
+                        else -> Muted
+                    },
+                    fontSize = 15.sp,
+                    fontWeight = if (current || focused) FontWeight.SemiBold else FontWeight.Normal,
+                    maxLines = 1,
+                )
             }
         }
     }
@@ -511,9 +639,9 @@ private fun Rows(s: SiteScreen, referer: String, modifier: Modifier) {
     val rows = s.rows
     val list = rememberLazyListState()
     LaunchedEffect(s.line, rows.size) {
-        if (rows.isNotEmpty()) list.animateScrollToItem(s.line.coerceIn(0, rows.size - 1))
+        if (rows.isNotEmpty()) list.animateScrollToItem(rowOf(s.line).coerceIn(0, rows.size - 1))
     }
-    LazyColumn(state = list, modifier = modifier.fillMaxWidth(), contentPadding = PaddingValues(bottom = 200.dp), userScrollEnabled = false) {
+    LazyColumn(state = list, modifier = modifier.fillMaxWidth(), contentPadding = PaddingValues(bottom = 240.dp), userScrollEnabled = false) {
         itemsIndexed(rows) { r, row ->
             CardRow(row, r, s, referer)
         }
@@ -523,33 +651,50 @@ private fun Rows(s: SiteScreen, referer: String, modifier: Modifier) {
 @Composable
 private fun CardRow(row: SiteRow, r: Int, s: SiteScreen, referer: String) {
     val focusedRow = s.line == r
+    val onTabs = s.line == tabsLine(r)
     val col = s.col(r)
     val state = rememberLazyListState()
     LaunchedEffect(col) { state.animateScrollToItem((col - 1).coerceAtLeast(0)) }
-    val w: Dp = if (row.tall) 112.dp else 196.dp
+    // The site's own shape for its pictures: posters taller, banners wider, at one height a row
+    val h: Dp = if (row.tall) 168.dp else 112.dp
+    val w: Dp = (h.value * row.shape).coerceIn(72f, 380f).dp
     Column(Modifier.padding(bottom = 18.dp)) {
-        Text(
-            row.title.ifBlank { if (s.kind == SiteScreenKind.Details) tr("More like this") else tr("More") },
-            color = if (focusedRow) Color.White else Muted,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(start = 48.dp, bottom = 8.dp),
-            maxLines = 1,
-        )
+        Row(Modifier.padding(start = 48.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            val title = row.title.ifBlank { if (s.kind == SiteScreenKind.Details) tr("More like this") else if (row.tabs.isEmpty()) tr("More") else "" }
+            if (title.isNotEmpty()) Text(title, color = if (focusedRow || onTabs) Color.White else Muted, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+            // Its tabs: the one showing underlined, the focused one in white
+            row.tabs.forEachIndexed { i, t ->
+                val focused = onTabs && s.tab(r) == i
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        t.title,
+                        color = when {
+                            focused -> Ink
+                            t.on -> Color.White
+                            else -> Muted
+                        },
+                        fontSize = 14.sp,
+                        fontWeight = if (t.on || focused) FontWeight.SemiBold else FontWeight.Normal,
+                        maxLines = 1,
+                        modifier = Modifier.clip(RoundedCornerShape(50)).background(if (focused) Color.White else if (t.on) Color.White.copy(alpha = 0.14f) else Color.Transparent).padding(horizontal = 12.dp, vertical = 4.dp),
+                    )
+                }
+            }
+        }
         LazyRow(state = state, contentPadding = PaddingValues(start = 48.dp, end = 120.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), userScrollEnabled = false) {
             itemsIndexed(row.cards) { c, card ->
-                SiteCardView(card, focusedRow && c == col, row.tall, w, referer)
+                SiteCardView(card, focusedRow && c == col, w, h, referer)
             }
         }
     }
 }
 
 @Composable
-private fun SiteCardView(card: SiteCard, focused: Boolean, tall: Boolean, w: Dp, referer: String) {
+private fun SiteCardView(card: SiteCard, focused: Boolean, w: Dp, h: Dp, referer: String) {
     val grow by animateFloatAsState(if (focused) 1.08f else 1f, tween(160), label = "grow")
     val shape = RoundedCornerShape(8.dp)
     Box(
-        Modifier.padding(vertical = 8.dp, horizontal = 4.dp).width(w).aspectRatio(if (tall) 2f / 3f else 16f / 9f).scale(grow)
+        Modifier.padding(vertical = 8.dp, horizontal = 4.dp).width(w).height(h).scale(grow)
             .clip(shape).background(Card2)
             .then(if (focused) Modifier.border(3.dp, Color.White, shape) else Modifier),
     ) {

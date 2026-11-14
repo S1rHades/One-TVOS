@@ -1,6 +1,7 @@
 package app.pill.launcher
 
 import android.content.Context
+import android.net.Uri
 import org.json.JSONArray
 import org.json.JSONObject
 import org.json.JSONTokener
@@ -18,10 +19,24 @@ data class SiteCard(
     val url: String? = null,
     val path: String? = null,
     val description: String = "",
+    /** Its picture's shape, width over height, as the site shows it; 0 when not known. */
+    val ratio: Float = 0f,
 )
 
-/** A row of cards under a heading; [tall] when the pictures are posters (taller than wide). */
-data class SiteRow(val title: String, val tall: Boolean, val cards: List<SiteCard>)
+/** One of a row's tabs (Films | Series): what it says, where it is on the page, and whether it is the one showing. */
+data class SiteTab(val title: String, val path: String, val on: Boolean)
+
+/**
+ * A row of cards under a heading, with the shape the site gives its pictures ([ratio], width
+ * over height) and its tabs, when it has some.
+ */
+data class SiteRow(val title: String, val ratio: Float, val cards: List<SiteCard>, val tabs: List<SiteTab> = emptyList()) {
+    /** Posters, taller than wide. */
+    val tall: Boolean get() = ratio in 0.1f..0.9f
+
+    /** The shape its cards are drawn in: the site's own, kept to sensible bounds (16:9 when not known). */
+    val shape: Float get() = if (ratio <= 0f) 16f / 9f else ratio.coerceIn(0.5f, 4f)
+}
 
 /** What a page says about the one thing it is about: from its page facts (schema.org, OpenGraph) and main heading. */
 data class SiteDetail(
@@ -47,7 +62,17 @@ data class SiteScan(
     val detail: SiteDetail = SiteDetail(""),
     /** The site's search address, with {q} for the words. */
     val search: String? = null,
+    /** Without one: the search box to type into, or the button or page that brings it. */
+    val searchInput: String? = null,
+    val searchButton: String? = null,
+    val searchPage: String? = null,
+    /** Its sign-in link or button, when no one is signed in. */
+    val login: SiteCard? = null,
+    val signedIn: Boolean = false,
 ) {
+    /** The site can be searched somehow. */
+    val searchable: Boolean get() = search != null || searchInput != null || searchButton != null || searchPage != null
+
     val cardCount: Int get() = rows.sumOf { it.cards.size } + heroes.size
 }
 
@@ -79,6 +104,32 @@ fun SiteScan.kind(start: Boolean): SiteScreenKind {
     }
 }
 
+/**
+ * A search address learnt from a search typed into the site: the page it ended on, with
+ * the words swapped for {q}; null when the words aren't in its address.
+ */
+fun learnSearch(url: String, words: String): String? {
+    val w = words.trim()
+    if (w.isEmpty()) return null
+    val forms = listOf(java.net.URLEncoder.encode(w, "UTF-8"), java.net.URLEncoder.encode(w, "UTF-8").replace("+", "%20"), Uri.encode(w))
+    for (f in forms.distinct()) {
+        val i = url.indexOf(f)
+        if (i >= 0) return url.substring(0, i) + "{q}" + url.substring(i + f.length)
+    }
+    return null
+}
+
+/** Types [words] into the search box at [path] and sends it, as a person would (the site's own script sees the typing and the Enter). */
+fun typeScript(path: String, words: String): String {
+    val p = JSONObject.quote(path)
+    val w = JSONObject.quote(words)
+    return "(function(p,w){var e=document.querySelector(p);if(!e)return false;e.focus();" +
+        "var d=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value');if(d&&d.set)d.set.call(e,w);else e.value=w;" +
+        "e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));" +
+        "['keydown','keypress','keyup'].forEach(function(t){e.dispatchEvent(new KeyboardEvent(t,{key:'Enter',code:'Enter',keyCode:13,which:13,bubbles:true}))});" +
+        "if(e.form){try{if(e.form.requestSubmit)e.form.requestSubmit();else e.form.submit()}catch(x){}}return true;})($p,$w)"
+}
+
 /** A page's address for a search on the site, from its search [template]. */
 fun searchUrl(template: String, words: String): String =
     template.replace("{q}", java.net.URLEncoder.encode(words.trim(), "UTF-8"))
@@ -100,13 +151,19 @@ fun parseSiteScan(raw: String?): SiteScan? = runCatching {
         url = c.strOrNull("url")?.takeIf { it.startsWith("http") },
         path = c.strOrNull("path"),
         description = c.str("desc"),
+        ratio = c.optDouble("ratio", 0.0).toFloat().takeIf { it.isFinite() } ?: 0f,
     )
     fun cards(a: JSONArray?) = (0 until (a?.length() ?: 0)).mapNotNull { a!!.optJSONObject(it)?.let(::card) }
         .filter { it.url != null || it.path != null }
     val rows = o.optJSONArray("rows").let { a ->
         (0 until (a?.length() ?: 0)).mapNotNull { i ->
             val r = a!!.optJSONObject(i) ?: return@mapNotNull null
-            SiteRow(r.str("title"), r.optBoolean("tall"), cards(r.optJSONArray("cards"))).takeIf { it.cards.isNotEmpty() }
+            val tabs = r.optJSONArray("tabs").let { t ->
+                (0 until (t?.length() ?: 0)).mapNotNull { k -> t!!.optJSONObject(k)?.let { SiteTab(it.str("title"), it.str("path"), it.optBoolean("on")) } }
+                    .filter { it.title.isNotEmpty() && it.path.isNotEmpty() }
+            }
+            val ratio = r.optDouble("ratio", 0.0).toFloat().takeIf { it.isFinite() && it > 0f } ?: if (r.optBoolean("tall")) 2f / 3f else 0f
+            SiteRow(r.str("title"), ratio, cards(r.optJSONArray("cards")), if (tabs.size >= 2) tabs else emptyList()).takeIf { it.cards.isNotEmpty() }
         }
     }
     val d = o.optJSONObject("detail") ?: JSONObject()
@@ -127,6 +184,11 @@ fun parseSiteScan(raw: String?): SiteScan? = runCatching {
             play = d.strOrNull("play"),
         ),
         search = o.strOrNull("search")?.takeIf { it.startsWith("http") && it.contains("{q}") },
+        searchInput = o.strOrNull("searchInput"),
+        searchButton = o.strOrNull("searchButton"),
+        searchPage = o.strOrNull("searchPage")?.takeIf { it.startsWith("http") },
+        login = o.optJSONObject("login")?.let(::card)?.takeIf { it.url != null || it.path != null },
+        signedIn = o.optBoolean("signedIn"),
     )
 }.getOrNull()
 

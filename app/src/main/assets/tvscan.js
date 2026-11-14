@@ -56,8 +56,11 @@
     var imgs = e.tagName === 'IMG' ? [e] : e.querySelectorAll('img');
     var best = null, ba = 0;
     for (var k = 0; k < imgs.length && k < 8; k++) {
-      var r = rect(imgs[k]), a = r.width * r.height, s = imgSrc(imgs[k]);
-      if (s && a >= ba) { ba = a; best = { src: s, w: r.width, h: r.height } }
+      var im = imgs[k], r = rect(im), s = imgSrc(im);
+      // A slide that isn't showing has no size on the page: its picture's own size then
+      var w = r.width || im.naturalWidth || +im.getAttribute('width') || 0, h = r.height || im.naturalHeight || +im.getAttribute('height') || 0;
+      var a = w * h;
+      if (s && a >= ba) { ba = a; best = { src: s, w: w, h: h } }
     }
     if (best) return best;
     var all = [e].concat(Array.prototype.slice.call(e.querySelectorAll('div,span,figure,picture,i'), 0, 12));
@@ -90,8 +93,57 @@
     var href = e.tagName === 'A' ? e.href : (e.querySelector('a[href]') || {}).href;
     if (href && !/^https?:/.test(href)) href = null;
     var n = nameOf(e);
-    return { title: n, sub: subOf(e, n), image: p.src, ratio: p.h > 0 ? +(p.w / p.h).toFixed(2) : 0, url: href || null, path: path(e), w: rect(e).width, top: rect(e).top + scrollY };
+    var box = rect(e), ratio = box.width > 20 && box.height > 20 ? box.width / box.height : (p.h > 0 ? p.w / p.h : 0);
+    return { title: n, sub: subOf(e, n), image: p.src, ratio: +ratio.toFixed(2), url: href || null, path: path(e), w: box.width, top: box.top + scrollY };
   }
+
+  // The banner: a slider near the top (the common slider libraries, or anything named hero,
+  // banner, slider or carousel), every slide of it, showing or not
+  var heroes = [], heroRoot = null;
+  (function () {
+    var sel = '.swiper-slide,.slick-slide,.splide__slide,.glide__slide,.owl-item,.carousel-item,.keen-slider__slide,.flickity-slider>*,.embla__slide,' +
+      '[class*="hero" i] [class*="slide" i],[class*="banner" i] [class*="slide" i],[class*="slider" i] [class*="slide" i],[class*="carousel" i] [class*="slide" i],[class*="slider" i] [class*="item" i],[class*="carousel" i] [class*="item" i],[class*="hero" i] li,[class*="banner" i] li';
+    var lists = new Map();
+    document.querySelectorAll(sel).forEach(function (sl) {
+      var p = sl.parentElement;
+      if (!p) return;
+      var g = lists.get(p);
+      if (!g) { g = []; lists.set(p, g) }
+      if (g.indexOf(sl) < 0) g.push(sl);
+    });
+    var best = null, bestScore = 0;
+    lists.forEach(function (slides, list) {
+      // The slider's window: the first box up from the list that is laid out
+      var win = list, r = rect(win);
+      for (var up = 0; up < 4 && win.parentElement && (r.width < 10 || r.height < 10); up++) { win = win.parentElement; r = rect(win) }
+      var top = r.top + scrollY;
+      if (r.width < W * 0.55 || r.height < H * 0.22 || top > H * 0.9) return;
+      var pics = slides.filter(function (sl) { return picture(sl) });
+      if (!pics.length) return;
+      var score = r.width * r.height / (1 + top / H);
+      if (score > bestScore) { bestScore = score; best = { win: win, slides: pics } }
+    });
+    if (!best) return;
+    heroRoot = best.win;
+    var seen = {};
+    best.slides.forEach(function (sl) {
+      if (/clone/i.test(sl.className) || heroes.length >= 8) return;
+      var p = picture(sl), link = sl.tagName === 'A' ? sl : sl.querySelector('a[href]') || sl.closest('a[href]');
+      var url = link && /^https?:/.test(link.href) ? link.href : null;
+      var key = (url || '') + '|' + p.src;
+      if (seen[key]) return;
+      seen[key] = 1;
+      var h = sl.querySelector('h1,h2,h3,h4,[class*="title" i],[class*="name" i]');
+      var logo = sl.querySelector('img[class*="logo" i],img[class*="title" i],[class*="logo" i] img');
+      var title = clean(h && text(h)) || clean(logo && logo.getAttribute('alt')) || clean(sl.getAttribute('aria-label')) || nameOf(sl);
+      var d = sl.querySelector('p,[class*="desc" i],[class*="overview" i],[class*="synopsis" i],[class*="summary" i]');
+      var btn = null;
+      sl.querySelectorAll('a[href],button,[role="button"]').forEach(function (b) {
+        if (!btn && /play|watch|stream|regarder|شاهد|مشاهدة|تشغيل/i.test(clean(b.getAttribute('aria-label')) + ' ' + text(b))) btn = b;
+      });
+      heroes.push({ title: title.slice(0, 90), sub: '', desc: d ? text(d).slice(0, 260) : '', image: p.src, ratio: p.h > 0 ? +(p.w / p.h).toFixed(2) : 0, url: url, path: path(btn || link || sl) });
+    });
+  })();
 
   // Candidate cards: links (or clickable boxes) holding a picture
   var seenEl = [], cands = [];
@@ -101,6 +153,7 @@
     if (e.closest('nav,header,footer') && !e.closest('main')) continue;
     if (e.tagName !== 'A' && !isButton(e)) continue;
     if (e.parentElement && e.parentElement.closest('a[href]')) continue;
+    if (heroRoot && heroRoot.contains(e)) continue;
     var r = rect(e);
     if (r.width < 60 || r.height < 40 || r.width > W * 1.05) continue;
     if (!e.querySelector('img,picture,[style*="background"]') && !bg(e)) continue;
@@ -144,24 +197,57 @@
     return '';
   }
 
-  var rows = [], heroes = [];
+  // A row's tabs (Films | Series, Today | This week): a set of short labels near its heading
+  // that pick what the row shows
+  var lists = groups.map(function (g) { return g.list });
+  function tabsFor(list) {
+    var el = list;
+    for (var up = 0; up < 5 && el && el.parentElement && el !== document.body; up++) {
+      var scope = el.parentElement;
+      // Not past a box that holds another row
+      if (lists.some(function (l) { return l !== list && scope.contains(l) && !list.contains(l) })) break;
+      var found = Array.prototype.filter.call(scope.querySelectorAll('[role="tab"]'), function (t) { return !list.contains(t) });
+      if (found.length < 2) {
+        var sets = scope.querySelectorAll('[role="tablist"],[class*="tab" i],[class*="filter" i],[class*="toggle" i],[class*="switch" i],[class*="segment" i],[class*="pills" i],[class*="chips" i],ul,nav');
+        for (var k = 0; k < sets.length && found.length < 2; k++) {
+          var c = sets[k];
+          if (c.contains(list) || list.contains(c) || c.querySelector('img,picture')) continue;
+          var items = Array.prototype.filter.call(c.children, function (x) { var t = text(x); return t && t.length <= 24 && shown(x) });
+          if (items.length >= 2 && items.length <= 8 && items.length === c.children.length) {
+            found = items.map(function (x) { return x.querySelector('a,button,[role="tab"],[role="button"]') || x });
+          }
+        }
+      }
+      if (found.length >= 2 && found.length <= 8) {
+        return found.map(function (t) {
+          var cls = (t.className && t.className.baseVal === undefined ? t.className : '') + ' ' + (t.parentElement && typeof t.parentElement.className === 'string' ? t.parentElement.className : '');
+          return { title: text(t).slice(0, 24), path: path(t), on: t.getAttribute('aria-selected') === 'true' || t.getAttribute('aria-current') !== null && t.getAttribute('aria-current') !== 'false' || /(^|\s|-)(active|selected|current|is-on|on)(\s|$)/i.test(cls) };
+        });
+      }
+      el = scope;
+    }
+    return [];
+  }
+
+  var rows = [];
   groups.forEach(function (g) {
-    if (g.cards.length < 3) return;
+    // Two cards make a row only under a heading (a short list of search results, say)
+    if (g.cards.length < 2 || (g.cards.length < 3 && !headingFor(g.list))) return;
     var avgW = g.cards.reduce(function (a, c) { return a + c.w }, 0) / g.cards.length;
     var top = g.cards[0].top;
     // A slider of near-full-width pictures at the top of the page is the banner
-    if (avgW > W * 0.6 && top < H * 1.2 && !heroes.length) {
+    if (avgW > W * 0.6 && top < H * 1.2 && !heroes.length && !heroRoot) {
       g.cards.slice(0, 6).forEach(function (c) { heroes.push(c) });
       return;
     }
-    var ratios = g.cards.map(function (c) { return c.ratio }).filter(function (x) { return x > 0 }).sort();
+    var ratios = g.cards.map(function (c) { return c.ratio }).filter(function (x) { return x > 0 }).sort(function (a, b) { return a - b });
     var mid = ratios.length ? ratios[Math.floor(ratios.length / 2)] : 1.7;
-    rows.push({ title: headingFor(g.list).slice(0, 60), tall: mid < 0.9, top: top, cards: g.cards.slice(0, 40).map(function (c) { delete c.w; delete c.top; delete c.ratio; return c }) });
+    rows.push({ title: headingFor(g.list).slice(0, 60), tall: mid < 0.9, ratio: mid, tabs: tabsFor(g.list), top: top, cards: g.cards.slice(0, 40).map(function (c) { delete c.w; delete c.top; delete c.ratio; return c }) });
   });
   rows.sort(function (a, b) { return a.top - b.top });
 
   // No slider: the biggest linked picture near the top is the banner
-  if (!heroes.length) {
+  if (!heroes.length && !heroRoot) {
     var big = null, ba = 0;
     cands.forEach(function (e) {
       var r = rect(e);
@@ -171,9 +257,8 @@
     if (hc) heroes.push(hc);
   }
   heroes.forEach(function (h) {
-    var el = document.querySelector(h.path), p = el && el.querySelector('p');
-    h.desc = p ? text(p).slice(0, 260) : '';
-    delete h.w; delete h.top; delete h.ratio;
+    if (h.desc === undefined) { var el = document.querySelector(h.path), p = el && el.querySelector('p'); h.desc = p ? text(p).slice(0, 260) : '' }
+    delete h.w; delete h.top;
   });
 
   // The menu along the top
@@ -253,11 +338,38 @@
     }
   }
 
+  // Otherwise the search box itself (to type into), or the button or page that brings it
+  var searchInput = null, searchButton = null, searchPage = null;
+  var anyBox = document.querySelector('input[type="search"]') || Array.prototype.filter.call(document.querySelectorAll('input:not([type]),input[type="text"]'), function (i) {
+    return /search|recherche|chercher|buscar|suche|بحث|ابحث/i.test((i.name || '') + ' ' + (i.placeholder || '') + ' ' + (i.getAttribute('aria-label') || '') + ' ' + (i.id || '') + ' ' + i.className);
+  })[0];
+  if (anyBox) searchInput = path(anyBox);
+  document.querySelectorAll('a[href],button,[role="button"]').forEach(function (b) {
+    if (searchButton || searchPage) return;
+    var t = (clean(b.getAttribute('aria-label')) + ' ' + clean(b.getAttribute('title')) + ' ' + text(b) + ' ' + (typeof b.className === 'string' ? b.className : '') + ' ' + (b.id || '')).toLowerCase();
+    if (!/search|recherche|chercher|بحث|ابحث/.test(t) || t.length > 120) return;
+    if (b.tagName === 'A' && /^https?:/.test(b.href) && sameSite(b.href) && b.href.split('#')[0] !== here.split('#')[0]) searchPage = b.href;
+    else searchButton = path(b);
+  });
+
+  // Signing in: a sign-in link or button, and whether someone is signed in already
+  var login = null, signedIn = false;
+  document.querySelectorAll('a[href],button,[role="button"]').forEach(function (b) {
+    var t = clean(clean(b.getAttribute('aria-label')) || text(b) || clean(b.getAttribute('title'))).toLowerCase();
+    if (!t || t.length > 30) return;
+    if (/^(sign ?out|log ?out|logout|se déconnecter|déconnexion|تسجيل الخروج|خروج)$/.test(t)) signedIn = true;
+    if (!login && /^(sign ?in|log ?in|login|sign in \/ sign up|sign up|register|connexion|se connecter|s'identifier|تسجيل الدخول|دخول)$/.test(t) && (shown(b) || b.closest('header,nav'))) {
+      login = { title: clean(text(b)) || t, url: b.tagName === 'A' && /^https?:/.test(b.href) ? b.href : null, path: path(b) };
+    }
+  });
+  if (document.querySelector('[class*="avatar" i] img,img[class*="avatar" i],[class*="profile" i] img,[aria-label*="account" i] img')) signedIn = true;
+
   return JSON.stringify({
     url: here,
     site: clean(meta('og:site_name') || meta('application-name') || document.title).slice(0, 60),
     nav: nav, heroes: heroes.slice(0, 6),
     rows: rows.slice(0, 24).map(function (r) { delete r.top; return r }),
-    detail: detail, search: search
+    detail: detail, search: search, searchInput: searchInput, searchButton: searchButton, searchPage: searchPage,
+    login: signedIn ? null : login, signedIn: signedIn
   });
 })()

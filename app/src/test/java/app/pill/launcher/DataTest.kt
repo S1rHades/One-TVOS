@@ -1331,9 +1331,13 @@ class DataTest {
         val home = parseSiteScan(data("sitescan-home.json"))!!
         assertEquals("Harbour TV", home.site)
         assertEquals(listOf("Home", "Films", "Series"), home.nav.map { it.title }) // Sign in left out
+        // The banner: every slide of the slider, the hidden ones and the title drawn as a picture
+        // (its alt text) included, its copy for looping left out, each in its own wide shape
         assertEquals(listOf("Night Harbour", "Ember Road", "Greenline"), home.heroes.map { it.title })
         assertEquals("A ferry captain finds a ledger.", home.heroes[0].description)
-        assertEquals(listOf("Trending now", "Top 10 films"), home.rows.map { it.title })
+        assertEquals("https://harbour.example/watch/2", home.heroes[1].url)
+        assertTrue(home.heroes.all { it.ratio > 2f })
+        assertEquals(listOf("Trending now", "Top 10", "Collections"), home.rows.map { it.title })
         val trending = home.rows[0]
         // A carousel's copy of its first card is dropped; a lazy picture's real address is used
         assertEquals(listOf("Velvet Hours", "Dust and Gold", "Tidewater"), trending.cards.map { it.title })
@@ -1344,7 +1348,16 @@ class DataTest {
         assertNull(top10.cards[0].url)
         assertNotNull(top10.cards[0].path) // a button: clicked where it is on the page
         assertEquals("https://harbour.example/p3.jpg", top10.cards[2].image)
+        // Its tabs, Films showing
+        assertEquals(listOf("Films" to true, "Series" to false), top10.tabs.map { it.title to it.on })
+        assertTrue(home.rows[0].tabs.isEmpty())
+        // Wide banners keep their shape (three times as wide as tall), not cut to 16:9
+        assertEquals(3f, home.rows[2].shape, 0.01f)
+        assertEquals(16f / 9f, trending.shape, 0.02f)
         assertEquals("https://harbour.example/search?q={q}", home.search)
+        assertNotNull(home.searchButton)
+        assertEquals("https://harbour.example/login", home.login?.url)
+        assertFalse(home.signedIn)
         assertEquals(SiteScreenKind.Browse, home.kind(start = true))
         assertEquals(SiteScreenKind.Browse, home.kind(start = false))
 
@@ -1356,6 +1369,18 @@ class DataTest {
         assertEquals("https://img.example/ember.jpg", film.detail.image)
         assertEquals(SiteScreenKind.Details, film.kind(start = false))
         assertEquals("More like this", film.rows.single().title)
+
+        // A site searched by typing into its box, already signed in: two results under a heading are a row
+        val results = parseSiteScan(data("sitescan-search.json"))!!
+        assertNull(results.search)
+        assertNotNull(results.searchInput)
+        assertTrue(results.searchable && results.signedIn)
+        assertNull(results.login)
+        assertEquals(listOf("Red Lantern", "Redline"), results.rows.single().cards.map { it.title })
+        // A search address learnt from where a typed search ended up
+        assertEquals("https://x.example/find?query={q}&page=1", learnSearch("https://x.example/find?query=red+lantern&page=1", "red lantern"))
+        assertEquals("https://x.example/search/{q}", learnSearch("https://x.example/search/red%20lantern", "red lantern"))
+        assertNull(learnSearch("https://x.example/results", "red lantern"))
 
         // A page with nothing to draw is the page itself; a reading that isn't one is nothing
         assertEquals(SiteScreenKind.Page, SiteScan("https://x.example/login", "X").kind(start = false))
