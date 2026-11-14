@@ -136,6 +136,12 @@ private fun frenchtext2(m: MutableMap<String, String>) {
     // Moments.kt
     m["Goal"] = "But"
     m["%1\$s win %2\$s–%3\$s"] = "Victoire : %1\$s %2\$s–%3\$s"
+    // NativeVideo.kt
+    m["Track %1\$s"] = "Piste %1\$s"
+    m["The video's server refused the launcher's player"] = "Le serveur de la vidéo a refusé le lecteur du launcher"
+    m["The video's server didn't answer"] = "Le serveur de la vidéo n'a pas répondu"
+    m["The video is protected and only plays in the site's player"] = "La vidéo est protégée et ne se lit que dans le lecteur du site"
+    m["The video comes in a form the player can't read"] = "La vidéo est dans un format que le lecteur ne sait pas lire"
     // News.kt
     m["Empty feed"] = "Flux vide"
     m["Direct: %1\$s; GitHub copy: %2\$s"] = "Direct : %1\$s ; copie GitHub : %2\$s"
@@ -843,6 +849,17 @@ private fun frenchtext10(m: MutableMap<String, String>) {
     m["System · Android %1\$s"] = "Système · Android %1\$s"
     m["Memory"] = "Mémoire"
     m["%1\$s free"] = "%1\$s libres"
+    // ui/TvPlayer.kt
+    m["This video can't play here"] = "Cette vidéo ne peut pas être lue ici"
+    m["Back returns to the site, where its own player plays it"] = "Retour ramène au site, dont le lecteur la lit"
+    m["Audio & Subtitles"] = "Audio et sous-titres"
+    m["Speed (%1\$s)"] = "Vitesse (%1\$s)"
+    m["Audio"] = "Audio"
+    m["Original"] = "Original"
+    m["Subtitles"] = "Sous-titres"
+    m["Back to the video"] = "Retour à la vidéo"
+    m["Playback speed"] = "Vitesse de lecture"
+    m[" (normal)"] = " (normale)"
     // ui/WeatherWidget.kt
     m["H %1\$s   L %2\$s"] = "Max %1\$s   Min %2\$s"
 }
@@ -854,7 +871,7 @@ private fun frenchtext11(m: MutableMap<String, String>) {
     m["Arrows move the pointer · OK clicks · Hold OK for options"] = "Les flèches déplacent le pointeur · OK clique · Maintenez OK pour les options"
     m["Arrows jump between links · OK opens · Hold OK for options"] = "Les flèches passent d'un lien à l'autre · OK ouvre · Maintenez OK pour les options"
     m["The pointer, for the player's buttons · Back hides it"] = "Le pointeur, pour les boutons du lecteur · Retour le cache"
-    m["OK plays or pauses · ← → skip · ↑ the player's buttons · ↓ hides them · Back leaves"] = "OK lecture ou pause · ← → avancer ou reculer · ↑ les boutons du lecteur · ↓ les cache · Retour pour quitter"
+    m["OK plays or pauses · ← → skip · ↑ the player's buttons · Back leaves full screen"] = "OK lecture ou pause · ← → avancer ou reculer · ↑ les boutons du lecteur · Retour quitte le plein écran"
     m["Reload"] = "Recharger"
     m["Video full screen"] = "Vidéo en plein écran"
     m["The video playing fills the screen; Back leaves"] = "La vidéo en cours remplit l'écran ; Retour pour quitter"
@@ -1023,6 +1040,12 @@ private fun arabictext2(m: MutableMap<String, String>) {
     // Moments.kt
     m["Goal"] = "هدف"
     m["%1\$s win %2\$s–%3\$s"] = "فوز %1\$s ⁦%2\$s–%3\$s⁩"
+    // NativeVideo.kt
+    m["Track %1\$s"] = "المسار %1\$s"
+    m["The video's server refused the launcher's player"] = "رفض خادم الفيديو مشغّل الواجهة"
+    m["The video's server didn't answer"] = "لم يستجب خادم الفيديو"
+    m["The video is protected and only plays in the site's player"] = "الفيديو محمي ولا يعمل إلا في مشغّل الموقع"
+    m["The video comes in a form the player can't read"] = "الفيديو بصيغة لا يستطيع المشغّل قراءتها"
     // News.kt
     m["Empty feed"] = "الخلاصة فارغة"
     m["Direct: %1\$s; GitHub copy: %2\$s"] = "مباشر: %1\$s؛ نسخة GitHub: %2\$s"
@@ -1730,6 +1753,17 @@ private fun arabictext10(m: MutableMap<String, String>) {
     m["System · Android %1\$s"] = "النظام · أندرويد %1\$s"
     m["Memory"] = "الذاكرة"
     m["%1\$s free"] = "%1\$s متاحة"
+    // ui/TvPlayer.kt
+    m["This video can't play here"] = "لا يمكن تشغيل هذا الفيديو هنا"
+    m["Back returns to the site, where its own player plays it"] = "رجوع للعودة إلى الموقع ليشغّله مشغّله"
+    m["Audio & Subtitles"] = "الصوت والترجمة"
+    m["Speed (%1\$s)"] = "السرعة (%1\$s)"
+    m["Audio"] = "الصوت"
+    m["Original"] = "الأصلي"
+    m["Subtitles"] = "الترجمة"
+    m["Back to the video"] = "رجوع إلى الفيديو"
+    m["Playback speed"] = "سرعة التشغيل"
+    m[" (normal)"] = " (عادية)"
     // ui/WeatherWidget.kt
     m["H %1\$s   L %2\$s"] = "العظمى %1\$s   الصغرى %2\$s"
 }
@@ -1741,7 +1775,7 @@ private fun arabictext11(m: MutableMap<String, String>) {
     m["Arrows move the pointer · OK clicks · Hold OK for options"] = "الأسهم تحرّك المؤشر · OK للنقر · اضغط مطولًا على OK للخيارات"
     m["Arrows jump between links · OK opens · Hold OK for options"] = "الأسهم تنتقل بين الروابط · OK للفتح · اضغط مطولًا على OK للخيارات"
     m["The pointer, for the player's buttons · Back hides it"] = "المؤشر لأزرار المشغّل · رجوع لإخفائه"
-    m["OK plays or pauses · ← → skip · ↑ the player's buttons · ↓ hides them · Back leaves"] = "OK تشغيل أو إيقاف · ← → تقديم أو إرجاع · ↑ أزرار المشغّل · ↓ لإخفائها · رجوع للخروج"
+    m["OK plays or pauses · ← → skip · ↑ the player's buttons · Back leaves full screen"] = "OK تشغيل أو إيقاف · ← → تقديم أو إرجاع · ↑ أزرار المشغّل · رجوع للخروج من ملء الشاشة"
     m["Reload"] = "إعادة التحميل"
     m["Video full screen"] = "الفيديو بملء الشاشة"
     m["The video playing fills the screen; Back leaves"] = "يملأ الفيديو الشاشة، ورجوع للخروج"
