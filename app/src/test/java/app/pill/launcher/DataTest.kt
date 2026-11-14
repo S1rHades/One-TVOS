@@ -1321,6 +1321,51 @@ class DataTest {
     }
 
 
+    /**
+     * The scanner's reading of two sample pages (made by running assets/tvscan.js in Chrome,
+     * quoted as the page hands it over): the menu, the banner, rows with their headings,
+     * lazy pictures, buttons as cards, and a film's details.
+     */
+    @Test
+    fun sitesAreRead() {
+        val home = parseSiteScan(data("sitescan-home.json"))!!
+        assertEquals("Harbour TV", home.site)
+        assertEquals(listOf("Home", "Films", "Series"), home.nav.map { it.title }) // Sign in left out
+        assertEquals(listOf("Night Harbour", "Ember Road", "Greenline"), home.heroes.map { it.title })
+        assertEquals("A ferry captain finds a ledger.", home.heroes[0].description)
+        assertEquals(listOf("Trending now", "Top 10 films"), home.rows.map { it.title })
+        val trending = home.rows[0]
+        // A carousel's copy of its first card is dropped; a lazy picture's real address is used
+        assertEquals(listOf("Velvet Hours", "Dust and Gold", "Tidewater"), trending.cards.map { it.title })
+        assertEquals("https://img.example/1.jpg", trending.cards[0].image)
+        assertFalse(trending.tall)
+        val top10 = home.rows[1]
+        assertTrue(top10.tall)
+        assertNull(top10.cards[0].url)
+        assertNotNull(top10.cards[0].path) // a button: clicked where it is on the page
+        assertEquals("https://harbour.example/p3.jpg", top10.cards[2].image)
+        assertEquals("https://harbour.example/search?q={q}", home.search)
+        assertEquals(SiteScreenKind.Browse, home.kind(start = true))
+        assertEquals(SiteScreenKind.Browse, home.kind(start = false))
+
+        val film = parseSiteScan(data("sitescan-detail.json"))!!
+        assertEquals("Ember Road", film.detail.title)
+        assertEquals(listOf("2025", "2h 4m", "Thriller", "Drama"), film.detail.facts)
+        assertTrue(film.detail.media)
+        assertEquals("body>button:nth-child(3)", film.detail.play) // Watch now, not Trailer
+        assertEquals("https://img.example/ember.jpg", film.detail.image)
+        assertEquals(SiteScreenKind.Details, film.kind(start = false))
+        assertEquals("More like this", film.rows.single().title)
+
+        // A page with nothing to draw is the page itself; a reading that isn't one is nothing
+        assertEquals(SiteScreenKind.Page, SiteScan("https://x.example/login", "X").kind(start = false))
+        assertNull(parseSiteScan("null"))
+        assertNull(parseSiteScan("not json"))
+        assertEquals("https://x.example/s?q=night+harbour", searchUrl("https://x.example/s?q={q}", " night harbour "))
+        assertTrue(app.pill.launcher.ui.sameUrl("https://x.example/a/", "https://x.example/a#top"))
+        assertFalse(app.pill.launcher.ui.sameUrl("https://x.example/a", "https://x.example/b"))
+    }
+
     /** Videos are known by their address: streams and files, not their pieces or pictures. */
     @Test
     fun videosAreFound() {

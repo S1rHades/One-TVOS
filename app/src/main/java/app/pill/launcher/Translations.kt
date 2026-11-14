@@ -252,6 +252,7 @@ private fun frenchtext3(m: MutableMap<String, String>) {
     m["No forecast steps"] = "Aucune étape de prévision"
     m["MET Norway"] = "MET Norway"
     // WebAppActivity.kt
+    m["No video found here, so here is the page"] = "Aucune vidéo trouvée, voici la page"
     m["No site at that address, or the TV is offline"] = "Aucun site à cette adresse, ou la TV est hors ligne"
     m["The site didn't answer"] = "Le site n'a pas répondu"
     m["A secure connection to the site failed"] = "La connexion sécurisée au site a échoué"
@@ -860,11 +861,21 @@ private fun frenchtext10(m: MutableMap<String, String>) {
     m["Back to the video"] = "Retour à la vidéo"
     m["Playback speed"] = "Vitesse de lecture"
     m[" (normal)"] = " (normale)"
-    // ui/WeatherWidget.kt
-    m["H %1\$s   L %2\$s"] = "Max %1\$s   Min %2\$s"
+    // ui/TvSite.kt
+    m["Open as web page"] = "Ouvrir comme page web"
+    m["Reload"] = "Recharger"
+    m["Back to the launcher"] = "Retour au lanceur"
+    m["Play"] = "Lecture"
+    m["More info"] = "Plus d'infos"
+    m["More like this"] = "Dans le même genre"
+    m["More"] = "Plus"
+    m["Loading"] = "Chargement"
+    m["Starting the video"] = "Lancement de la vidéo"
 }
 
 private fun frenchtext11(m: MutableMap<String, String>) {
+    // ui/WeatherWidget.kt
+    m["H %1\$s   L %2\$s"] = "Max %1\$s   Min %2\$s"
     // ui/WebAppPage.kt
     m["Can't open %1\$s"] = "Impossible d'ouvrir %1\$s"
     m["OK to try again · Back to leave"] = "OK pour réessayer · Retour pour quitter"
@@ -872,7 +883,6 @@ private fun frenchtext11(m: MutableMap<String, String>) {
     m["Arrows jump between links · OK opens · Hold OK for options"] = "Les flèches passent d'un lien à l'autre · OK ouvre · Maintenez OK pour les options"
     m["The pointer, for the player's buttons · Back hides it"] = "Le pointeur, pour les boutons du lecteur · Retour le cache"
     m["OK plays or pauses · ← → skip · ↑ the player's buttons · Back leaves full screen"] = "OK lecture ou pause · ← → avancer ou reculer · ↑ les boutons du lecteur · Retour quitte le plein écran"
-    m["Reload"] = "Recharger"
     m["Video full screen"] = "Vidéo en plein écran"
     m["The video playing fills the screen; Back leaves"] = "La vidéo en cours remplit l'écran ; Retour pour quitter"
     m["Text size · %1\$s%%"] = "Taille du texte · %1\$s %%"
@@ -1156,6 +1166,7 @@ private fun arabictext3(m: MutableMap<String, String>) {
     m["No forecast steps"] = "لا توجد بيانات توقعات"
     m["MET Norway"] = "MET Norway"
     // WebAppActivity.kt
+    m["No video found here, so here is the page"] = "لم يُعثر على فيديو، إليك الصفحة"
     m["No site at that address, or the TV is offline"] = "لا يوجد موقع بهذا العنوان، أو التلفاز غير متصل"
     m["The site didn't answer"] = "لم يستجب الموقع"
     m["A secure connection to the site failed"] = "فشل الاتصال الآمن بالموقع"
@@ -1764,11 +1775,21 @@ private fun arabictext10(m: MutableMap<String, String>) {
     m["Back to the video"] = "رجوع إلى الفيديو"
     m["Playback speed"] = "سرعة التشغيل"
     m[" (normal)"] = " (عادية)"
-    // ui/WeatherWidget.kt
-    m["H %1\$s   L %2\$s"] = "العظمى %1\$s   الصغرى %2\$s"
+    // ui/TvSite.kt
+    m["Open as web page"] = "فتح كصفحة ويب"
+    m["Reload"] = "إعادة التحميل"
+    m["Back to the launcher"] = "العودة إلى المشغّل"
+    m["Play"] = "تشغيل"
+    m["More info"] = "مزيد من المعلومات"
+    m["More like this"] = "محتوى مشابه"
+    m["More"] = "المزيد"
+    m["Loading"] = "جارٍ التحميل"
+    m["Starting the video"] = "جارٍ تشغيل الفيديو"
 }
 
 private fun arabictext11(m: MutableMap<String, String>) {
+    // ui/WeatherWidget.kt
+    m["H %1\$s   L %2\$s"] = "العظمى %1\$s   الصغرى %2\$s"
     // ui/WebAppPage.kt
     m["Can't open %1\$s"] = "تعذّر فتح %1\$s"
     m["OK to try again · Back to leave"] = "OK لإعادة المحاولة · رجوع للخروج"
@@ -1776,7 +1797,6 @@ private fun arabictext11(m: MutableMap<String, String>) {
     m["Arrows jump between links · OK opens · Hold OK for options"] = "الأسهم تنتقل بين الروابط · OK للفتح · اضغط مطولًا على OK للخيارات"
     m["The pointer, for the player's buttons · Back hides it"] = "المؤشر لأزرار المشغّل · رجوع لإخفائه"
     m["OK plays or pauses · ← → skip · ↑ the player's buttons · Back leaves full screen"] = "OK تشغيل أو إيقاف · ← → تقديم أو إرجاع · ↑ أزرار المشغّل · رجوع للخروج من ملء الشاشة"
-    m["Reload"] = "إعادة التحميل"
     m["Video full screen"] = "الفيديو بملء الشاشة"
     m["The video playing fills the screen; Back leaves"] = "يملأ الفيديو الشاشة، ورجوع للخروج"
     m["Text size · %1\$s%%"] = "حجم النص · %1\$s%%"

@@ -334,6 +334,9 @@ class WebShortcuts(private val context: Context) {
         prefs.edit().putString(Key, webShortcutsJson(list)).apply()
         val keep = list.map { "${it.id}.png" }.toSet()
         dir.listFiles()?.filter { it.name !in keep }?.forEach { it.delete() }
+        // A removed shortcut's saved first page goes with it
+        val ids = list.map { "${it.id}.json" }.toSet()
+        File(context.filesDir, "sitescans").listFiles()?.filter { it.name !in ids }?.forEach { it.delete() }
     }
 
     fun find(id: String): WebShortcut? = read().firstOrNull { it.id == id }
