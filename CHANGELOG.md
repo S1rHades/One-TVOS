@@ -3,6 +3,15 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 4.2 (November 2026)
+
+Websites with the remote:
+
+- **Sideways rows and carousels**: at the left or right edge the arrows move the row under the pointer: they scroll it, or, for a carousel that only moves when dragged, swipe it as a finger would, a step each moment the arrow is held.
+- **Videos as in a TV app**: **Video full screen** in the viewer's menu fills the screen with the video playing. In full screen, **OK** plays or pauses, **Left** / **Right** skip back or on (more while held), **Up** or **Down** brings the pointer for the player's own buttons (subtitles, episodes, quality), **Back** puts it away and then leaves full screen. A note says so when a video goes full screen. Before, the remote did little there and the pointer couldn't reach the player.
+- **Media keys**: the remote's ⏯, ⏪ and ⏩ work on any page.
+- The viewer's menu drops **Back to the home screen** (the Home button does it), leaving room for **Video full screen**.
+
 ## 4.1.7 (November 2026)
 
 - **Websites work again**: since 4.1.2 the viewer fitted a page by rewriting a line in it as it loaded, and sites whose code checks their own page (as modern ones do) stopped there: no buttons, no carousels, pictures that never came, a page that never finished. Now the page is never touched: the viewer lays it out on a laptop-sized screen and draws that screen shrunk to the TV, like a picture, and the pointer's clicks are placed on it to match. The wider-page fallback (which shrank this site to a tiny wide layout) is gone with it.

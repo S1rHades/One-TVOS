@@ -1317,6 +1317,7 @@ class DataTest {
         assertFalse(agentFor(webView, tv = true).contains("Mobile"))
         assertTrue(scrollScript(10f, 20f, 0f, -108f).endsWith("(10.0,20.0,0.0,-108.0)"))
         assertTrue("scrolls at the page's scale", scrollScript(1f, 1f, 0f, 1f).contains("visualViewport.scale"))
+        assertTrue("says when nothing scrolls sideways, for a swipe", scrollScript(1f, 1f, 5f, 0f).contains("return 'none'"))
     }
 
 }

@@ -1595,6 +1595,24 @@ class Screenshots {
         viewer.menuClosed()
         viewer.change(viewer.shortcut.copy(pointer = false))
         check(saved?.pointer == false) { "a change is kept" }
+        // A full-screen video: OK plays or pauses (Space), Left / Right skip (the player's arrows),
+        // Up brings the pointer for the player's buttons and Back puts it away, then leaves full screen
+        viewer.fullscreen = true
+        press(android.view.KeyEvent.KEYCODE_DPAD_CENTER)
+        check(page.calls.last() == "key ${android.view.KeyEvent.KEYCODE_SPACE}") { "OK is play or pause: ${page.calls}" }
+        check(viewer.key(key(android.view.KeyEvent.KEYCODE_DPAD_RIGHT)))
+        check(page.calls.last() == "key ${android.view.KeyEvent.KEYCODE_DPAD_RIGHT}") { "Right skips on: ${page.calls}" }
+        check(!viewer.pointerOn) { "no pointer over the video" }
+        press(android.view.KeyEvent.KEYCODE_DPAD_UP)
+        check(viewer.pointerOn) { "Up brings the pointer" }
+        press(android.view.KeyEvent.KEYCODE_BACK)
+        check(!viewer.pointerOn && viewer.fullscreen) { "Back puts the pointer away first" }
+        press(android.view.KeyEvent.KEYCODE_BACK)
+        check(page.calls.last() == "exit") { "then leaves full screen: ${page.calls}" }
+        viewer.fullscreen = false
+        // The remote's play / pause key works anywhere
+        press(android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
+        check(page.calls.last() == "key ${android.view.KeyEvent.KEYCODE_SPACE}") { "⏯ is Space: ${page.calls}" }
         // Jumping between links: the arrows go to the page
         press(android.view.KeyEvent.KEYCODE_DPAD_LEFT)
         check(page.calls.last() == "key ${android.view.KeyEvent.KEYCODE_DPAD_LEFT}") { "arrows go to the page: ${page.calls}" }
