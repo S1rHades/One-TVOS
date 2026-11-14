@@ -3,6 +3,11 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 4.1.6 (November 2026)
+
+- **Websites work as on a computer**: the viewer now tells sites it is a computer's Chrome, so they send their full version, made for a mouse, rather than a phone's, whose buttons and carousels waited for a touch screen and didn't respond to the pointer. It is still fitted to the screen.
+- **The TV version fits**: a site's TV version is laid out at a full-HD TV's width (1920 web pixels), the size TV versions are made for, and fitted to the screen.
+
 ## 4.1.5 (November 2026)
 
 - **Carousels turn and fill in**: a page wider than the screen is now laid out at the width it needs rather than zoomed out, which upset the sizes carousels measure; pictures and videos a secure page fetches over plain http show, as in Chrome; and the pages' timers are kept running, so a carousel goes on turning.

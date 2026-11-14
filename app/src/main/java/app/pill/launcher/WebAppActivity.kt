@@ -82,7 +82,7 @@ class WebAppActivity : ComponentActivity() {
     /** Puts a shortcut's settings on the page: text size, the TV version (reloading), and focus for jumping between links. */
     private fun apply(s: WebShortcut, reloadFor: WebShortcut?) {
         web.settings.textZoom = s.textZoom
-        web.evaluateJavascript(fitScript(s.pageZoom, viewDp()), null)
+        web.evaluateJavascript(fitScript(s.pageZoom, viewDp(), s.tvVersion), null)
         val agent = agentFor(WebSettings.getDefaultUserAgent(this), s.tvVersion)
         if (web.settings.userAgentString != agent) {
             web.settings.userAgentString = agent
@@ -111,7 +111,7 @@ class WebAppActivity : ComponentActivity() {
         isFocusableInTouchMode = true
         // A new width (the margin turned on or off): fit the page to it again
         addOnLayoutChangeListener { v, l, _, r, _, ol, _, or2, _ ->
-            if (r - l != or2 - ol) viewer?.shortcut?.let { (v as WebView).evaluateJavascript(fitScript(it.pageZoom, viewDp()), null) }
+            if (r - l != or2 - ol) viewer?.shortcut?.let { (v as WebView).evaluateJavascript(fitScript(it.pageZoom, viewDp(), it.tvVersion), null) }
         }
         setBackgroundColor(android.graphics.Color.WHITE)
         webViewClient = object : WebViewClient() {
@@ -135,11 +135,11 @@ class WebAppActivity : ComponentActivity() {
             }
 
             override fun onPageCommitVisible(view: WebView, url: String?) {
-                viewer?.shortcut?.let { view.evaluateJavascript(fitScript(it.pageZoom, viewDp()), null) }
+                viewer?.shortcut?.let { view.evaluateJavascript(fitScript(it.pageZoom, viewDp(), it.tvVersion), null) }
             }
 
             override fun onPageFinished(view: WebView, url: String?) {
-                viewer?.shortcut?.let { view.evaluateJavascript(fitScript(it.pageZoom, viewDp()), null) }
+                viewer?.shortcut?.let { view.evaluateJavascript(fitScript(it.pageZoom, viewDp(), it.tvVersion), null) }
             }
 
             override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
@@ -274,12 +274,16 @@ class WebAppActivity : ComponentActivity() {
 }
 
 /**
- * The browser name a site sees: the TV's own, without the mark that says it is inside an
- * app (some sites refuse those), and with a TV's mark when the TV version is asked for.
+ * The browser name a site sees. Usually a computer's Chrome (of the TV's own Chrome
+ * version): sites then send their full version, made for a mouse, which the pointer
+ * works, rather than a phone's, which waits for a touch screen. With the TV version asked
+ * for, the TV's own name with a TV's mark, without the marks of a phone or of being inside
+ * an app.
  */
 fun agentFor(default: String, tv: Boolean): String {
-    val plain = default.replace("; wv", "").replace(Regex("\\s*Version/\\d+(\\.\\d+)*"), "")
-    return if (tv) plain.replace(" Mobile", "") + " SMART-TV" else plain
+    if (tv) return default.replace("; wv", "").replace(Regex("\\s*Version/\\d+(\\.\\d+)*"), "").replace(" Mobile", "") + " SMART-TV"
+    val chrome = Regex("Chrome/([\\d.]+)").find(default)?.groupValues?.get(1) ?: "124.0.0.0"
+    return "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/$chrome Safari/537.36"
 }
 
 /** Scrolls the scrollable box under (x, y), or else the page; x, y and the distances are the screen's dp, turned into the page's own pixels at its scale. */

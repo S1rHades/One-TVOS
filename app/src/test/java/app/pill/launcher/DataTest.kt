@@ -1291,10 +1291,10 @@ class DataTest {
     @Test
     fun theViewerIntroducesItself() {
         val webView = "Mozilla/5.0 (Linux; Android 11; SHIELD Android TV Build/RQ1A; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/120.0 Mobile Safari/537.36"
-        val plain = agentFor(webView, tv = false)
-        assertFalse(plain.contains("; wv"))
-        assertFalse(plain.contains("Version/4.0"))
-        assertTrue(plain.contains("Chrome/120.0"))
+        // A computer's Chrome, of the TV's Chrome version: sites send their full version
+        assertEquals("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36", agentFor(webView, tv = false))
+        assertFalse(agentFor(webView, tv = true).contains("; wv"))
+        assertEquals(1920, fitWidth(100, tv = true))
         assertTrue(agentFor(webView, tv = true).endsWith(" SMART-TV"))
         assertFalse(agentFor(webView, tv = true).contains("Mobile"))
         assertTrue(scrollScript(10f, 20f, 0f, -108f).endsWith("(10.0,20.0,0.0,-108.0)"))
