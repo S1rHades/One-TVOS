@@ -335,6 +335,19 @@ class WebAppActivity : ComponentActivity() {
 
         override fun reload() = web.reload()
 
+        override fun quietPlayer() {
+            // The mouse leaves the video: players hide their controls when it does
+            val target = fullscreenView ?: return
+            val t = SystemClock.uptimeMillis()
+            val props = arrayOf(MotionEvent.PointerProperties().apply { id = 0; toolType = MotionEvent.TOOL_TYPE_MOUSE })
+            for (action in listOf(MotionEvent.ACTION_HOVER_MOVE, MotionEvent.ACTION_HOVER_EXIT)) {
+                val coords = arrayOf(MotionEvent.PointerCoords().apply { x = target.width / 2f; y = target.height - 1f })
+                val e = MotionEvent.obtain(t, t, action, 1, props, coords, 0, 0, 1f, 1f, 0, 0, android.view.InputDevice.SOURCE_MOUSE, 0)
+                target.dispatchGenericMotionEvent(e)
+                e.recycle()
+            }
+        }
+
         override fun exitFullscreen() {
             fullscreenDone?.onCustomViewHidden()
             (web.webChromeClient as? WebChromeClient)?.onHideCustomView()

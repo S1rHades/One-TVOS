@@ -69,6 +69,9 @@ interface WebPageControls {
 
     /** Leaves a video playing full screen. */
     fun exitFullscreen()
+
+    /** Tells a full-screen player the pointer has gone, so it lets its controls fade. */
+    fun quietPlayer() {}
 }
 
 /**
@@ -229,9 +232,14 @@ class WebViewer(
                     controls.pageKey(e)
                     return true
                 }
-                // The pointer, for the player's buttons (subtitles, episodes, quality)
-                KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> {
+                // Up: the pointer, for the player's buttons (subtitles, episodes, quality)
+                KeyEvent.KEYCODE_DPAD_UP -> {
                     if (down && e.repeatCount == 0) showPlayerPointer()
+                    return true
+                }
+                // Down: nothing over the video (the note, and the player's own controls)
+                KeyEvent.KEYCODE_DPAD_DOWN -> {
+                    if (down && e.repeatCount == 0) quietPlayer()
                     return true
                 }
             }
@@ -305,6 +313,16 @@ class WebViewer(
         if (size != IntSize.Zero) cursor = Offset(size.width / 2f, size.height * 0.8f)
         playerPointer = true
         playerPointerShown++
+    }
+
+    /** Bumped when Down clears the video: the note on the keys goes too. */
+    var quiet by mutableIntStateOf(0)
+        private set
+
+    fun quietPlayer() {
+        hidePlayerPointer()
+        quiet++
+        controls.quietPlayer()
     }
 
     fun hidePlayerPointer() {
@@ -471,6 +489,7 @@ fun WebAppPage(viewer: WebViewer, icon: ImageBitmap?, modifier: Modifier = Modif
             }
         }
         var playerHint by remember { mutableStateOf(false) }
+        LaunchedEffect(viewer.quiet) { if (viewer.quiet > 0) playerHint = false }
         LaunchedEffect(viewer.fullscreen, viewer.playerPointer) {
             playerHint = viewer.fullscreen
             if (playerHint) {
@@ -486,7 +505,7 @@ fun WebAppPage(viewer: WebViewer, icon: ImageBitmap?, modifier: Modifier = Modif
         ) {
             Text(
                 if (viewer.playerPointer) tr("The pointer, for the player's buttons · Back hides it")
-                else tr("OK plays or pauses · ← → skip · ↑ the player's buttons · Back leaves full screen"),
+                else tr("OK plays or pauses · ← → skip · ↑ the player's buttons · ↓ hides them · Back leaves"),
                 color = Palette.TextPrimary,
                 fontSize = 18.sp,
                 modifier = Modifier.clip(RoundedCornerShape(99.dp)).background(Color(0xE60B0F1A)).padding(horizontal = 26.dp, vertical = 13.dp),

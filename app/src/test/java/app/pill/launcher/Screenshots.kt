@@ -1489,6 +1489,7 @@ class Screenshots {
         override fun back(): Boolean { if (history == 0) return false; history--; calls += "back"; return true }
         override fun reload() { calls += "reload" }
         override fun exitFullscreen() { calls += "exit" }
+        override fun quietPlayer() { calls += "quiet" }
     }
 
     private fun key(code: Int, action: Int = android.view.KeyEvent.ACTION_DOWN, repeat: Int = 0, held: Long = 0) =
@@ -1605,6 +1606,10 @@ class Screenshots {
         check(!viewer.pointerOn) { "no pointer over the video" }
         press(android.view.KeyEvent.KEYCODE_DPAD_UP)
         check(viewer.pointerOn) { "Up brings the pointer" }
+        viewer.hidePlayerPointer()
+        press(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
+        check(!viewer.pointerOn && viewer.quiet == 1 && page.calls.last() == "quiet") { "Down clears the video: ${page.calls}" }
+        press(android.view.KeyEvent.KEYCODE_DPAD_UP)
         press(android.view.KeyEvent.KEYCODE_BACK)
         check(!viewer.pointerOn && viewer.fullscreen) { "Back puts the pointer away first" }
         press(android.view.KeyEvent.KEYCODE_BACK)
