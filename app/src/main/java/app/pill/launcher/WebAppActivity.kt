@@ -177,14 +177,30 @@ class WebAppActivity : ComponentActivity() {
         }
     }
 
+    /** A tap's finger is still down on the page. */
+    private var tapping = false
+
+    /** One touch event at [x], [y] (the page's pixels), made as a real finger's is: one pointer, a finger, from the touch screen. */
+    private fun touch(action: Int, downTime: Long, x: Float, y: Float) {
+        val props = arrayOf(MotionEvent.PointerProperties().apply { id = 0; toolType = MotionEvent.TOOL_TYPE_FINGER })
+        val coords = arrayOf(MotionEvent.PointerCoords().apply { this.x = x; this.y = y; pressure = 1f; size = 1f })
+        val e = MotionEvent.obtain(downTime, SystemClock.uptimeMillis(), action, 1, props, coords, 0, 0, 1f, 1f, 0, 0, android.view.InputDevice.SOURCE_TOUCHSCREEN, 0)
+        web.dispatchTouchEvent(e)
+        e.recycle()
+    }
+
     private val controls = object : WebPageControls {
         override fun click(x: Float, y: Float) {
-            val t = SystemClock.uptimeMillis()
-            for ((action, at) in listOf(MotionEvent.ACTION_DOWN to t, MotionEvent.ACTION_UP to t + 40)) {
-                val e = MotionEvent.obtain(t, at, action, x, y, 0).apply { source = android.view.InputDevice.SOURCE_TOUCHSCREEN }
-                web.dispatchTouchEvent(e)
-                e.recycle()
-            }
+            // A finger's tap, as a touch screen sends it: down, then up a moment later, both at
+            // the time they happen. A tap still in progress isn't doubled.
+            if (tapping) return
+            tapping = true
+            val down = SystemClock.uptimeMillis()
+            touch(MotionEvent.ACTION_DOWN, down, x, y)
+            web.postDelayed({
+                touch(MotionEvent.ACTION_UP, down, x, y)
+                tapping = false
+            }, TapMs)
         }
 
         override fun scroll(x: Float, y: Float, dx: Float, dy: Float) {
@@ -243,6 +259,9 @@ class WebAppActivity : ComponentActivity() {
     companion object {
         const val ExtraId = "shortcut"
 
+        /** How long a tap's finger stays down. */
+        const val TapMs = 70L
+
         fun intent(context: Context, id: String): Intent =
             Intent(context, WebAppActivity::class.java).putExtra(ExtraId, id)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
@@ -258,10 +277,11 @@ fun agentFor(default: String, tv: Boolean): String {
     return if (tv) plain.replace(" Mobile", "") + " SMART-TV" else plain
 }
 
-/** Scrolls the scrollable box under (x, y), CSS pixels, or else the page. */
+/** Scrolls the scrollable box under (x, y), or else the page; x, y and the distances are the screen's dp, turned into the page's own pixels at its scale. */
 fun scrollScript(x: Float, y: Float, dx: Float, dy: Float): String {
     fun n(f: Float) = String.format(java.util.Locale.ROOT, "%.1f", f)
-    return "(function(x,y,dx,dy){var e=document.elementFromPoint(x,y);" +
+    return "(function(x,y,dx,dy){var k=(window.visualViewport&&visualViewport.scale)||1;x/=k;y/=k;dx/=k;dy/=k;" +
+        "var e=document.elementFromPoint(x,y);" +
         "while(e&&e!==document.body&&e!==document.documentElement){var s=getComputedStyle(e);" +
         "if((dy&&e.scrollHeight>e.clientHeight+1&&/(auto|scroll)/.test(s.overflowY))||(dx&&e.scrollWidth>e.clientWidth+1&&/(auto|scroll)/.test(s.overflowX))){e.scrollBy(dx,dy);return;}" +
         "e=e.parentElement;}window.scrollBy(dx,dy);})(${n(x)},${n(y)},${n(dx)},${n(dy)})"

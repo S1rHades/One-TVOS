@@ -277,7 +277,7 @@ On TVs that ignore that command, turning off the stock launcher works too (turn 
 
 The `latest` release is rebuilt automatically every time `main` changes, so installing it again always gets you the newest version.
 
-Every version also keeps its own release, named after it (**Pill Launcher 4.1.3**, tag `v4.1.3`, file `pill-launcher-4.1.3.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v4.1.3/pill-launcher-4.1.3.apk`. The newest is titled **Pill Launcher 4.1.3 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
+Every version also keeps its own release, named after it (**Pill Launcher 4.1.4**, tag `v4.1.4`, file `pill-launcher-4.1.4.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v4.1.4/pill-launcher-4.1.4.apk`. The newest is titled **Pill Launcher 4.1.4 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
 
 ### Backing up your settings
 
@@ -472,7 +472,7 @@ gradle :app:testDebugUnitTest --tests '*Screenshots*'  # re-render docs/screensh
 
 **Text and translations.** The code is written in English: anything shown on screen goes through `tr("…")` (with `%1$s`, `%2$s` for values), and `Translations.kt` gives the French and the Arabic for each English text. A test (`everyTextIsTranslated`) reads the source and fails the build when a text has no translation or a translation has the wrong places for its values, so a new text can't ship in English only. Titles that enums carry (widget names, settings pages) translate when read. Rows that run with the reading direction use `rowStep()` for Left / Right, so they work right to left.
 
-**Builds are automated.** `.github/workflows/build.yml` runs every test and then builds the APK for every pull request and push, so a failing test stops a release; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v4.1.3`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
+**Builds are automated.** `.github/workflows/build.yml` runs every test and then builds the APK for every pull request and push, so a failing test stops a release; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v4.1.4`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
 
 <details>
 <summary><b>Architecture</b></summary>

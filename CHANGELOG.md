@@ -3,6 +3,11 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 4.1.4 (November 2026)
+
+- **Clicks work in websites**: OK now taps the page the way a finger on a touch screen does (pressed, then let go a moment later), instead of an event the TV's web engine could ignore and that could leave the page waiting for the finger to lift, so it seemed frozen.
+- **Scrolling where the pointer is**: on a page fitted to the screen, the arrows at an edge scroll the box under the pointer (a list, a menu) rather than one elsewhere.
+
 ## 4.1.3 (November 2026)
 
 - **Websites edge to edge**: now that pages are fitted to the screen, the margin round them is gone (and with it **Use the whole screen**): a site fills the TV.
