@@ -3,6 +3,10 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 4.2.1 (November 2026)
+
+- **Down clears a full-screen video**: the pointer and the note on the keys go at once, and the player is told the pointer has left, so most players fade their controls. **Up** brings the pointer for the player's buttons, as before.
+
 ## 4.2 (November 2026)
 
 Websites with the remote:
