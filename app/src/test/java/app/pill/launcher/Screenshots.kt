@@ -1730,6 +1730,136 @@ class Screenshots {
         check(video.speed == 1.25f && other.panel == app.pill.launcher.ui.TvPlayer.Panel.None) { "speed 1.25x: ${video.speed}" }
     }
 
+    /** What the TV app view asked of its hidden page. */
+    private class FakeSiteActions : app.pill.launcher.ui.SiteActions {
+        val opened = mutableListOf<String>()
+        val tabs = mutableListOf<String>()
+        val backs = mutableListOf<String?>()
+        var played = 0
+        val pages = mutableListOf<Boolean>()
+        var reloaded = 0
+        var left = false
+        override fun open(card: SiteCard) { opened += card.title }
+        override fun tab(card: SiteCard) { tabs += card.title }
+        override fun backTo(screen: app.pill.launcher.ui.SiteScreen) { backs += screen.url }
+        override fun play(screen: app.pill.launcher.ui.SiteScreen) { played++ }
+        override fun showPage(pop: Boolean) { pages += pop }
+        override fun reload() { reloaded++ }
+        override fun leave() { left = true }
+    }
+
+    /**
+     * A website as a TV app: the launcher's own screens from the scanner's reading of the
+     * sample pages (pictures stood in by the bundled photos). The menu, the banner and rows
+     * move with the arrows, OK opens, Back goes up a level, a held OK opens the menu.
+     */
+    @Test
+    fun tvApp() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        fun scan(name: String) = parseSiteScan(javaClass.classLoader!!.getResource("data/$name")!!.readText())!!
+        val home = scan("sitescan-home.json")
+        val film = scan("sitescan-detail.json")
+        // Each picture a different photo, made small
+        val files = File("src/main/assets/photos").listFiles()!!.sortedBy { it.name }
+        val urls = (home.heroes.map { it.image } + home.rows.flatMap { r -> r.cards.map { it.image } } + film.detail.image + film.rows.flatMap { r -> r.cards.map { it.image } }).filterNotNull().distinct()
+        val engine = FakeImageLoaderEngine.Builder().apply {
+            urls.forEachIndexed { i, u ->
+                val bm = BitmapFactory.decodeFile(files[i % files.size].path, BitmapFactory.Options().apply { inSampleSize = 4 })
+                intercept(u, BitmapDrawable(context.resources, bm))
+            }
+        }.default(BitmapDrawable(context.resources, gradient())).build()
+        Coil.setImageLoader(ImageLoader.Builder(context).components { add(engine) }.build())
+
+        val acts = FakeSiteActions()
+        val site = app.pill.launcher.ui.TvSite("Harbour TV", acts)
+        site.start("https://harbour.example/home", home)
+        val icon = webTile(null, "Harbour TV").asImageBitmap()
+        compose.setContent { app.pill.launcher.ui.TvSiteScreen(site, icon) }
+        settle()
+        fun press(code: Int) { check(site.key(key(code))); check(site.key(key(code, android.view.KeyEvent.ACTION_UP))) }
+        val top = { site.top!! }
+        // Opens on the banner, from the saved reading, before the page has loaded
+        compose.onNodeWithText("Night Harbour").assertIsDisplayed()
+        compose.onNodeWithText("Films").assertIsDisplayed()
+        captureScreenRoboImage(File(out, "tv-app-home.png").path)
+        // Right past More info: the banner's next picture
+        press(android.view.KeyEvent.KEYCODE_DPAD_RIGHT)
+        press(android.view.KeyEvent.KEYCODE_DPAD_RIGHT)
+        check(top().hero == 1) { "the next banner" }
+        // Down to the rows; the spotlight follows the focused card
+        press(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
+        press(android.view.KeyEvent.KEYCODE_DPAD_RIGHT)
+        settle()
+        check(site.focused(top())?.title == "Dust and Gold")
+        compose.onAllNodesWithText("Dust and Gold")[0].assertIsDisplayed() // the spotlight's
+        press(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
+        settle()
+        captureScreenRoboImage(File(out, "tv-app-rows.png").path)
+        check(top().line == 1 && top().col(1) == 0)
+        // Back: to the top of the screen; Up to the menu, Films, OK
+        press(android.view.KeyEvent.KEYCODE_BACK)
+        check(top().line == -2) { "Back goes to the menu: ${top().line}" }
+        press(android.view.KeyEvent.KEYCODE_DPAD_RIGHT)
+        press(android.view.KeyEvent.KEYCODE_DPAD_CENTER)
+        check(acts.tabs == listOf("Films") && site.tab == 1) { "Films opens: ${acts.tabs}" }
+        site.scanned(home)
+        check(top().kind == SiteScreenKind.Browse && top().line == -2) { "focus stays on the menu" }
+        // Back on another page of the menu: Home again
+        press(android.view.KeyEvent.KEYCODE_BACK)
+        check(acts.tabs.last() == "Home" && site.tab == 0)
+        site.scanned(home)
+        // The banner's Play: its page opens, and plays once it is read as a film's
+        press(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
+        check(top().line == -1)
+        press(android.view.KeyEvent.KEYCODE_DPAD_CENTER)
+        check(acts.opened == listOf("Night Harbour") && top().kind == null) { "the banner opens: ${acts.opened}" }
+        settle()
+        compose.onNodeWithText("Loading").assertIsDisplayed()
+        site.scanned(film)
+        check(top().kind == SiteScreenKind.Details && acts.played == 1) { "Play plays" }
+        press(android.view.KeyEvent.KEYCODE_BACK)
+        check(site.stack.size == 1 && acts.backs.last() == "https://harbour.example/") { "Back to the first screen: ${acts.backs}" }
+        // A card: its details, without playing
+        press(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
+        press(android.view.KeyEvent.KEYCODE_DPAD_CENTER)
+        check(acts.opened.last() == "Velvet Hours")
+        site.scanned(film)
+        check(top().kind == SiteScreenKind.Details && acts.played == 1)
+        settle()
+        compose.onNodeWithText("Ember Road").assertIsDisplayed()
+        compose.onNodeWithText("2h 4m").assertIsDisplayed()
+        captureScreenRoboImage(File(out, "tv-app-details.png").path)
+        press(android.view.KeyEvent.KEYCODE_DPAD_CENTER)
+        check(acts.played == 2) { "OK on Play" }
+        press(android.view.KeyEvent.KEYCODE_DPAD_RIGHT)
+        press(android.view.KeyEvent.KEYCODE_DPAD_CENTER)
+        check(acts.pages == listOf(false)) { "Open as web page" }
+        // Down to More like this, Back up to the buttons, Back to the rows
+        press(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
+        check(top().line == 0)
+        press(android.view.KeyEvent.KEYCODE_BACK)
+        check(top().line == -1 && site.stack.size == 2)
+        press(android.view.KeyEvent.KEYCODE_BACK)
+        check(site.stack.size == 1)
+        // A held OK: the menu; Down, Down, OK leaves
+        check(site.key(key(android.view.KeyEvent.KEYCODE_DPAD_CENTER)))
+        check(site.key(key(android.view.KeyEvent.KEYCODE_DPAD_CENTER, repeat = 1)))
+        check(site.key(key(android.view.KeyEvent.KEYCODE_DPAD_CENTER, repeat = 2)))
+        check(site.menuOpen)
+        settle()
+        captureScreenRoboImage(File(out, "tv-app-menu.png").path)
+        check(site.key(key(android.view.KeyEvent.KEYCODE_DPAD_CENTER, android.view.KeyEvent.ACTION_UP)))
+        check(site.menuOpen) { "letting go of the hold keeps the menu" }
+        press(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
+        press(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
+        press(android.view.KeyEvent.KEYCODE_DPAD_CENTER)
+        check(acts.left && !site.menuOpen)
+        // A page with nothing to draw shows the page itself
+        site.start("https://harbour.example/home", null)
+        site.scanned(SiteScan("https://harbour.example/login", "Harbour TV"))
+        check(acts.pages.last()) { "the page, closing its screen on Back" }
+    }
+
     private val beniSaf = Place("Beni Saf", "Aïn Témouchent", "Algeria", 35.30099, -1.38226)
 
     /** Settings → Widgets → Weather location: Automatic, or a town found by name. */

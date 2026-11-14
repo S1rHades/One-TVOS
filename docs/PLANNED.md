@@ -2,6 +2,7 @@
 
 Chosen for a future release; not built yet. New ideas are shown as mockups first.
 
+- **Websites' TV apps, next steps**: search on the site with the TV's keyboard or voice, a Continue watching row from what was played, and fixes for sites whose rows come out wrong.
 - **Smart stack**: the widget stack brings forward what matters now (football near kick-off, weather when rain is due, headlines in the evening, else the clock); Up / Down still flip it, and it settles back after a minute.
 
 ## Not chosen

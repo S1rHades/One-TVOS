@@ -3,6 +3,17 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 4.4 (November 2026)
+
+Websites open as TV apps:
+
+- **Drawn by the launcher**: a website's tile opens as a TV app instead of a web page. The site runs out of sight (signed in, ads blocked) and a scanner reads its page, only reading it: the site's menu, its banner or slider, every row of pictures under its heading (carousels and pictures that load on scrolling included), and a page's facts (schema.org and OpenGraph: title, year, length, genre, description, poster). The launcher draws its own screens from that.
+- **Screens**: the menu along the top; the banner with **Play** and **More info** (Left / Right past the buttons go through its pictures); rows of wide cards or posters, the focused one ringed and grown, its picture and title filling the top of the screen; a details screen for a page about one film, episode or video, with **Play**, **Open as web page** and **More like this**; a loading screen with the card's picture while a page comes.
+- **Play** presses the site's play button out of sight (or starts its video) and plays what it asks for in the launcher's player from 4.3; when no video comes, the page itself shows.
+- **Back** goes up a level: a row to the top of the screen, a screen to the one before, a section of the menu to the first, then out. A held **OK** (or **Menu**) has **Open as web page**, **Reload** and **Back to the launcher**.
+- **The page itself** (the viewer from 4.1 to 4.3, with its pointer and menu) is now for pages the TV app can't draw (signing in, forms) and for **Open as web page**; Back from its first page returns to the TV app.
+- **Opens at once**: each site's first screen is kept and shown straight away next time, then freshened from the page.
+
 ## 4.3 (November 2026)
 
 Websites' videos in the launcher's own player:
