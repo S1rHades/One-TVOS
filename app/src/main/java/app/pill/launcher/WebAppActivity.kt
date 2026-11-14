@@ -15,6 +15,7 @@ import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -81,12 +82,16 @@ class WebAppActivity : ComponentActivity() {
 
     /** Puts a shortcut's settings on the page: text size, the TV version (reloading), and focus for jumping between links. */
     private fun apply(s: WebShortcut, reloadFor: WebShortcut?) {
+        val adsChanged = blockingAds != s.blockAds
+        blockingAds = s.blockAds
         web.settings.textZoom = s.textZoom
         web.evaluateJavascript(fitScript(s.pageZoom, viewDp(), s.tvVersion), null)
         val agent = agentFor(WebSettings.getDefaultUserAgent(this), s.tvVersion)
         if (web.settings.userAgentString != agent) {
             web.settings.userAgentString = agent
             if (reloadFor != null) web.reload()
+        } else if (adsChanged && reloadFor != null) {
+            web.reload()
         }
         if (!s.pointer) web.requestFocus()
     }
@@ -102,7 +107,10 @@ class WebAppActivity : ComponentActivity() {
         settings.loadWithOverviewMode = true
         settings.useWideViewPort = true
         settings.builtInZoomControls = false
-        settings.setSupportMultipleWindows(false)
+        // New windows go through onCreateWindow (blocked, or opened here when on the same site);
+        // a page can't open one without a click at all
+        settings.setSupportMultipleWindows(true)
+        settings.javaScriptCanOpenWindowsAutomatically = false
         // As Chrome does: pictures and video a secure page fetches over plain http still show (scripts don't)
         settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
         CookieManager.getInstance().setAcceptCookie(true)
@@ -117,20 +125,39 @@ class WebAppActivity : ComponentActivity() {
         webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 val url = request.url
+                val blocking = viewer?.shortcut?.blockAds != false
                 return when (url.scheme?.lowercase()) {
-                    "https", "http" -> false
+                    "https", "http" -> {
+                        // A page sent to an ad network (the redirects ads make on a click) stays put
+                        if (blocking && isAdHost(url.host)) {
+                            noteBlocked()
+                            true
+                        } else {
+                            false
+                        }
+                    }
+                    // Another app (the Play Store, say) opens only from a press of OK
                     "intent" -> {
-                        runCatching { startActivity(Intent.parseUri(url.toString(), Intent.URI_INTENT_SCHEME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                        if (request.hasGesture() || !blocking) runCatching { startActivity(Intent.parseUri(url.toString(), Intent.URI_INTENT_SCHEME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                        else noteBlocked()
                         true
                     }
                     else -> {
-                        runCatching { startActivity(Intent(Intent.ACTION_VIEW, url).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                        if (request.hasGesture() || !blocking) runCatching { startActivity(Intent(Intent.ACTION_VIEW, url).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                        else noteBlocked()
                         true
                     }
                 }
             }
 
+            override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
+                if (!blockingAds || !isAdHost(request.url.host)) return null
+                noteBlocked()
+                return WebResourceResponse("text/plain", "utf-8", java.io.ByteArrayInputStream(ByteArray(0)))
+            }
+
             override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
+                viewer?.blocked = 0
                 viewer?.error = null
             }
 
@@ -147,6 +174,29 @@ class WebAppActivity : ComponentActivity() {
             }
         }
         webChromeClient = object : WebChromeClient() {
+            // A new window: none without a click; with one, its address opens here if it is on
+            // the same site (a link meant for a new tab), else it is dropped (an ad's pop-up)
+            override fun onCreateWindow(view: WebView, isDialog: Boolean, isUserGesture: Boolean, resultMsg: android.os.Message): Boolean {
+                if (!isUserGesture && blockingAds) {
+                    noteBlocked()
+                    return false
+                }
+                val catcher = WebView(this@WebAppActivity)
+                catcher.webViewClient = object : WebViewClient() {
+                    override fun shouldOverrideUrlLoading(v: WebView, request: WebResourceRequest): Boolean {
+                        val target = request.url.toString()
+                        if (!blockingAds || (sameSite(target, web.url) && !isAdHost(request.url.host))) web.loadUrl(target) else noteBlocked()
+                        v.post { v.destroy() }
+                        return true
+                    }
+                }
+                (resultMsg.obj as WebView.WebViewTransport).webView = catcher
+                resultMsg.sendToTarget()
+                // A window that never goes anywhere is let go after a few seconds
+                web.postDelayed({ runCatching { catcher.destroy() } }, 5000)
+                return true
+            }
+
             override fun onProgressChanged(view: WebView, newProgress: Int) {
                 viewer?.progress = newProgress
             }
@@ -176,6 +226,14 @@ class WebAppActivity : ComponentActivity() {
                 startActivity(Intent(this@WebAppActivity, MainActivity::class.java).putExtra(MainActivity.ExtraAddLink, url).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             }
         }
+    }
+
+    /** Read off the main thread, by the request filter. */
+    @Volatile private var blockingAds = true
+
+    /** One more ad, pop-up or tracker stopped, counted for the menu. */
+    private fun noteBlocked() {
+        runOnUiThread { viewer?.let { it.blocked++ } }
     }
 
     /** A tap's finger is still down on the page. */

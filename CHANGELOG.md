@@ -6,6 +6,7 @@ Pill Launcher is built from `main` on every change; the newest build is always t
 ## 4.1.6 (November 2026)
 
 - **Websites work as on a computer**: the viewer now tells sites it is a computer's Chrome, so they send their full version, made for a mouse, rather than a phone's, whose buttons and carousels waited for a touch screen and didn't respond to the pointer. It is still fitted to the screen.
+- **Ads and pop-ups blocked**: the web viewer loads nothing from known ad, pop-under and tracking networks, lets no page open a new window (a same-site link meant for a new tab opens in place), stops pages sending you to ad networks, and opens other apps only from a press of OK. Its menu counts what was stopped and can allow them on one site.
 - **The TV version fits**: a site's TV version is laid out at a full-HD TV's width (1920 web pixels), the size TV versions are made for, and fitted to the screen.
 
 ## 4.1.5 (November 2026)

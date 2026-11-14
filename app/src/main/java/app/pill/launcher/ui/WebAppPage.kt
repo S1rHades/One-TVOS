@@ -124,6 +124,9 @@ class WebViewer(
     var presses by mutableIntStateOf(0)
         private set
 
+    /** Ads, pop-ups and trackers stopped on this page. */
+    var blocked by mutableIntStateOf(0)
+
     /** Bumped on each click, for the pointer's press. */
     var clicks by mutableIntStateOf(0)
         private set
@@ -396,6 +399,8 @@ fun WebAppPage(viewer: WebViewer, icon: ImageBitmap?, modifier: Modifier = Modif
                         if (s.tvVersion) tr("Ask for the usual version") else tr("Ask for the TV version"),
                         if (s.tvVersion) tr("Now asking for the TV version") else tr("Some sites have one made for a remote"),
                     ) { viewer.change(s.copy(tvVersion = !s.tvVersion)) },
+                    if (s.blockAds) MenuChoice(tr("Blocking ads and pop-ups"), tr("%1\$s stopped here · OK to allow on this site", viewer.blocked)) { viewer.change(s.copy(blockAds = false)) }
+                    else MenuChoice(tr("Ads and pop-ups allowed"), tr("On this site only · OK to block them again")) { viewer.change(s.copy(blockAds = true)) },
                     MenuChoice(tr("Back to the home screen")) { viewer.leave() },
                 ),
                 onDismiss = { viewer.menuClosed() },

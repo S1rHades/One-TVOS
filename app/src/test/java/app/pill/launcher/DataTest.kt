@@ -1274,7 +1274,7 @@ class DataTest {
     /** Web shortcuts keep their settings through the settings file; broken ones are dropped. */
     @Test
     fun webShortcutsAreKept() {
-        val list = listOf(WebShortcut("a1", "Tube", "https://tube.example/tv", tvVersion = true, textZoom = 150, pointer = false, pageZoom = 80), WebShortcut("b2", "News", "https://news.example/"))
+        val list = listOf(WebShortcut("a1", "Tube", "https://tube.example/tv", tvVersion = true, textZoom = 150, pointer = false, pageZoom = 80, blockAds = false), WebShortcut("b2", "News", "https://news.example/"))
         assertEquals(list, parseWebShortcuts(webShortcutsJson(list)))
         assertEquals(list.take(1), parseWebShortcuts(webShortcutsJson(list).replace("news.example", "news example")))
         assertEquals(emptyList<WebShortcut>(), parseWebShortcuts("nonsense"))
@@ -1285,6 +1285,26 @@ class DataTest {
         assertEquals(listOf(1280, 1422, 1600, 1910), listOf(100, 90, 80, 67).map(::fitWidth))
         assertTrue(fitScript(80, 864f).endsWith("})(1600,864.0)"))
         assertTrue(fitScript(100).contains("'width='+window.__pillW"))
+    }
+
+    /** Ad networks are blocked by host, subdomains too; a site's own hosts and look-alikes aren't; sites are told apart. */
+    @Test
+    fun adsAreKnown() {
+        assertTrue(isAdHost("securepubads.g.doubleclick.net"))
+        assertTrue(isAdHost("pagead2.googlesyndication.com"))
+        assertTrue(isAdHost("a.exoclick.com"))
+        assertTrue(isAdHost("POPADS.NET."))
+        assertTrue(isAdHost("cdn.taboola.com"))
+        assertFalse(isAdHost("www.youtube.com"))
+        assertFalse(isAdHost("notdoubleclick.net"))
+        assertFalse(isAdHost("net"))
+        assertFalse(isAdHost(null))
+        assertEquals("example.co.uk", siteOf("www.example.co.uk"))
+        assertEquals("movy.cc", siteOf("api.cdn.movy.cc"))
+        assertEquals("example.com.dz", siteOf("shop.example.com.dz"))
+        assertTrue(sameSite("https://www.movy.cc/a", "https://movy.cc/b"))
+        assertFalse(sameSite("https://movy.cc/", "https://ads.example.com/"))
+        assertFalse(sameSite("https://movy.cc/", null))
     }
 
     /** The viewer hides that it is inside an app, and adds a TV's mark when asked for the TV version. */

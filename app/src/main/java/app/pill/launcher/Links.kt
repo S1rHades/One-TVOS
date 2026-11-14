@@ -44,6 +44,8 @@ data class WebShortcut(
     val pointer: Boolean = true,
     /** How big the page is drawn, in percent: under 100 fits more of a wide page on screen. */
     val pageZoom: Int = 100,
+    /** Block ads, pop-ups and trackers (on unless a site breaks without them). */
+    val blockAds: Boolean = true,
 ) {
     val pkg: String get() = WebPrefix + id
 }
@@ -238,7 +240,7 @@ fun webShortcutsJson(list: List<WebShortcut>): String = JSONArray().apply {
         JSONObject()
             .put("id", s.id).put("name", s.name).put("url", s.url)
             .put("tv", s.tvVersion).put("zoom", s.textZoom).put("pointer", s.pointer)
-            .put("page", s.pageZoom),
+            .put("page", s.pageZoom).put("ads", s.blockAds),
     )
 }.toString()
 
@@ -255,6 +257,7 @@ fun parseWebShortcuts(json: String?): List<WebShortcut> = runCatching {
             textZoom = o.optInt("zoom", 100).coerceIn(100, 175),
             pointer = o.optBoolean("pointer", true),
             pageZoom = o.optInt("page", 100).coerceIn(PageZooms.last(), 100),
+            blockAds = o.optBoolean("ads", true),
         )
     }
 }.getOrDefault(emptyList())
