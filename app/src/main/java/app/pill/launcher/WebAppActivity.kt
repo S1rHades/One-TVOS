@@ -103,7 +103,8 @@ class WebAppActivity : ComponentActivity() {
         settings.useWideViewPort = true
         settings.builtInZoomControls = false
         settings.setSupportMultipleWindows(false)
-        settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+        // As Chrome does: pictures and video a secure page fetches over plain http still show (scripts don't)
+        settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
         CookieManager.getInstance().setAcceptCookie(true)
         CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
         isFocusable = true
@@ -245,7 +246,11 @@ class WebAppActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        if (::web.isInitialized) web.onResume()
+        if (::web.isInitialized) {
+            web.onResume()
+            // Timers (a carousel's turns, a clock) are shared by every page in the app: keep them running
+            web.resumeTimers()
+        }
     }
 
     override fun onDestroy() {
