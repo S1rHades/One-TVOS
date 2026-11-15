@@ -307,7 +307,7 @@ On TVs that ignore that command, turning off the stock launcher works too (turn 
 
 The `latest` release is rebuilt automatically every time `main` changes, so installing it again always gets you the newest version.
 
-Every version also keeps its own release, named after it (**Pill Launcher 4.6**, tag `v4.6`, file `pill-launcher-4.6.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v4.6/pill-launcher-4.6.apk`. The newest is titled **Pill Launcher 4.6 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
+Every version also keeps its own release, named after it (**Pill Launcher 4.6.1**, tag `v4.6.1`, file `pill-launcher-4.6.1.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v4.6.1/pill-launcher-4.6.1.apk`. The newest is titled **Pill Launcher 4.6.1 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
 
 ### Backing up your settings
 
@@ -341,7 +341,7 @@ If the launcher won't open, use the TV's own **Settings → Apps → Pill Launch
 | Files tidying: asking about installed APKs, removing files after 30 days | **Settings → Files** |
 | Hide the text of private messages | **Settings → Notifications → Hide private messages** |
 | Add a website or an app from a link | **Settings → Home screen → Add an app or website**, or **Send a link** on the phone's Files page |
-| In a website's TV app: move between the menu, banner and rows; open; play | Arrows; **OK** on a card; **OK** on **Play** |
+| In a website's TV app: move between the menu, banner and rows; open; play | Arrows; **OK** on a card; **OK** on **Play**, or the remote's ⏯ |
 | In a website's TV app: up a level, or leave | **Back** (row → top of the screen → the screen before → out) |
 | In a website's TV app: switch a row's tab | **Up** from the row to its tabs, **Left** / **Right**, **OK** |
 | In a website's TV app: search the site, sign in | **Search** or **Sign in** at the right of the top line, or the remote's search button |
@@ -508,7 +508,7 @@ gradle :app:testDebugUnitTest --tests '*Screenshots*'  # re-render docs/screensh
 
 **Text and translations.** The code is written in English: anything shown on screen goes through `tr("…")` (with `%1$s`, `%2$s` for values), and `Translations.kt` gives the French and the Arabic for each English text. A test (`everyTextIsTranslated`) reads the source and fails the build when a text has no translation or a translation has the wrong places for its values, so a new text can't ship in English only. Titles that enums carry (widget names, settings pages) translate when read. Rows that run with the reading direction use `rowStep()` for Left / Right, so they work right to left.
 
-**Builds are automated.** `.github/workflows/build.yml` runs every test and then builds the APK for every pull request and push, so a failing test stops a release; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v4.6`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
+**Builds are automated.** `.github/workflows/build.yml` runs every test and then builds the APK for every pull request and push, so a failing test stops a release; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v4.6.1`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a picture left over that nothing renders or shows, a source file missing from Architecture, or a version it doesn't name.
 
 <details>
 <summary><b>Architecture</b></summary>

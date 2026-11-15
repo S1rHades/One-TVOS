@@ -3,6 +3,7 @@
 Checks that:
 - every image the README shows exists;
 - every screenshot the screenshot tests render is shown in the README (or listed below);
+- no picture is left in docs/screenshots that nothing renders or shows;
 - every source file is named in the README's Architecture list;
 - the README and CHANGELOG mention the version in app/build.gradle.kts.
 
@@ -33,6 +34,11 @@ def main() -> int:
     for name in sorted(rendered - NOT_SHOWN):
         if f"docs/screenshots/{name}" not in readme:
             problems.append(f"Screenshot {name} isn't in the README: add it to the section about that feature")
+
+    # A picture nothing renders and the README doesn't show is left over from an older version
+    for png in sorted((ROOT / "docs/screenshots").glob("*.png")):
+        if png.name not in rendered and f"docs/screenshots/{png.name}" not in readme:
+            problems.append(f"docs/screenshots/{png.name} is left over: no test renders it and the README doesn't show it")
 
     arch = re.search(r"<summary><b>Architecture</b></summary>(.*?)</details>", readme, re.S)
     arch_text = arch.group(1) if arch else ""

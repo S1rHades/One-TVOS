@@ -3,6 +3,14 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 4.6.1 (November 2026)
+
+Fixes from a pass over every screen and the remote's moves:
+
+- **Websites' TV apps**: Back on a card's page while it was still loading could let that page take over the first screen when it arrived; the page now stops, and the first screen keeps to its own page once it has been read. The remote's ⏯ plays from a details screen, the banner or a card, as **Play** does (the launcher's player and the page view already answered it).
+- **Files** says "Back to close" in its title for the first few pages opened, as every other page does.
+- **README**: two pictures of the banner-style favourites removed in 3.x were left in `docs/screenshots`; they are gone, and the README check now fails on pictures nothing renders or shows.
+
 ## 4.6 (November 2026)
 
 Updating ends at the launcher:

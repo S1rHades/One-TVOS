@@ -143,7 +143,7 @@ fun FilesPage(
         width = 880.dp,
         framed = false,
     ) { _ ->
-        PageTitle(tr("Files"), tr("From phones and computers on your home network"))
+        PageTitle(tr("Files"), listOfNotNull(tr("From phones and computers on your home network"), backHint()).joinToString(" · "))
         Row(Modifier.fillMaxWidth().height(PageBodyHeight + 30.dp)) {
             PageCard(step = 1, modifier = Modifier.width(290.dp).fillMaxHeight()) {
                 ReceivePanel(state = state, keepReceiving = keepReceiving, onKeepReceiving = onKeepReceiving, keepFocus = keepFocus)

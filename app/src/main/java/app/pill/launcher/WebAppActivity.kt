@@ -500,6 +500,9 @@ class WebAppActivity : ComponentActivity() {
 
         override fun backTo(screen: SiteScreen) {
             val target = screen.scan?.url?.ifBlank { null } ?: screen.url ?: return
+            // A page still coming for the screen just closed stops, so it can't land on this one
+            web.stopLoading()
+            scanGen++
             val now = web.url
             if (now != null && sameUrl(now, target)) return
             val list = web.copyBackForwardList()
