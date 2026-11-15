@@ -104,6 +104,9 @@ class SiteScreen(val url: String?, val preview: SiteCard?, val autoPlay: Boolean
     var scan by mutableStateOf<SiteScan?>(null)
     var kind by mutableStateOf<SiteScreenKind?>(null)
 
+    /** Read from the live page at least once (not only the saved first screen). */
+    var live = false
+
     /**
      * The focused line: on rows, the line along the top (-2), the banner (-1), a row (0…) or
      * a row's tabs ([tabsLine]); on details, the buttons (-1) or a row.
@@ -188,11 +191,13 @@ class TvSite(val name: String, private val actions: SiteActions) {
         val s = top ?: return
         val loading = s.kind == null
         val same = s.scan?.url?.let { sameUrl(it, scan.url) } == true || s.url?.let { sameUrl(it, scan.url) } == true
-        // The first screen takes its page wherever the site sent it (a saved screen for "/" whose page is now "/home", say)
-        if (!loading && !same && !(s.first && stack.size == 1)) return
+        // The first screen, shown from its saved reading, takes its page wherever the site sent it
+        // (a saved screen for "/" whose page is now "/home", say); once read live it keeps to it
+        if (!loading && !same && !(s.first && stack.size == 1 && !s.live)) return
         // A late reading of the screen before this one isn't this one's
         if (loading && stack.size > 1 && stack[stack.size - 2].scan?.url?.let { sameUrl(it, scan.url) } == true && s.url != null && !sameUrl(s.url, scan.url)) return
         show(s, scan)
+        s.live = true
         if (loading) {
             when (s.kind) {
                 SiteScreenKind.Page -> actions.showPage(pop = true)
@@ -300,6 +305,18 @@ class TvSite(val name: String, private val actions: SiteActions) {
         if (down) {
             notice = null
             presses++
+        }
+        // The remote's play key, as OK on Play: on a details screen, or on the banner
+        if ((code == KeyEvent.KEYCODE_MEDIA_PLAY || code == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) && !menuOpen) {
+            val s = top
+            if (down && e.repeatCount == 0 && s != null && !starting) {
+                when {
+                    s.kind == SiteScreenKind.Details -> actions.play(s)
+                    s.kind == SiteScreenKind.Browse && s.line == -1 -> focused(s)?.let { open(it, autoPlay = true) }
+                    s.kind == SiteScreenKind.Browse && s.line >= 0 -> focused(s)?.let { open(it, autoPlay = true) }
+                }
+            }
+            return true
         }
         // The remote's search button
         if (code == KeyEvent.KEYCODE_SEARCH && !menuOpen) {

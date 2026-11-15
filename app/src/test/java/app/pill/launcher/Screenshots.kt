@@ -1902,6 +1902,21 @@ class Screenshots {
         repeat(4) { press(android.view.KeyEvent.KEYCODE_DPAD_DOWN) }
         press(android.view.KeyEvent.KEYCODE_DPAD_CENTER)
         check(acts.left && !site.menuOpen)
+        // Back while a card's page is still coming: its late reading doesn't replace the first screen
+        site.start("https://harbour.example/home", null)
+        site.scanned(home)
+        press(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
+        press(android.view.KeyEvent.KEYCODE_DPAD_CENTER)
+        check(top().kind == null)
+        press(android.view.KeyEvent.KEYCODE_BACK)
+        site.scanned(film)
+        check(site.stack.size == 1 && top().kind == SiteScreenKind.Browse && top().scan?.url == home.url) { "the first screen kept: ${top().scan?.url}" }
+        // The remote's play key on the banner opens it to play, as Play does
+        while (top().line != -1) press(android.view.KeyEvent.KEYCODE_DPAD_UP)
+        val playedBefore = acts.played
+        check(site.key(key(android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)))
+        site.scanned(film)
+        check(top().kind == SiteScreenKind.Details && acts.played == playedBefore + 1) { "the play key plays" }
         // A page with nothing to draw shows the page itself
         site.start("https://harbour.example/home", null)
         site.scanned(SiteScan("https://harbour.example/login", "Harbour TV"))
