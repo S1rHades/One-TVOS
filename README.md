@@ -263,6 +263,10 @@ When a newer Pill Launcher is on GitHub, the notification bar says so, with the 
 
 **Settings → TV & system → Updates** checks by hand, installs from there with the same progress, lists what's new, and turns off the check every few hours.
 
+**While it installs**, the launcher shows a page of its own, **Updating Pill Launcher to …**, rather than leaving you in whatever app was open before: Android has to stop the launcher to replace it. When the new version is in place it opens its home screen by itself and says **Pill Launcher updated to …** at the bottom for a few seconds. **Back** hides the page (the update carries on); cancelling Android's confirmation brings back the update card with what happened. Coming back by itself needs one of the things Autostart needs (Pill Launcher as the Home app, the Home button helper, or Display over other apps; see [Install](#install)); without them, the launcher opens with the next press of **Home**.
+
+<p align="center"><img src="docs/screenshots/updating.png" width="50%" alt="The page shown while the launcher updates itself: a dark blue page with a small blue spinner, Updating Pill Launcher to 9.9, The launcher closes for a moment while Android puts the new version in place, then comes back to the home screen by itself, and If Android asks, choose Install"><br><sub><b>Updating</b>: the launcher's own page while Android replaces it.</sub></p>
+
 <p align="center"><img src="docs/screenshots/settings-updates.png" width="50%" alt="Settings, Updates: Check for updates, Update to 3.4 with its size, Check automatically switched on, and what's new in 3.4"><br><sub><b>Settings → Updates</b>: check, install and what's new.</sub></p>
 
 ### Safe mode
@@ -303,7 +307,7 @@ On TVs that ignore that command, turning off the stock launcher works too (turn 
 
 The `latest` release is rebuilt automatically every time `main` changes, so installing it again always gets you the newest version.
 
-Every version also keeps its own release, named after it (**Pill Launcher 4.5**, tag `v4.5`, file `pill-launcher-4.5.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v4.5/pill-launcher-4.5.apk`. The newest is titled **Pill Launcher 4.5 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
+Every version also keeps its own release, named after it (**Pill Launcher 4.6**, tag `v4.6`, file `pill-launcher-4.6.apk`), so an older version stays downloadable: `https://github.com/S1rHades/One-TVOS/releases/download/v4.6/pill-launcher-4.6.apk`. The newest is titled **Pill Launcher 4.6 (latest)** and holds the same file under its version's name, plus `launcher.apk`, the copy behind the link above that never changes. Releases from 2.5 on are kept; older ones weren't saved.
 
 ### Backing up your settings
 
@@ -362,7 +366,7 @@ If the launcher won't open, use the TV's own **Settings → Apps → Pill Launch
 | Rename an app | App menu → **Rename…**, then **Save** |
 | Flip through a widget stack | With it focused, **Up** / **Down** |
 | Choose and order a widget stack's widgets | **Settings → Widgets → Widget stack**: OK adds or removes one; hold OK, then **Left** / **Right**, moves it |
-| Install a newer version | **OK** on its notice in the notification bar, or **Settings → TV & system → Updates** |
+| Install a newer version | **OK** on its notice in the notification bar, or **Settings → TV & system → Updates** (the launcher comes back to its home screen when it is done) |
 | Choose the town the weather is for | **Settings → Widgets → Weather location**, type its name, then **OK** on it |
 | Change how often the photo changes, or the weather unit | In settings, **Left** / **Right** on that row |
 | Turn widgets on or off | **Settings → Widgets**, **OK** on a widget (up to four at once) |
@@ -504,7 +508,7 @@ gradle :app:testDebugUnitTest --tests '*Screenshots*'  # re-render docs/screensh
 
 **Text and translations.** The code is written in English: anything shown on screen goes through `tr("…")` (with `%1$s`, `%2$s` for values), and `Translations.kt` gives the French and the Arabic for each English text. A test (`everyTextIsTranslated`) reads the source and fails the build when a text has no translation or a translation has the wrong places for its values, so a new text can't ship in English only. Titles that enums carry (widget names, settings pages) translate when read. Rows that run with the reading direction use `rowStep()` for Left / Right, so they work right to left.
 
-**Builds are automated.** `.github/workflows/build.yml` runs every test and then builds the APK for every pull request and push, so a failing test stops a release; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v4.5`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
+**Builds are automated.** `.github/workflows/build.yml` runs every test and then builds the APK for every pull request and push, so a failing test stops a release; builds of `main` publish a release for the version in `app/build.gradle.kts` (for example `v4.6`) and replace the `latest` release. `.github/workflows/screenshots.yml` re-renders the README screenshots at 1920×1080 and commits them; it runs on pushes that change the app, or from the Actions tab. `.github/scripts/check_readme.py` fails the build when this README falls behind the app: a picture that doesn't exist, a rendered screenshot that isn't shown, a source file missing from Architecture, or a version it doesn't name.
 
 <details>
 <summary><b>Architecture</b></summary>
@@ -566,6 +570,7 @@ app/src/main/java/app/pill/launcher/
     SettingsWidgetPages.kt   Settings → Widgets: football teams, headlines, weather location, prayer times, the stack
     SettingsSystemPages.kt   Settings → Notifications, Files, TV & system and Updates
     AddLinkPage.kt       Settings → Home screen → Add an app or website
+    UpdatePage.kt        the page shown while the launcher updates itself, and the note after
     TvSite.kt            a website as a TV app: its screens (rows, details, loading, results), the top line, row tabs, the remote's moves and Back, the menu
     WebAppPage.kt        the page view's remote: the pointer, clicks, scrolling, Back, and its menu
     TvPlayer.kt          the launcher's video player, Netflix-style: controls, the red bar and scrubbing, Audio & Subtitles, Speed

@@ -878,6 +878,12 @@ private fun frenchtext11(m: MutableMap<String, String>) {
     m["More"] = "Plus"
     m["Loading"] = "Chargement"
     m["Starting the video"] = "Lancement de la vidéo"
+    // ui/UpdatePage.kt
+    m["Updating Pill Launcher to %1\$s"] = "Mise à jour de Pill Launcher vers %1\$s"
+    m["Updating Pill Launcher"] = "Mise à jour de Pill Launcher"
+    m["The launcher closes for a moment while Android puts the new version in place, then comes back to the home screen by itself."] = "Le lanceur se ferme un instant pendant qu'Android installe la nouvelle version, puis revient tout seul à l'écran d'accueil."
+    m["If Android asks, choose Install."] = "Si Android le demande, choisissez Installer."
+    m["Pill Launcher updated to %1\$s"] = "Pill Launcher mis à jour vers %1\$s"
     // ui/WeatherWidget.kt
     m["H %1\$s   L %2\$s"] = "Max %1\$s   Min %2\$s"
     // ui/WebAppPage.kt
@@ -1796,6 +1802,12 @@ private fun arabictext11(m: MutableMap<String, String>) {
     m["More"] = "المزيد"
     m["Loading"] = "جارٍ التحميل"
     m["Starting the video"] = "جارٍ تشغيل الفيديو"
+    // ui/UpdatePage.kt
+    m["Updating Pill Launcher to %1\$s"] = "جارٍ تحديث Pill Launcher إلى %1\$s"
+    m["Updating Pill Launcher"] = "جارٍ تحديث Pill Launcher"
+    m["The launcher closes for a moment while Android puts the new version in place, then comes back to the home screen by itself."] = "يُغلق المشغّل لحظة بينما يثبّت Android الإصدار الجديد، ثم يعود إلى الشاشة الرئيسية من تلقاء نفسه."
+    m["If Android asks, choose Install."] = "إذا طلب Android ذلك، اختر تثبيت."
+    m["Pill Launcher updated to %1\$s"] = "تم تحديث Pill Launcher إلى %1\$s"
     // ui/WeatherWidget.kt
     m["H %1\$s   L %2\$s"] = "العظمى %1\$s   الصغرى %2\$s"
     // ui/WebAppPage.kt

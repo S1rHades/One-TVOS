@@ -21,6 +21,7 @@ import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -350,6 +351,8 @@ class MainActivity : ComponentActivity() {
             val updater = remember { Updater(this) }
             val version = remember { runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull() ?: "0" }
             var update by remember { mutableStateOf(UpdateState()) }
+            // Just updated from the launcher itself: said on the home screen for a moment
+            var updatedTo by remember { mutableStateOf(justUpdated()) }
             var updateDismissed by remember { mutableStateOf(store.updateDismissed) }
             var updateJob by remember { mutableStateOf<Job?>(null) }
             val updateScope = rememberCoroutineScope()
@@ -441,169 +444,179 @@ class MainActivity : ComponentActivity() {
             // A launcher never exits on Back
             BackHandler(enabled = true) { }
 
-            LauncherScreen(
-                apps = apps,
-                weather = weather.takeIf { weatherOn },
-                weatherError = weatherError.takeIf { weatherOn },
-                prayers = prayers.takeIf { prayersOn },
-                prayersError = prayersError.takeIf { prayersOn },
-                prayersRefreshing = prayersRefreshing,
-                onRefreshPrayers = { prayerRefresh++ },
-                football = football,
-                news = news.takeIf { newsOn },
-                searchTeams = { query -> withContext(Dispatchers.IO) { findTeams(query) } },
-                searchPlaces = { query -> withContext(Dispatchers.IO) { runCatching { searchPlaces(query) } } },
-                onlinePhotos = onlinePhotos,
-                pins = if (settings.favoritesByUse) orderByUse(pins, uses) else pins,
-                settings = if (safe != null) settings.copy(widgets = emptyList()) else settings,
-                onSettingsChange = {
-                    val languageChanged = it.language != settings.language
-                    settings = it
-                    store.save(it)
-                    // A new language: the screen starts again in it
-                    if (languageChanged) recreate()
-                },
-                onOpen = {
-                    uses = store.addUse(it.pkg)
-                    openApp(it)
-                },
-                onTogglePin = { app ->
-                    pins = if (app.pkg in pins) pins - app.pkg else pins + app.pkg
-                    store.savePins(pins)
-                },
-                homePresses = homePresses,
-                wakes = wakes,
-                home = home,
-                onMakeDefault = { requestDefaultHome() },
-                onHomeHelper = { openAccessibilitySettings() },
-                onAllowAutostart = { requestOverlayPermission() },
-                onSystemSearch = remember { systemSearchIntent() }?.let { search ->
-                    { tryStartActivity(search); Unit }
-                },
-                onMovePin = { app, by ->
-                    val from = pins.indexOf(app.pkg)
-                    val to = (from + by).coerceIn(0, pins.lastIndex)
-                    if (from >= 0 && to != from) {
-                        pins = pins.toMutableList().apply { add(to, removeAt(from)) }
+            androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize()) {
+                LauncherScreen(
+                    apps = apps,
+                    weather = weather.takeIf { weatherOn },
+                    weatherError = weatherError.takeIf { weatherOn },
+                    prayers = prayers.takeIf { prayersOn },
+                    prayersError = prayersError.takeIf { prayersOn },
+                    prayersRefreshing = prayersRefreshing,
+                    onRefreshPrayers = { prayerRefresh++ },
+                    football = football,
+                    news = news.takeIf { newsOn },
+                    searchTeams = { query -> withContext(Dispatchers.IO) { findTeams(query) } },
+                    searchPlaces = { query -> withContext(Dispatchers.IO) { runCatching { searchPlaces(query) } } },
+                    onlinePhotos = onlinePhotos,
+                    pins = if (settings.favoritesByUse) orderByUse(pins, uses) else pins,
+                    settings = if (safe != null) settings.copy(widgets = emptyList()) else settings,
+                    onSettingsChange = {
+                        val languageChanged = it.language != settings.language
+                        settings = it
+                        store.save(it)
+                        // A new language: the screen starts again in it
+                        if (languageChanged) recreate()
+                    },
+                    onOpen = {
+                        uses = store.addUse(it.pkg)
+                        openApp(it)
+                    },
+                    onTogglePin = { app ->
+                        pins = if (app.pkg in pins) pins - app.pkg else pins + app.pkg
                         store.savePins(pins)
-                    }
-                },
-                onRename = { app, name ->
-                    val own = app.originalLabel ?: app.label
-                    names = cleanName(name, own)?.let { names + (app.pkg to it) } ?: (names - app.pkg)
-                    store.saveNames(names)
-                },
-                onUninstall = uninstall@{ app ->
-                    if (app.isWeb) {
-                        // A web shortcut goes at once: nothing is installed
-                        links.remove(app.pkg.removePrefix(WebPrefix))
-                        if (app.pkg in pins) {
-                            pins = pins - app.pkg
+                    },
+                    homePresses = homePresses,
+                    wakes = wakes,
+                    home = home,
+                    onMakeDefault = { requestDefaultHome() },
+                    onHomeHelper = { openAccessibilitySettings() },
+                    onAllowAutostart = { requestOverlayPermission() },
+                    onSystemSearch = remember { systemSearchIntent() }?.let { search ->
+                        { tryStartActivity(search); Unit }
+                    },
+                    onMovePin = { app, by ->
+                        val from = pins.indexOf(app.pkg)
+                        val to = (from + by).coerceIn(0, pins.lastIndex)
+                        if (from >= 0 && to != from) {
+                            pins = pins.toMutableList().apply { add(to, removeAt(from)) }
                             store.savePins(pins)
                         }
-                        if (app.pkg in names) {
-                            names = names - app.pkg
-                            store.saveNames(names)
-                        }
-                        return@uninstall
-                    }
-                    // The system asks to confirm; the app list refreshes when the launcher resumes
-                    tryStartActivity(Intent(Intent.ACTION_DELETE, Uri.parse("package:${app.pkg}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                },
-                onAppInfo = { app ->
-                    tryStartActivity(
-                        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${app.pkg}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                    )
-                },
-                onSystemAction = { action -> runSystemAction(action) },
-                onOpenNetworkSettings = {
-                    // TVs differ in which of these screens they have
-                    listOf(Settings.ACTION_WIFI_SETTINGS, Settings.ACTION_WIRELESS_SETTINGS, Settings.ACTION_SETTINGS)
-                        .firstOrNull { tryStartActivity(Intent(it).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-                },
-                update = update,
-                version = version,
-                updateDismissed = updateDismissed,
-                onCheckUpdate = { updateScope.launch { checkForUpdate() } },
-                onStartUpdate = start@{
-                    val release = update.release ?: return@start
-                    if (busy()) return@start
-                    if (!updater.canInstall()) {
-                        val opened = updater.askToInstall()
-                        update = update.copy(
-                            message = if (opened) tr("Allow Pill Launcher to install apps, then choose Update again")
-                            else tr("Allow it in the TV's Settings → Apps → Special app access → Install unknown apps"),
-                        )
-                        return@start
-                    }
-                    store.pendingNotes = listOf(release.version) + release.notes
-                    updateJob = updateScope.launch {
-                        update = update.copy(phase = UpdatePhase.Downloading, progress = 0f, message = null)
-                        val apk = try {
-                            var shown = 0f
-                            updater.download(release) { p ->
-                                if (p - shown >= 0.01f || p >= 1f) {
-                                    shown = p
-                                    update = update.copy(progress = p)
-                                }
+                    },
+                    onRename = { app, name ->
+                        val own = app.originalLabel ?: app.label
+                        names = cleanName(name, own)?.let { names + (app.pkg to it) } ?: (names - app.pkg)
+                        store.saveNames(names)
+                    },
+                    onUninstall = uninstall@{ app ->
+                        if (app.isWeb) {
+                            // A web shortcut goes at once: nothing is installed
+                            links.remove(app.pkg.removePrefix(WebPrefix))
+                            if (app.pkg in pins) {
+                                pins = pins - app.pkg
+                                store.savePins(pins)
                             }
-                        } catch (e: CancellationException) {
-                            update = update.copy(phase = UpdatePhase.Available, progress = 0f)
-                            throw e
-                        } catch (e: Exception) {
-                            update = update.copy(phase = UpdatePhase.Failed, message = tr("Couldn't download it: ") + updateProblem(e))
-                            return@launch
+                            if (app.pkg in names) {
+                                names = names - app.pkg
+                                store.saveNames(names)
+                            }
+                            return@uninstall
                         }
-                        update = update.copy(phase = UpdatePhase.Installing, progress = 1f)
-                        // Android's installer in the background, else its own install screen
-                        val started = runCatching { updater.install(apk) }
-                        if (started.isFailure && !updater.installWithSystemScreen(apk)) {
-                            update = update.copy(phase = UpdatePhase.Failed, message = tr("Couldn't start the install: ") + updateProblem(started.exceptionOrNull()!!))
-                        }
-                    }
-                },
-                onCancelUpdate = { updateJob?.cancel() },
-                onLaterUpdate = {
-                    updateDismissed = update.release?.version
-                    store.updateDismissed = updateDismissed
-                },
-                notices = (notices + appNotices).sortedByDescending { it.at },
-                noticesSeen = noticesSeen,
-                onNoticesSeen = {
-                    noticesSeen = System.currentTimeMillis()
-                    store.noticesSeen = noticesSeen
-                },
-                onPostNotice = { postNotice(it) },
-                onDismissNotice = { n ->
-                    if (n.kind == NoticeKind.App) {
-                        NotificationWatcher.dismiss(n)
-                    } else {
-                        notices = notices.filter { it.id != n.id }
-                        store.saveNotices(notices)
-                    }
-                },
-                onOpenAppNotice = { NotificationWatcher.open(this, it) },
-                noticeAccess = noticeAccess,
-                onNoticeAccess = { NotificationWatcher.askForAccess(this) },
-                share = share.takeIf { safe == null },
-                links = links.takeIf { safe == null },
-                onOpenFile = { file -> openFile(file, updater) },
-                safeMode = safe,
-                onTryNormally = {
-                    crashGuard.clear()
-                    safeMode = null
-                    recreate()
-                },
-                onOpenSystemSettings = {
-                    try {
-                        startActivity(
-                            Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                        // The system asks to confirm; the app list refreshes when the launcher resumes
+                        tryStartActivity(Intent(Intent.ACTION_DELETE, Uri.parse("package:${app.pkg}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                    },
+                    onAppInfo = { app ->
+                        tryStartActivity(
+                            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${app.pkg}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                         )
-                    } catch (e: ActivityNotFoundException) {
-                        // no settings app available
-                    }
-                },
-            )
+                    },
+                    onSystemAction = { action -> runSystemAction(action) },
+                    onOpenNetworkSettings = {
+                        // TVs differ in which of these screens they have
+                        listOf(Settings.ACTION_WIFI_SETTINGS, Settings.ACTION_WIRELESS_SETTINGS, Settings.ACTION_SETTINGS)
+                            .firstOrNull { tryStartActivity(Intent(it).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                    },
+                    update = update,
+                    version = version,
+                    updateDismissed = updateDismissed,
+                    onCheckUpdate = { updateScope.launch { checkForUpdate() } },
+                    onStartUpdate = start@{
+                        val release = update.release ?: return@start
+                        if (busy()) return@start
+                        if (!updater.canInstall()) {
+                            val opened = updater.askToInstall()
+                            update = update.copy(
+                                message = if (opened) tr("Allow Pill Launcher to install apps, then choose Update again")
+                                else tr("Allow it in the TV's Settings → Apps → Special app access → Install unknown apps"),
+                            )
+                            return@start
+                        }
+                        store.pendingNotes = listOf(release.version) + release.notes
+                        updateJob = updateScope.launch {
+                            update = update.copy(phase = UpdatePhase.Downloading, progress = 0f, message = null)
+                            val apk = try {
+                                var shown = 0f
+                                updater.download(release) { p ->
+                                    if (p - shown >= 0.01f || p >= 1f) {
+                                        shown = p
+                                        update = update.copy(progress = p)
+                                    }
+                                }
+                            } catch (e: CancellationException) {
+                                update = update.copy(phase = UpdatePhase.Available, progress = 0f)
+                                throw e
+                            } catch (e: Exception) {
+                                update = update.copy(phase = UpdatePhase.Failed, message = tr("Couldn't download it: ") + updateProblem(e))
+                                return@launch
+                            }
+                            update = update.copy(phase = UpdatePhase.Installing, progress = 1f)
+                            // Noted, so the new launcher opens its home screen once Android has put it in place
+                            SelfUpdate.started(this@MainActivity, release.version)
+                            // Android's installer in the background, else its own install screen
+                            val started = runCatching { updater.install(apk) }
+                            if (started.isFailure && !updater.installWithSystemScreen(apk)) {
+                                SelfUpdate.clear(this@MainActivity)
+                                update = update.copy(phase = UpdatePhase.Failed, message = tr("Couldn't start the install: ") + updateProblem(started.exceptionOrNull()!!))
+                            }
+                        }
+                    },
+                    onCancelUpdate = { updateJob?.cancel() },
+                    onLaterUpdate = {
+                        updateDismissed = update.release?.version
+                        store.updateDismissed = updateDismissed
+                    },
+                    notices = (notices + appNotices).sortedByDescending { it.at },
+                    noticesSeen = noticesSeen,
+                    onNoticesSeen = {
+                        noticesSeen = System.currentTimeMillis()
+                        store.noticesSeen = noticesSeen
+                    },
+                    onPostNotice = { postNotice(it) },
+                    onDismissNotice = { n ->
+                        if (n.kind == NoticeKind.App) {
+                            NotificationWatcher.dismiss(n)
+                        } else {
+                            notices = notices.filter { it.id != n.id }
+                            store.saveNotices(notices)
+                        }
+                    },
+                    onOpenAppNotice = { NotificationWatcher.open(this@MainActivity, it) },
+                    noticeAccess = noticeAccess,
+                    onNoticeAccess = { NotificationWatcher.askForAccess(this@MainActivity) },
+                    share = share.takeIf { safe == null },
+                    links = links.takeIf { safe == null },
+                    onOpenFile = { file -> openFile(file, updater) },
+                    safeMode = safe,
+                    onTryNormally = {
+                        crashGuard.clear()
+                        safeMode = null
+                        recreate()
+                    },
+                    onOpenSystemSettings = {
+                        try {
+                            startActivity(
+                                Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                            )
+                        } catch (e: ActivityNotFoundException) {
+                            // no settings app available
+                        }
+                    },
+                )
+                // While Android installs an update of the launcher: a page of its own, until the new one opens
+                if (update.phase == UpdatePhase.Installing) {
+                    app.pill.launcher.ui.UpdatingPage(update.release?.version, onHide = { update = update.copy(phase = UpdatePhase.Available) })
+                }
+                updatedTo?.let { v -> app.pill.launcher.ui.UpdatedNotice(v) { updatedTo = null } }
+            }
         }
     }
 
@@ -628,6 +641,16 @@ class MainActivity : ComponentActivity() {
             Intent(Intent.ACTION_VIEW).setDataAndType(uri, type).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK),
         )
         return if (opened) null else tr("No app on this TV opens .%1\$s files", ext)
+    }
+
+    /** The version the launcher was just updated to from itself, once; null otherwise. */
+    private fun justUpdated(): String? {
+        val pending = SelfUpdate.pending(this) ?: return null
+        val now = runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull()
+        // Still the old version: the update hasn't happened (yet)
+        if (now != pending) return null
+        SelfUpdate.clear(this)
+        return pending
     }
 
     // singleTask: pressing Home while the launcher exists arrives here
@@ -813,6 +836,9 @@ class MainActivity : ComponentActivity() {
     companion object {
         /** A link to add (an app a site offered in the web viewer), sent to the launcher. */
         const val ExtraAddLink = "addLink"
+
+        /** Opened by the new launcher's first start after an update from itself. */
+        const val ExtraUpdated = "updated"
     }
 
 }
