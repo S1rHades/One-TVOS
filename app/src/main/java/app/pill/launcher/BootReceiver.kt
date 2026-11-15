@@ -5,7 +5,9 @@ import android.content.Context
 import android.content.Intent
 
 /**
- * Opens the launcher when the TV finishes starting up, if Autostart is on.
+ * Opens the launcher when the TV finishes starting up, if Autostart is on, and when an
+ * update of the launcher has just been installed from it ([SelfUpdate]), so the TV comes
+ * back to the launcher's home screen rather than the app open before.
  *
  * Android 10+ only lets an app open itself from the background when it is the default
  * home screen, has the Home button helper (an accessibility service) on, or may display
@@ -13,6 +15,10 @@ import android.content.Intent
  */
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action == Intent.ACTION_MY_PACKAGE_REPLACED) {
+            if (SelfUpdate.pending(context) != null) SelfUpdate.openHome(context)
+            return
+        }
         if (intent.action !in BootActions) return
         if (!SettingsStore(context).load().autostart) return
         runCatching {

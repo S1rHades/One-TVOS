@@ -3,6 +3,13 @@
 Pill Launcher is built from `main` on every change; the newest build is always the
 [`latest` release](https://github.com/S1rHades/One-TVOS/releases/tag/latest).
 
+## 4.6 (November 2026)
+
+Updating ends at the launcher:
+
+- **A page while it updates**: once an update is downloaded and handed to Android, the launcher shows **Updating Pill Launcher to …** full screen (Back hides it), instead of dropping back to the app that was open before when Android stops the launcher to replace it.
+- **Back to the home screen by itself**: the update is noted when it starts; the new version opens its home screen as soon as Android has put it in place (when it is told the app was replaced, or when the Home button helper comes back), and says **Pill Launcher updated to …** for a few seconds. A cancelled or failed install forgets it.
+
 ## 4.5 (November 2026)
 
 Websites' TV apps, fixed on a real site:

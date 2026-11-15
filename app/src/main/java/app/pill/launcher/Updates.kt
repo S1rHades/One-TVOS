@@ -259,14 +259,18 @@ class InstallResultReceiver : BroadcastReceiver() {
                     .onFailure { problems.value = tr("Android couldn't show the install screen") }
             }
             PackageInstaller.STATUS_SUCCESS -> problems.value = null
-            PackageInstaller.STATUS_FAILURE_ABORTED, PackageInstaller.STATUS_FAILURE_CONFLICT, PackageInstaller.STATUS_FAILURE_STORAGE ->
+            PackageInstaller.STATUS_FAILURE_ABORTED, PackageInstaller.STATUS_FAILURE_CONFLICT, PackageInstaller.STATUS_FAILURE_STORAGE -> {
+                // Cancelled or failed: the launcher stays as it is, with nothing to come back to
+                if (self) SelfUpdate.clear(context)
                 problems.value = problem(status)
+            }
             else -> {
                 // Some TVs refuse background installs: Android's own install screen may still work
                 val apk = intent.getStringExtra(ExtraApk)?.let(::File)?.takeIf { it.exists() }
                     ?: File(context.cacheDir, "updates").listFiles()?.maxByOrNull { it.lastModified() }
                 val opened = apk != null && Updater(context).installWithSystemScreen(apk)
                 if (!opened) {
+                    if (self) SelfUpdate.clear(context)
                     val detail = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)?.take(80)
                     problems.value = problem(status) + (detail?.let { " ($it)" } ?: "")
                 }
@@ -308,5 +312,49 @@ fun updateProblem(e: Throwable): String {
         e is javax.net.ssl.SSLException -> tr("a secure connection to GitHub failed")
         e is SecurityException -> tr("Android didn't allow it")
         else -> (e.message?.takeIf { it.isNotBlank() } ?: name).take(80)
+    }
+}
+
+/**
+ * An update of the launcher itself, while Android installs it: Android stops the launcher to
+ * replace it, and the TV would then show whatever app was open before. The update is noted
+ * here when it starts, so the new launcher opens itself as soon as it is in place (from
+ * [BootReceiver] on "app replaced", or the Home button helper when it comes back), and says
+ * on its home screen that it was updated.
+ */
+object SelfUpdate {
+    private const val Prefs = "selfupdate"
+
+    /** An update older than this that never finished is forgotten. */
+    private const val StaleMs = 30 * 60_000L
+
+    fun started(context: Context, version: String) {
+        context.getSharedPreferences(Prefs, Context.MODE_PRIVATE).edit()
+            .putString("version", version).putLong("at", System.currentTimeMillis()).commit()
+    }
+
+    /** The version an update is installing, while one is under way. */
+    fun pending(context: Context): String? {
+        val p = context.getSharedPreferences(Prefs, Context.MODE_PRIVATE)
+        val at = p.getLong("at", 0L)
+        if (System.currentTimeMillis() - at > StaleMs) return null
+        return p.getString("version", null)
+    }
+
+    fun clear(context: Context) {
+        context.getSharedPreferences(Prefs, Context.MODE_PRIVATE).edit().clear().commit()
+    }
+
+    /** Opens the launcher's home screen, after an update put the new launcher in place. */
+    fun openHome(context: Context) {
+        runCatching {
+            context.startActivity(
+                Intent(context, MainActivity::class.java)
+                    .setAction(Intent.ACTION_MAIN)
+                    .addCategory(Intent.CATEGORY_HOME)
+                    .putExtra(MainActivity.ExtraUpdated, true)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED),
+            )
+        }
     }
 }

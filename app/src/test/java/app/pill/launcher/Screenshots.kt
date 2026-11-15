@@ -1908,6 +1908,36 @@ class Screenshots {
         check(acts.pages.last()) { "the page, closing its screen on Back" }
     }
 
+    /**
+     * Updating the launcher from itself: its own page while Android replaces it (Back hides
+     * it), the update noted so the new launcher opens its home screen, and the note on the
+     * home screen once it has.
+     */
+    @Test
+    fun updatingPage() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        SelfUpdate.started(context, "9.9")
+        check(SelfUpdate.pending(context) == "9.9") { "the update is noted" }
+        var hidden = false
+        var notice by androidx.compose.runtime.mutableStateOf<String?>(null)
+        compose.setContent {
+            androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize()) {
+                if (!hidden) app.pill.launcher.ui.UpdatingPage("9.9", onHide = { hidden = true })
+                notice?.let { app.pill.launcher.ui.UpdatedNotice(it) { notice = null } }
+            }
+        }
+        settle()
+        compose.onNodeWithText("Updating Pill Launcher to 9.9").assertIsDisplayed()
+        captureScreenRoboImage(File(out, "updating.png").path)
+        // A cancelled install forgets it
+        SelfUpdate.clear(context)
+        check(SelfUpdate.pending(context) == null)
+        hidden = true
+        notice = "9.9"
+        settle()
+        compose.onNodeWithText("Pill Launcher updated to 9.9").assertIsDisplayed()
+    }
+
     private val beniSaf = Place("Beni Saf", "Aïn Témouchent", "Algeria", 35.30099, -1.38226)
 
     /** Settings → Widgets → Weather location: Automatic, or a town found by name. */

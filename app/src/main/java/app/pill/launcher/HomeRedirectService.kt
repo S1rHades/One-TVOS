@@ -18,6 +18,8 @@ class HomeRedirectService : AccessibilityService() {
 
     override fun onServiceConnected() {
         stockHomes = otherHomePackages() + KnownTvLaunchers
+        // Back after an update of the launcher (Android stops the helper while replacing it)
+        if (SelfUpdate.pending(this) != null) SelfUpdate.openHome(this)
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
